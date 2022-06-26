@@ -10,9 +10,11 @@ type (
 	stream[T any] struct {
 		wrks chan struct{}
 		dt   []T
+		dtMu sync.Mutex
 		bm   tools.Bitmask
 		bmMu sync.Mutex
 		eq   func(a, b T) bool
+		fns  []func([]T, int)
 	}
 
 	StreamI[T any] interface {
@@ -61,11 +63,36 @@ func (st *stream[T]) Trim(n uint) StreamI[T] {
 	return st
 }
 
-func (st *stream[T]) Map(func(T) T) StreamI[T] {
+func (st *stream[T]) Map(fn func(T) T) StreamI[T] {
+	st.fns = append(st.fns, func(dt []T, _ int) {
+		<-st.wrks
+
+		for i := range dt {
+			dt[i] = fn(dt[i])
+		}
+
+		st.wrks <- struct{}{}
+	})
 	return st
 }
 
-func (st *stream[T]) Filter(func(T) bool) StreamI[T] {
+func (st *stream[T]) Filter(fn func(T) bool) StreamI[T] {
+	st.fns = append(st.fns, func(dt []T, offset int) {
+		<-st.wrks
+
+		res := make([]bool, len(dt))
+		for i := range dt {
+			res[i] = fn(dt[i])
+		}
+
+		st.bmMu.Lock()
+		for i := range res {
+			st.bm.Put(uint(offset+i), res[i])
+		}
+		st.bmMu.Unlock()
+
+		st.wrks <- struct{}{}
+	})
 	return st
 }
 
