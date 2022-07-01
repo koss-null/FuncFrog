@@ -1,6 +1,7 @@
 package stream_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/koss-null/lambda-go/pkg/stream"
@@ -16,8 +17,11 @@ func genArray[T any](n uint, fn func(i uint) T) []T {
 	return a
 }
 
+var ar = genArray(1_000_000, func(i uint) int { return int(i) })
+
+// var ar = genArray(300, func(i uint) int { return int(i) })
+
 func Test_Slice(t *testing.T) {
-	ar := genArray(1_000_000, func(i uint) int { return int(i) })
 	arFromSlice := stream.S(ar).Slice()
 	assert.Equal(t, len(ar), len(arFromSlice))
 	for i := 0; i < len(ar); i++ {
@@ -26,11 +30,21 @@ func Test_Slice(t *testing.T) {
 }
 
 func Test_Skip(t *testing.T) {
-	ar := genArray(10, func(i uint) int { return int(i) })
-	changed := stream.S(ar).Skip(2).Slice()
-	assert.Equal(t, len(ar)-2, len(changed))
-	arTr := ar[2:]
+	changed := stream.S(ar).Skip(200).Slice()
+	assert.Equal(t, len(ar)-200, len(changed))
+	arTr := ar[200:]
 	for i := 0; i < len(changed); i++ {
 		require.Equal(t, arTr[i], changed[i])
 	}
+}
+
+func Test_Map(t *testing.T) {
+	changed := stream.S(ar).
+		Map(func(i int) int { return 2 * i }).
+		Slice()
+	fmt.Println(changed)
+	for i := 0; i < len(changed); i++ {
+		require.Equal(t, changed[i], ar[i]*2)
+	}
+	require.True(t, false)
 }
