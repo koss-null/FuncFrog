@@ -17,9 +17,9 @@ func genArray[T any](n uint, fn func(i uint) T) []T {
 	return a
 }
 
-var ar = genArray(1_000_000, func(i uint) int { return int(i) })
+// var ar = genArray(1_000_000, func(i uint) int { return int(i) })
 
-// var ar = genArray(300, func(i uint) int { return int(i) })
+var ar = genArray(300, func(i uint) int { return int(i) })
 
 func Test_Slice(t *testing.T) {
 	arFromSlice := stream.S(ar).Slice()
@@ -42,9 +42,32 @@ func Test_Map(t *testing.T) {
 	changed := stream.S(ar).
 		Map(func(i int) int { return 2 * i }).
 		Slice()
-	fmt.Println(changed)
 	for i := 0; i < len(changed); i++ {
-		require.Equal(t, changed[i], ar[i]*2)
+		require.Equal(t, ar[i]*2, changed[i])
 	}
-	require.True(t, false)
+}
+
+func Test_Filter(t *testing.T) {
+	changed := stream.S(ar).
+		Filter(func(i int) bool { return i%2 == 0 }).
+		Slice()
+	for i := 0; i < len(changed); i += 2 {
+		require.Equal(t, ar[i], changed[i/2])
+	}
+}
+
+func Test_Fun(t *testing.T) {
+	cnt := uint(0)
+	changed := stream.S(make([]uint, 1000)).
+		Map(func(x uint) uint {
+			defer func() { cnt++ }()
+			return cnt * (cnt + 1)
+		}). // generating a sequence this way
+		Filter(func(x uint) bool { return x%2 == 0 }).
+		Filter(func(x uint) bool { return x%3 == 0 }).
+		Filter(func(x uint) bool { return x > 50 && x < 200 }).
+		Skip(1).
+		Slice()
+	fmt.Println(changed)
+	require.Equal(t, false, true)
 }

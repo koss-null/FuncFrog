@@ -16,7 +16,7 @@ type (
 		wrksLen uint
 		dt      []T
 		dtMu    sync.Mutex
-		bm      tools.Bitmask
+		bm      *tools.Bitmask
 		bmMu    sync.Mutex
 		eq      func(a, b T) bool
 		fns     []func([]T, int)
@@ -70,7 +70,7 @@ func Stream[T any](data []T) StreamI[T] {
 	workers <- struct{}{}
 	bm := tools.Bitmask{}
 	bm.PutLine(0, uint(len(data)), true)
-	return &stream[T]{wrks: workers, wrksLen: 1, dt: dtCopy, bm: bm}
+	return &stream[T]{wrks: workers, wrksLen: 1, dt: dtCopy, bm: &bm}
 }
 
 // S is a shortened Stream
@@ -86,8 +86,9 @@ func (st *stream[T]) Skip(n uint) StreamI[T] {
 			st.wrks <- struct{}{}
 			return
 		}
+
 		st.bmMu.Lock()
-		st.bm.PutLine(0, n, false)
+		_ = st.bm.CaSBorder(0, true, n)
 		st.bmMu.Unlock()
 
 		st.wrks <- struct{}{}
@@ -116,14 +117,20 @@ func (st *stream[T]) Filter(fn func(T) bool) StreamI[T] {
 	st.fns = append(st.fns, func(dt []T, offset int) {
 		<-st.wrks
 
+		bm := st.bm.Copy(uint(offset), uint(offset+len(dt)))
 		res := make([]bool, len(dt))
 		for i := range dt {
-			res[i] = fn(dt[i])
+			if bm.Get(uint(offset + i)) {
+				res[i] = fn(dt[i])
+			}
 		}
 
 		st.bmMu.Lock()
 		for i := range res {
-			st.bm.Put(uint(offset+i), res[i])
+			// Filter does not add already removed items
+			if !res[i] && bm.Get(uint(offset+i)) {
+				st.bm.Put(uint(offset+i), false)
+			}
 		}
 		st.bmMu.Unlock()
 
