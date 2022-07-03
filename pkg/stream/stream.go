@@ -38,13 +38,15 @@ type (
 		Filter(func(T) bool) StreamI[T]
 		// Sorted sotrs the underlying array
 		Sorted(less func(a, b T) bool) StreamI[T]
-		// Cmp sets compare function
-		Cmp(eq func(a, b T) bool) StreamI[T]
+		// Split splits initial slice into multiple
+		Split(func(a T) []T) StreamI[T]
 
 		// Config functions
 		// Go splits execution into n goroutines, if multiple Go functions are along
 		// the stream pipeline, it applies as soon as it's met in the sequence
 		Go(n uint) StreamI[T]
+		// Cmp sets compare function
+		Cmp(eq func(a, b T) bool) StreamI[T]
 
 		// Final functions (which does not return the stream)
 		// Slice returns resulting slice
@@ -80,10 +82,13 @@ func S[T any](data []T) StreamI[T] {
 
 func (st *stream[T]) Skip(n uint) StreamI[T] {
 	st.fns = append(st.fns, func(dt []T, offset int) {
+		if offset != 0 {
+			return
+		}
+
 		<-st.wrks
 
 		if offset != 0 {
-			st.wrks <- struct{}{}
 			return
 		}
 
@@ -161,6 +166,11 @@ func (st *stream[T]) Go(n uint) StreamI[T] {
 
 func (st *stream[T]) Cmp(eq func(a, b T) bool) StreamI[T] {
 	st.eq = eq
+	return st
+}
+
+func (st *stream[T]) Split(sp func(T) []T) StreamI[T] {
+	// TODO: implement
 	return st
 }
 

@@ -19,7 +19,6 @@ type Bitmask struct {
 }
 
 func (bm *Bitmask) Put(place uint, val bool) {
-	fmt.Println(place, val)
 	if place/maskElemLen > uint(len(bm.mask)) {
 		// it's funny, but it seems we can do like this
 		// (don't insert 0 if no place for it yet)
@@ -37,11 +36,11 @@ func (bm *Bitmask) Put(place uint, val bool) {
 		return
 	}
 
-	fmt.Printf("before %b\n", bm.mask[place/maskElemLen])
+	// fmt.Printf("before %b\n", bm.mask[place/maskElemLen])
 	// here we know that on place position there is 1 and val is false, so:
 	bm.mask[place/maskElemLen] |= 1 << (place % maskElemLen)
 	bm.mask[place/maskElemLen] -= 1 << (place % maskElemLen)
-	fmt.Printf(" after %b\n", bm.mask[place/maskElemLen])
+	// fmt.Printf(" after %b\n", bm.mask[place/maskElemLen])
 }
 
 // PutLine does Put for the elements in range [lf, rg) with the val
@@ -56,32 +55,33 @@ func (bm *Bitmask) PutLine(lf, rg uint, val bool) {
 
 	lfBlock := lf / maskElemLen
 	rgBlock := rg / maskElemLen
+	lfm, rgm := lf%maskElemLen, rg%maskElemLen
 
 	for rgBlock >= uint(len(bm.mask)) {
 		bm.mask = append(bm.mask, 0)
 	}
 	if val {
 		if lfBlock == rgBlock {
-			for place := lf; place < rg; place++ {
-				bm.mask[lfBlock] |= 1 << (place % maskElemLen)
+			for place := lfm; place < rgm; place++ {
+				bm.mask[lfBlock] |= 1 << place
 			}
 			return
 		}
 
-		for place := lf; place < maskElemLen; place++ {
+		for place := lfm; place < maskElemLen; place++ {
 			bm.mask[lfBlock] |= 1 << place
 		}
 		for block := lfBlock + 1; block < rgBlock; block++ {
 			bm.mask[block] = u64max
 		}
-		for place := u0; place < rg%maskElemLen; place++ {
+		for place := u0; place < rgm; place++ {
 			bm.mask[rgBlock] |= 1 << place
 		}
 		return
 	}
 
 	if lfBlock == rgBlock {
-		for place := lf; place < rg; place++ {
+		for place := lfm; place < rgm; place++ {
 			bm.mask[lfBlock] |= 1 << place
 			bm.mask[lfBlock] -= 1 << place
 		}
@@ -89,15 +89,15 @@ func (bm *Bitmask) PutLine(lf, rg uint, val bool) {
 	}
 
 	// can do it faster
-	for place := lf; place < maskElemLen; place++ {
+	for place := lfm; place < maskElemLen; place++ {
 		bm.mask[lfBlock] |= 1 << place
 		bm.mask[lfBlock] -= 1 << place
 	}
 	for block := lfBlock + 1; block < rgBlock; block++ {
 		bm.mask[block] = 0
 	}
-	for place := u0; place < rg%maskElemLen; place++ {
-		bm.mask[lfBlock] |= 1 << place
+	for place := u0; place < rgm; place++ {
+		bm.mask[rgBlock] |= 1 << place
 		bm.mask[rgBlock] -= 1 << place
 	}
 	return
@@ -144,6 +144,7 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 
 	lfBlock := lf / maskElemLen
 	rgBlock := rg / maskElemLen
+	lfm, rgm := lf%maskElemLen, rg%maskElemLen
 	if rgBlock >= uint(len(bm.mask)) {
 		return 0
 	}
@@ -151,31 +152,35 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 	cnt := 0
 	if src {
 		if lfBlock == rgBlock {
-			for place := lf; place < rg; place++ {
-				maskBit := (bm.mask[lfBlock]>>(place%maskElemLen))&1 == 1
-				if maskBit == src {
-					bm.mask[lfBlock] |= 1 << (place % maskElemLen)
+			for place := lfm; place < rgm; place++ {
+				fmt.Printf("bitmask %b\n", bm.mask[lfBlock])
+				maskBit := (bm.mask[lfBlock]>>place)&1 == 1
+				if maskBit {
+					bm.mask[lfBlock] |= 1 << place
+					bm.mask[lfBlock] -= 1 << place
 					cnt++
 				}
+				return cnt
 			}
-			return cnt
 		}
 
-		for place := lf; place < maskElemLen; place++ {
-			maskBit := (bm.mask[lfBlock]>>place)&1 == 1
+		for place := lfm; place < maskElemLen; place++ {
+			maskBit := (bm.mask[lfBlock]>>(place%maskElemLen))&1 == 1
 			if maskBit {
 				bm.mask[lfBlock] |= 1 << place
+				bm.mask[lfBlock] -= 1 << place
 				cnt++
 			}
 		}
 		for block := lfBlock + 1; block < rgBlock; block++ {
+			bm.mask[block] = 0
 			cnt += bits.OnesCount64(bm.mask[block])
-			bm.mask[block] = u64max
 		}
-		for place := u0; place < rg%maskElemLen; place++ {
-			maskBit := (bm.mask[lfBlock]>>place)&1 == 1
+		for place := u0; place < rgm; place++ {
+			maskBit := (bm.mask[rgBlock]>>(place%maskElemLen))&1 == 1
 			if maskBit {
 				bm.mask[rgBlock] |= 1 << place
+				bm.mask[rgBlock] -= 1 << place
 				cnt++
 			}
 		}
@@ -183,28 +188,36 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 	}
 
 	if lfBlock == rgBlock {
-		for place := lf; place < rg; place++ {
-			bm.mask[lfBlock] |= 1 << place
-			bm.mask[lfBlock] -= 1 << place
-			cnt++
+		for place := lfm; place < rgm; place++ {
+			maskBit := (bm.mask[lfBlock]>>(place%maskElemLen))&1 == 0
+			if maskBit == src {
+				bm.mask[lfBlock] |= 1 << place
+				cnt++
+			}
 		}
 		return cnt
 	}
 
 	// can do it faster
-	for place := lf; place < maskElemLen; place++ {
-		bm.mask[lfBlock] |= 1 << place
-		bm.mask[lfBlock] -= 1 << place
-		cnt++
+	for place := lfm; place < maskElemLen; place++ {
+		maskBit := (bm.mask[lfBlock]>>place)&1 == 0
+		if maskBit {
+			bm.mask[lfBlock] |= 1 << place
+			cnt++
+		}
+
 	}
 	for block := lfBlock + 1; block < rgBlock; block++ {
-		cnt += bits.OnesCount64(bm.mask[block])
-		bm.mask[block] = 0
+		cnt += (maskElemLen - bits.OnesCount64(bm.mask[block]))
+		bm.mask[block] = u64max
 	}
-	for place := u0; place < rg%maskElemLen; place++ {
-		bm.mask[lfBlock] |= 1 << place
-		bm.mask[rgBlock] -= 1 << place
-		cnt++
+	for place := u0; place < rgm; place++ {
+		maskBit := (bm.mask[lfBlock]>>place)&1 == 0
+		if maskBit {
+			bm.mask[rgBlock] |= 1 << place
+			cnt++
+		}
+
 	}
 	return cnt
 }
@@ -213,16 +226,22 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 // changes to !src if the val is equal. runs until th changes is done
 // returns true if the threshold achieved
 func (bm *Bitmask) CaSBorder(lf uint, src bool, th uint) bool {
-	lfBlock := lf / maskElemLen
-	if lfBlock >= uint(len(bm.mask)) {
+	if th == 0 {
 		return false
+	}
+
+	lfBlock := lf / maskElemLen
+	if lfBlock > uint(len(bm.mask)) {
+		lfBlock = uint(len(bm.mask))
 	}
 
 	var cnt uint
 	left, right := lf, lf+th
+	// FIXME: step depends on th
 	for uint(cnt) != th && right/maskElemLen < uint(len(bm.mask)) {
+		fmt.Println("cas line", left, right, src)
 		cnt += uint(bm.CaSLine(left, right, src))
-		left, right = right, right+th-cnt
+		left, right = right, right+th-cnt+1
 	}
 	return uint(cnt) == th
 }
