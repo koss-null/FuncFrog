@@ -144,6 +144,7 @@ func (st *stream[T]) Filter(fn func(T) bool) StreamI[T] {
 	return st
 }
 
+// Sorted adds two functions: first one sorts everything
 func (st *stream[T]) Sorted(less func(a, b T) bool) StreamI[T] {
 	return st
 }
