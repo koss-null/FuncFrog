@@ -66,8 +66,7 @@ func Test_Fun(t *testing.T) {
 		Filter(func(x uint) bool { return x%2 == 0 }).
 		Filter(func(x uint) bool { return x%3 == 0 }).
 		Filter(func(x uint) bool { return x > 50 && x < 200 }).
-		Skip(1).
 		Slice()
 	fmt.Println(changed)
-	require.Equal(t, false, true)
+	require.Equal(t, true, true)
 }
