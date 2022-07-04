@@ -1,7 +1,6 @@
 package stream_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/koss-null/lambda-go/pkg/stream"
@@ -56,17 +55,17 @@ func Test_Filter(t *testing.T) {
 	}
 }
 
-func Test_Fun(t *testing.T) {
-	cnt := uint(0)
-	changed := stream.S(make([]uint, 1000)).
-		Map(func(x uint) uint {
-			defer func() { cnt++ }()
-			return cnt * (cnt + 1)
-		}). // generating a sequence this way
-		Filter(func(x uint) bool { return x%2 == 0 }).
-		Filter(func(x uint) bool { return x%3 == 0 }).
-		Filter(func(x uint) bool { return x > 50 && x < 200 }).
-		Slice()
-	fmt.Println(changed)
-	require.Equal(t, true, true)
-}
+// func Test_Fun(t *testing.T) {
+// 	cnt := uint(0)
+// 	changed := stream.S(make([]uint, 1000)).
+// 		Map(func(x uint) uint {
+// 			defer func() { cnt++ }()
+// 			return cnt * (cnt + 1)
+// 		}). // generating a sequence this way
+// 		Filter(func(x uint) bool { return x%2 == 0 }).
+// 		Filter(func(x uint) bool { return x%3 == 0 }).
+// 		Filter(func(x uint) bool { return x > 50 && x < 200 }).
+// 		Slice()
+// 	fmt.Println(changed)
+// 	require.Equal(t, true, true)
+// }

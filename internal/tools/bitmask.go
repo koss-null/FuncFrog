@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"fmt"
 	"math/bits"
 	"sync"
 )
@@ -18,6 +17,8 @@ type Bitmask struct {
 	cpMx sync.Mutex
 }
 
+// setTrue makes bit from block on place equal to 1
+// Warning: due to performanse reasons no additional safty checks done
 func (bm *Bitmask) setTrue(block uint, place uint) {
 	bm.mask[block] |= 1 << place
 }
@@ -31,15 +32,14 @@ func (bm *Bitmask) getBit(num uint64, place uint) bool {
 }
 
 func (bm *Bitmask) Put(place uint, val bool) {
-	if place/maskElemLen > uint(len(bm.mask)) {
-		// it's funny, but it seems we can do like this
-		// (don't insert 0 if no place for it yet)
-		if val {
-			for i := 0; i < len(bm.mask); i++ {
-				bm.mask = append(bm.mask, 0)
-			}
-			bm.Put(place, val)
+	// it's funny, but it seems we can do like this
+	// (don't insert 0 if no place for it yet)
+	if val && place/maskElemLen > uint(len(bm.mask)) {
+		for i := len(bm.mask) - 1; uint(i) < place/maskElemLen; i++ {
+			bm.mask = append(bm.mask, 0)
 		}
+		// it is called only once from here
+		defer bm.Put(place, val)
 		return
 	}
 
@@ -47,7 +47,6 @@ func (bm *Bitmask) Put(place uint, val bool) {
 		bm.setTrue(place/maskElemLen, place%maskElemLen)
 		return
 	}
-
 	bm.setFalse(place/maskElemLen, place%maskElemLen)
 }
 
@@ -68,44 +67,27 @@ func (bm *Bitmask) PutLine(lf, rg uint, val bool) {
 	for rgBlock >= uint(len(bm.mask)) {
 		bm.mask = append(bm.mask, 0)
 	}
+	fn, blockVal := bm.setFalse, uint64(0)
 	if val {
-		if lfBlock == rgBlock {
-			for place := lfm; place < rgm; place++ {
-				bm.setTrue(lfBlock, place)
-			}
-			return
-		}
-
-		for place := lfm; place < maskElemLen; place++ {
-			bm.setTrue(lfBlock, place)
-		}
-		for block := lfBlock + 1; block < rgBlock; block++ {
-			bm.mask[block] = u64max
-		}
-		for place := u0; place < rgm; place++ {
-			bm.setTrue(rgBlock, place)
-		}
-		return
+		fn, blockVal = bm.setTrue, u64max
 	}
 
 	if lfBlock == rgBlock {
 		for place := lfm; place < rgm; place++ {
-			bm.setFalse(lfBlock, place)
+			fn(lfBlock, place)
 		}
 		return
 	}
 
-	// can do it faster
 	for place := lfm; place < maskElemLen; place++ {
-		bm.setFalse(lfBlock, place)
+		fn(lfBlock, place)
 	}
 	for block := lfBlock + 1; block < rgBlock; block++ {
-		bm.mask[block] = 0
+		bm.mask[block] = blockVal
 	}
 	for place := u0; place < rgm; place++ {
-		bm.setFalse(rgBlock, place)
+		fn(rgBlock, place)
 	}
-	return
 }
 
 func (bm *Bitmask) Get(place uint) bool {
@@ -157,65 +139,43 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 		return 0
 	}
 
-	cnt := 0
+	cnt, blockVal := 0, u64max
+	fn := func(bl uint, pl uint) {
+		if bm.getBit(bm.mask[bl], pl) {
+			bm.setFalse(bl, pl)
+			cnt++
+		}
+	}
 	if src {
-		if lfBlock == rgBlock {
-			for place := lfm; place < rgm; place++ {
-				fmt.Printf("bitmask %b\n", bm.mask[lfBlock])
-				if bm.getBit(bm.mask[lfBlock], place) {
-					bm.setFalse(lfBlock, place)
-					cnt++
-				}
-				return cnt
-			}
-		}
-
-		for place := lfm; place < maskElemLen; place++ {
-			if bm.getBit(bm.mask[lfBlock], place) {
-				bm.setFalse(lfBlock, place)
+		blockVal = uint64(0)
+		fn = func(bl uint, pl uint) {
+			if !bm.getBit(bm.mask[bl], pl) {
+				bm.setTrue(bl, pl)
 				cnt++
 			}
 		}
-		for block := lfBlock + 1; block < rgBlock; block++ {
-			bm.mask[block] = 0
-			cnt += bits.OnesCount64(bm.mask[block])
-		}
-		for place := u0; place < rgm; place++ {
-			if bm.getBit(bm.mask[rgBlock], place) {
-				bm.setFalse(lfBlock, place)
-				cnt++
-			}
-		}
-		return cnt
 	}
 
 	if lfBlock == rgBlock {
 		for place := lfm; place < rgm; place++ {
-			if !bm.getBit(bm.mask[lfBlock], place) {
-				bm.setTrue(lfBlock, place)
-				cnt++
-			}
+			fn(lfBlock, place)
 		}
 		return cnt
 	}
 
-	// can do it faster
 	for place := lfm; place < maskElemLen; place++ {
-		if !bm.getBit(bm.mask[lfBlock], place) {
-			bm.setTrue(lfBlock, place)
-			cnt++
-		}
+		fn(lfBlock, place)
 	}
 	for block := lfBlock + 1; block < rgBlock; block++ {
-		cnt += (maskElemLen - bits.OnesCount64(bm.mask[block]))
-		bm.mask[block] = u64max
+		bm.mask[block] = blockVal
+		if src {
+			cnt += bits.OnesCount64(bm.mask[block])
+			continue
+		}
+		cnt += maskElemLen - bits.OnesCount64(bm.mask[block])
 	}
 	for place := u0; place < rgm; place++ {
-		if !bm.getBit(bm.mask[rgBlock], place) {
-			bm.setTrue(rgBlock, place)
-			cnt++
-		}
-
+		fn(rgBlock, place)
 	}
 	return cnt
 }
@@ -223,25 +183,52 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 // CaSBorder compares all values starting from lf with src and
 // changes to !src if the val is equal. runs until th changes is done
 // returns true if the threshold achieved
+// FIXME: this one may work rly slow for now
 func (bm *Bitmask) CaSBorder(lf uint, src bool, th uint) bool {
-	if th == 0 {
-		return false
-	}
-
 	lfBlock := lf / maskElemLen
-	if lfBlock > uint(len(bm.mask)) {
-		lfBlock = uint(len(bm.mask))
+	lfm := lf % maskElemLen
+
+	cnt, blockVal := u0, u64max
+	fn := func(bl uint, pl uint) {
+		if !bm.getBit(bm.mask[bl], pl) {
+			bm.setTrue(bl, pl)
+			cnt++
+		}
+	}
+	if src {
+		blockVal = uint64(0)
+		fn = func(bl uint, pl uint) {
+			if bm.getBit(bm.mask[bl], pl) {
+				bm.setFalse(bl, pl)
+				cnt++
+			}
+		}
 	}
 
-	var cnt uint
-	left, right := lf, lf+th
-	// FIXME: step depends on th
-	for uint(cnt) != th && right/maskElemLen < uint(len(bm.mask)) {
-		fmt.Println("cas line", left, right, src)
-		cnt += uint(bm.CaSLine(left, right, src))
-		left, right = right, right+th-cnt+1
+	for place := lfm; place < maskElemLen && cnt != th; place++ {
+		fn(lfBlock, place)
 	}
-	return uint(cnt) == th
+
+	block := lfBlock + 1
+	for cnt != th && block < uint(len(bm.mask)) {
+		curCnt := bits.OnesCount64(bm.mask[block])
+		if !src {
+			curCnt = maskElemLen - curCnt
+		}
+		if cnt+uint(curCnt) > th {
+			break
+		}
+		bm.mask[block] = blockVal
+		cnt += uint(curCnt)
+
+		block++
+	}
+
+	for place := u0; cnt < th && block < uint(len(bm.mask)); place++ {
+		fn(block, place)
+	}
+	return cnt == th
+
 }
 
 // Next makes available iteration over the bitmap
