@@ -180,6 +180,9 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 	return cnt
 }
 
+// FIXME: why does some CaS functions returns int when other one returns bool
+// int is more useful
+
 // CaSBorder compares all values starting from lf with src and
 // changes to !src if the val is equal. runs until th changes is done
 // returns true if the threshold achieved
@@ -228,7 +231,33 @@ func (bm *Bitmask) CaSBorder(lf uint, src bool, th uint) bool {
 		fn(block, place)
 	}
 	return cnt == th
+}
 
+// CaSBorderBw is the same as CaSBorder but it goes from the end of the array
+// FIXME: it takes one argument since it only works for src = true now
+// FIXME: this one may work rly slow for now
+func (bm *Bitmask) CaSBorderBw(th uint) bool {
+	cnt := u0
+	block := len(bm.mask) - 1
+
+	for cnt != th && block > -1 {
+		curCnt := bits.OnesCount64(bm.mask[block])
+		if cnt+uint(curCnt) > th {
+			break
+		}
+		bm.mask[block] = uint64(0)
+		cnt += uint(curCnt)
+
+		block--
+	}
+
+	for place := maskElemLen - 1; cnt != th && place > -1; place-- {
+		if bm.getBit(bm.mask[block], uint(place)) {
+			bm.setFalse(uint(block), uint(place))
+			cnt++
+		}
+	}
+	return cnt == th
 }
 
 // Next makes available iteration over the bitmap
@@ -261,4 +290,11 @@ func (bm *Bitmask) Copy(lf, rg uint) *Bitmask {
 
 	bmCp := Bitmask{mask: mask}
 	return &bmCp
+}
+
+// Len returns the value which is not less than the length of a bitmask
+// it may be slightly larger, but all overbound values will be false
+// it returns uint64 to avoid an overflow
+func (bm *Bitmask) Len() uint64 {
+	return uint64(len(bm.mask)) * maskElemLen
 }

@@ -37,6 +37,51 @@ func Test_Skip(t *testing.T) {
 	}
 }
 
+func Test_Skip2(t *testing.T) {
+	changed := stream.S(ar).Skip(200).Skip(8).Slice()
+	assert.Equal(t, len(ar)-200-8, len(changed))
+	arTr := ar[200+8:]
+	for i := 0; i < len(changed); i++ {
+		require.Equal(t, arTr[i], changed[i])
+	}
+}
+
+func Test_Trim(t *testing.T) {
+	changed := stream.S(ar).Trim(200).Slice()
+	assert.Equal(t, len(ar)-200, len(changed))
+	arTr := ar[:len(ar)-200]
+	for i := 0; i < len(changed); i++ {
+		require.Equal(t, arTr[i], changed[i])
+	}
+}
+
+func Test_Trim2(t *testing.T) {
+	changed := stream.S(ar).Trim(200).Trim(8).Slice()
+	assert.Equal(t, len(ar)-200-8, len(changed))
+	arTr := ar[:len(ar)-200-8]
+	for i := 0; i < len(changed); i++ {
+		require.Equal(t, arTr[i], changed[i])
+	}
+}
+
+func Test_SkipTrim(t *testing.T) {
+	changed := stream.S(ar).Skip(100).Trim(100).Slice()
+	assert.Equal(t, len(ar)-200, len(changed))
+	arTr := ar[100 : len(ar)-100]
+	for i := 0; i < len(changed); i++ {
+		require.Equal(t, arTr[i], changed[i])
+	}
+}
+
+func Test_TrimSkip(t *testing.T) {
+	changed := stream.S(ar).Trim(100).Skip(100).Slice()
+	assert.Equal(t, len(ar)-200, len(changed))
+	arTr := ar[100 : len(ar)-100]
+	for i := 0; i < len(changed); i++ {
+		require.Equal(t, arTr[i], changed[i])
+	}
+}
+
 func Test_Map(t *testing.T) {
 	changed := stream.S(ar).
 		Map(func(i int) int { return 2 * i }).

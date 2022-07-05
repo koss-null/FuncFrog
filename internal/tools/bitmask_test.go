@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 func toString(bm *Bitmask) string {
 	s := ""
 	cnt, val := 0, false
+	bm = bm.Copy(0, uint(bm.Len()))
 	for {
 		p, r := bm.Next()
 		if p == -1 {
@@ -149,4 +151,45 @@ func Test_PutLine3(t *testing.T) {
 	bm.PutLine(1000, 2500, false)
 
 	require.Equal(t, "100t399f499t1499f97999t", toString(&bm))
+}
+
+func Test_CaSBorder(t *testing.T) {
+	bm := Bitmask{}
+	bm.PutLine(0, 100500, true)
+	require.Equal(t, "100500t", toString(&bm))
+
+	bm.PutLine(100, 200, false)
+	fmt.Printf("%b %b %b\n\n", bm.mask[1], bm.mask[2], bm.mask[3])
+	require.Equal(t, "100t99f100299t", toString(&bm))
+
+	require.True(t, bm.CaSBorder(0, false, 97))
+	require.Equal(t, "197t2f100299t", toString(&bm))
+}
+
+// Backwards works only with true->false transition yet
+func Test_CaSBorderBw(t *testing.T) {
+	bm := Bitmask{}
+	bm.PutLine(0, 100500, true)
+	require.Equal(t, "100500t", toString(&bm))
+
+	bm.PutLine(100, 200, false)
+	bm.PutLine(300, 401, false)
+	require.Equal(t, "100t99f99t100f100098t", toString(&bm))
+
+	require.True(t, bm.CaSBorderBw(97))
+	require.Equal(t, "100t99f99t100f100001t", toString(&bm))
+}
+
+// Backwards works only with true->false transition yet
+func Test_CaSBorderBw2(t *testing.T) {
+	bm := Bitmask{}
+	bm.PutLine(0, 401, true)
+	require.Equal(t, "401t", toString(&bm))
+
+	bm.PutLine(100, 200, false)
+	bm.PutLine(300, 401, false)
+	require.Equal(t, "100t99f99t", toString(&bm))
+
+	require.True(t, bm.CaSBorderBw(97))
+	require.Equal(t, "100t99f2t", toString(&bm))
 }

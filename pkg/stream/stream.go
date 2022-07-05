@@ -88,10 +88,6 @@ func (st *stream[T]) Skip(n uint) StreamI[T] {
 
 		<-st.wrks
 
-		if offset != 0 {
-			return
-		}
-
 		st.bmMu.Lock()
 		_ = st.bm.CaSBorder(0, true, n)
 		st.bmMu.Unlock()
@@ -102,6 +98,19 @@ func (st *stream[T]) Skip(n uint) StreamI[T] {
 }
 
 func (st *stream[T]) Trim(n uint) StreamI[T] {
+	st.fns = append(st.fns, func(dt []T, offset int) {
+		if offset != 0 {
+			return
+		}
+
+		<-st.wrks
+
+		st.bmMu.Lock()
+		_ = st.bm.CaSBorderBw(n)
+		st.bmMu.Unlock()
+
+		st.wrks <- struct{}{}
+	})
 	return st
 }
 
