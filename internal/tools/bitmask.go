@@ -11,7 +11,7 @@ const (
 	u64max      = ^uint64(0) // all ones
 )
 
-type Bitmask struct {
+type Bitmask[T any] struct {
 	mask []uint64
 	cur  uint
 	cpMx sync.Mutex
@@ -19,19 +19,19 @@ type Bitmask struct {
 
 // setTrue makes bit from block on place equal to 1
 // Warning: due to performanse reasons no additional safty checks done
-func (bm *Bitmask) setTrue(block uint, place uint) {
+func (bm *Bitmask[T]) setTrue(block uint, place uint) {
 	bm.mask[block] |= 1 << place
 }
 
-func (bm *Bitmask) setFalse(block uint, place uint) {
+func (bm *Bitmask[T]) setFalse(block uint, place uint) {
 	bm.mask[block] = (bm.mask[block] | (1 << (place % maskElemLen))) - (1 << (place % maskElemLen))
 }
 
-func (bm *Bitmask) getBit(num uint64, place uint) bool {
+func (bm *Bitmask[T]) getBit(num uint64, place uint) bool {
 	return (num>>place)&1 == 1
 }
 
-func (bm *Bitmask) Put(place uint, val bool) {
+func (bm *Bitmask[T]) Put(place uint, val bool) {
 	// it's funny, but it seems we can do like this
 	// (don't insert 0 if no place for it yet)
 	if val && place/maskElemLen > uint(len(bm.mask)) {
@@ -51,7 +51,7 @@ func (bm *Bitmask) Put(place uint, val bool) {
 }
 
 // PutLine does Put for the elements in range [lf, rg) with the val
-func (bm *Bitmask) PutLine(lf, rg uint, val bool) {
+func (bm *Bitmask[T]) PutLine(lf, rg uint, val bool) {
 	if lf > rg {
 		return
 	}
@@ -90,7 +90,7 @@ func (bm *Bitmask) PutLine(lf, rg uint, val bool) {
 	}
 }
 
-func (bm *Bitmask) Get(place uint) bool {
+func (bm *Bitmask[T]) Get(place uint) bool {
 	if place/maskElemLen > uint(len(bm.mask)) {
 		return false
 	}
@@ -100,7 +100,7 @@ func (bm *Bitmask) Get(place uint) bool {
 // CaS compare and swap, returns true in case of success
 // despite the title, the operation is not atomic
 // since we are dealing with the bool, dst = !src
-func (bm *Bitmask) CaS(place uint, src bool) bool {
+func (bm *Bitmask[T]) CaS(place uint, src bool) bool {
 	block := place / maskElemLen
 	blkPlace := place % maskElemLen
 	if block > uint(len(bm.mask)) {
@@ -121,7 +121,7 @@ func (bm *Bitmask) CaS(place uint, src bool) bool {
 // CaSLine compares all values on the interval with src and
 // changes to !src if the val is equal
 // returns the amount of changed instances
-func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
+func (bm *Bitmask[T]) CaSLine(lf, rg uint, src bool) int {
 	if lf > rg {
 		return 0
 	}
@@ -187,7 +187,7 @@ func (bm *Bitmask) CaSLine(lf, rg uint, src bool) int {
 // changes to !src if the val is equal. runs until th changes is done
 // returns true if the threshold achieved
 // FIXME: this one may work rly slow for now
-func (bm *Bitmask) CaSBorder(lf uint, src bool, th uint) bool {
+func (bm *Bitmask[T]) CaSBorder(lf uint, src bool, th uint) bool {
 	lfBlock := lf / maskElemLen
 	lfm := lf % maskElemLen
 
@@ -236,7 +236,7 @@ func (bm *Bitmask) CaSBorder(lf uint, src bool, th uint) bool {
 // CaSBorderBw is the same as CaSBorder but it goes from the end of the array
 // FIXME: it takes one argument since it only works for src = true now
 // FIXME: this one may work rly slow for now
-func (bm *Bitmask) CaSBorderBw(th uint) bool {
+func (bm *Bitmask[T]) CaSBorderBw(th uint) bool {
 	cnt := u0
 	block := len(bm.mask) - 1
 
@@ -261,7 +261,7 @@ func (bm *Bitmask) CaSBorderBw(th uint) bool {
 }
 
 // Next makes available iteration over the bitmap
-func (bm *Bitmask) Next() (int, bool) {
+func (bm *Bitmask[T]) Next() (int, bool) {
 	if bm.cur/maskElemLen >= uint(len(bm.mask)) {
 		return -1, false
 	}
@@ -273,7 +273,7 @@ func (bm *Bitmask) Next() (int, bool) {
 // Copy creates a copy of a bitmask which is only valid on [lf, rg) interval
 // it's meant to be used for get requests from different goroutines
 // This is the only method which has inner mutex yet
-func (bm *Bitmask) Copy(lf, rg uint) *Bitmask {
+func (bm *Bitmask[T]) Copy(lf, rg uint) *Bitmask[T] {
 	if lf >= rg {
 		return nil
 	}
@@ -288,13 +288,36 @@ func (bm *Bitmask) Copy(lf, rg uint) *Bitmask {
 	}
 	bm.cpMx.Unlock()
 
-	bmCp := Bitmask{mask: mask}
+	bmCp := Bitmask[T]{mask: mask}
 	return &bmCp
 }
 
 // Len returns the value which is not less than the length of a bitmask
 // it may be slightly larger, but all overbound values will be false
 // it returns uint64 to avoid an overflow
-func (bm *Bitmask) Len() uint64 {
+func (bm *Bitmask[T]) Len() uint64 {
 	return uint64(len(bm.mask)) * maskElemLen
+}
+
+// Apply applies the bitmask to an array
+func (bm *Bitmask[T]) Apply(a []T) []T {
+	elemCnt := 0
+	for i := range bm.mask {
+		elemCnt += bits.OnesCount64(bm.mask[i])
+	}
+
+	res := make([]T, elemCnt)
+	resI := 0
+	for i := range bm.mask {
+		curMask, place := bm.mask[i], 0
+		for curMask != 0 {
+			if curMask&1 == 1 {
+				res[resI] = a[i*maskElemLen+place]
+				resI++
+			}
+			curMask <<= 1
+			place++
+		}
+	}
+	return res
 }

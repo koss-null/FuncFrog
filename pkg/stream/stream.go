@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/koss-null/lambda-go/internal/tools"
@@ -154,7 +155,29 @@ func (st *stream[T]) Filter(fn func(T) bool) StreamI[T] {
 }
 
 // Sorted adds two functions: first one sorts everything
+// FIXME: Sorted does not apply the bitmask
 func (st *stream[T]) Sorted(less func(a, b T) bool) StreamI[T] {
+	st.fns = append(st.fns, func(dt []T, offset int) {
+		<-st.wrks
+
+		sort.Slice(dt, func(i, j int) bool { return less(dt[j], dt[j]) })
+
+		st.wrks <- struct{}{}
+	})
+	st.fns = append(st.fns, func(dt []T, offset int) {
+		if offset != 0 {
+			return
+		}
+
+		<-st.wrks
+
+		sort.Slice(st.dt, func(i, j int) bool {
+			return less(dt[j], dt[j])
+		})
+
+		st.wrks <- struct{}{}
+	})
+
 	return st
 }
 

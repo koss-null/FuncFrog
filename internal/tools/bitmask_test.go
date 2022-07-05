@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func toString(bm *Bitmask) string {
+func toString[T any](bm *Bitmask[T]) string {
 	s := ""
 	cnt, val := 0, false
 	bm = bm.Copy(0, uint(bm.Len()))
@@ -39,7 +39,7 @@ func toString(bm *Bitmask) string {
 }
 
 func Test_getBit(t *testing.T) {
-	bm := Bitmask{}
+	bm := Bitmask[int]{}
 	for i := uint(0); i < 12; i++ {
 		require.Equal(t, bm.getBit(uint64(1)<<12, i), false)
 	}
@@ -48,13 +48,13 @@ func Test_getBit(t *testing.T) {
 }
 
 func Test_setTrue(t *testing.T) {
-	bm := Bitmask{mask: []uint64{4096}}
+	bm := Bitmask[int]{mask: []uint64{4096}}
 	bm.setTrue(0, 5)
 	require.Equal(t, uint64(4096+32), bm.mask[0])
 }
 
 func Test_setTrue2(t *testing.T) {
-	bm := Bitmask{mask: []uint64{4096}}
+	bm := Bitmask[int]{mask: []uint64{4096}}
 	bm.setTrue(0, 5)
 	bm.setTrue(0, 6)
 	bm.setTrue(0, 7)
@@ -62,13 +62,13 @@ func Test_setTrue2(t *testing.T) {
 }
 
 func Test_setFalse(t *testing.T) {
-	bm := Bitmask{mask: []uint64{4095}}
+	bm := Bitmask[int]{mask: []uint64{4095}}
 	bm.setFalse(0, 5)
 	require.Equal(t, uint64(4095-32), bm.mask[0])
 }
 
 func Test_setFalse2(t *testing.T) {
-	bm := Bitmask{mask: []uint64{4095}}
+	bm := Bitmask[int]{mask: []uint64{4095}}
 	bm.setFalse(0, 5)
 	bm.setFalse(0, 6)
 	bm.setFalse(0, 7)
@@ -77,12 +77,12 @@ func Test_setFalse2(t *testing.T) {
 
 const benchLen = 100500
 
-func initBench() *Bitmask {
+func initBench() *Bitmask[int] {
 	a := make([]uint64, benchLen)
 	for i := range a {
 		a[i] = uint64(9061 + i)
 	}
-	return &Bitmask{mask: a}
+	return &Bitmask[int]{mask: a}
 }
 
 // func Test_settersBenchmark(b *testing.B) {
@@ -131,13 +131,13 @@ func Test_settersBenchmark(t *testing.T) {
 }
 
 func Test_PutLine(t *testing.T) {
-	bm := Bitmask{}
+	bm := Bitmask[int]{}
 	bm.PutLine(0, 100500, true)
 	require.Equal(t, "100500t", toString(&bm))
 }
 
 func Test_PutLine2(t *testing.T) {
-	bm := Bitmask{}
+	bm := Bitmask[int]{}
 	bm.PutLine(0, 100500, true)
 	bm.PutLine(100, 500, false)
 
@@ -145,7 +145,7 @@ func Test_PutLine2(t *testing.T) {
 }
 
 func Test_PutLine3(t *testing.T) {
-	bm := Bitmask{}
+	bm := Bitmask[int]{}
 	bm.PutLine(0, 100500, true)
 	bm.PutLine(100, 500, false)
 	bm.PutLine(1000, 2500, false)
@@ -154,7 +154,7 @@ func Test_PutLine3(t *testing.T) {
 }
 
 func Test_CaSBorder(t *testing.T) {
-	bm := Bitmask{}
+	bm := Bitmask[int]{}
 	bm.PutLine(0, 100500, true)
 	require.Equal(t, "100500t", toString(&bm))
 
@@ -168,7 +168,7 @@ func Test_CaSBorder(t *testing.T) {
 
 // Backwards works only with true->false transition yet
 func Test_CaSBorderBw(t *testing.T) {
-	bm := Bitmask{}
+	bm := Bitmask[int]{}
 	bm.PutLine(0, 100500, true)
 	require.Equal(t, "100500t", toString(&bm))
 
@@ -182,7 +182,7 @@ func Test_CaSBorderBw(t *testing.T) {
 
 // Backwards works only with true->false transition yet
 func Test_CaSBorderBw2(t *testing.T) {
-	bm := Bitmask{}
+	bm := Bitmask[int]{}
 	bm.PutLine(0, 401, true)
 	require.Equal(t, "401t", toString(&bm))
 
@@ -192,4 +192,22 @@ func Test_CaSBorderBw2(t *testing.T) {
 
 	require.True(t, bm.CaSBorderBw(97))
 	require.Equal(t, "100t99f2t", toString(&bm))
+}
+
+func Test_Apply(t *testing.T) {
+	bm := Bitmask[int]{}
+	bm.PutLine(0, 401, true)
+	require.Equal(t, "401t", toString(&bm))
+
+	bm.PutLine(100, 200, false)
+	bm.PutLine(300, 401, false)
+	require.Equal(t, "100t99f99t", toString(&bm))
+
+	a := make([]int, 401)
+	for i := range a {
+		a[i] = i
+	}
+
+	b := bm.Apply(a)
+	require.EqualValues(t, append(a[:100], a[200:300]...), b)
 }

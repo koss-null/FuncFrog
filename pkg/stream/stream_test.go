@@ -100,6 +100,10 @@ func Test_Filter(t *testing.T) {
 	}
 }
 
+func Test_Sorted(t *testing.T) {
+	// TODO: impl
+}
+
 // func Test_Fun(t *testing.T) {
 // 	cnt := uint(0)
 // 	changed := stream.S(make([]uint, 1000)).
