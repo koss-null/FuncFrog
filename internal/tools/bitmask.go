@@ -292,6 +292,13 @@ func (bm *Bitmask[T]) Copy(lf, rg uint) *Bitmask[T] {
 	return &bmCp
 }
 
+func (bm *Bitmask[T]) CountOnes() (cnt uint64) {
+	for i := range bm.mask {
+		cnt += uint64(bits.OnesCount64(bm.mask[i]))
+	}
+	return
+}
+
 // Len returns the value which is not less than the length of a bitmask
 // it may be slightly larger, but all overbound values will be false
 // it returns uint64 to avoid an overflow

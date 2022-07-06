@@ -15,9 +15,10 @@ type (
 	stream[T any] struct {
 		wrks    chan struct{}
 		wrksLen uint
+		onceRun sync.Once
 		dt      []T
 		dtMu    sync.Mutex
-		bm      *tools.Bitmask
+		bm      *tools.Bitmask[T]
 		bmMu    sync.Mutex
 		eq      func(a, b T) bool
 		fns     []func([]T, int)
@@ -35,6 +36,8 @@ type (
 		// Map executes function on each element of an underlying slice and
 		// changes the element to the result of the function
 		Map(func(T) T) StreamI[T]
+		// Reduce takes the result of the prev operation and applies it to the next item
+		Reduce(func([]T, T) []T) StreamI[T]
 		// Filteer
 		Filter(func(T) bool) StreamI[T]
 		// Sorted sotrs the underlying array
@@ -46,8 +49,6 @@ type (
 		// Go splits execution into n goroutines, if multiple Go functions are along
 		// the stream pipeline, it applies as soon as it's met in the sequence
 		Go(n uint) StreamI[T]
-		// Cmp sets compare function
-		Cmp(eq func(a, b T) bool) StreamI[T]
 
 		// Final functions (which does not return the stream)
 		// Slice returns resulting slice
@@ -59,9 +60,10 @@ type (
 		// Count returns the length of the result array
 		Count() int
 		// Sum sums up the items in the array
-		Sum() int
+		Sum(func(int64, T) C) int64
+		SumF(func(int64, T) C) int64
 		// Contains returns true if element is in the array
-		Contains(item T) bool
+		Contains(item T, eq func(T, T) bool) bool
 	}
 )
 
@@ -71,7 +73,7 @@ func Stream[T any](data []T) StreamI[T] {
 	copy(dtCopy, data)
 	workers := make(chan struct{}, 1)
 	workers <- struct{}{}
-	bm := tools.Bitmask{}
+	bm := tools.Bitmask[T]{}
 	bm.PutLine(0, uint(len(data)), true)
 	return &stream[T]{wrks: workers, wrksLen: 1, dt: dtCopy, bm: &bm}
 }
@@ -79,6 +81,18 @@ func Stream[T any](data []T) StreamI[T] {
 // S is a shortened Stream
 func S[T any](data []T) StreamI[T] {
 	return Stream(data)
+}
+
+func (st *stream[T]) waitSync() {
+	for i := u0; i < st.wrksLen; i++ {
+		<-st.wrks
+	}
+}
+
+func (st *stream[T]) returnWrks() {
+	for i := u0; i < st.wrksLen; i++ {
+		st.wrks <- struct{}{}
+	}
 }
 
 func (st *stream[T]) Skip(n uint) StreamI[T] {
@@ -125,6 +139,11 @@ func (st *stream[T]) Map(fn func(T) T) StreamI[T] {
 
 		st.wrks <- struct{}{}
 	})
+	return st
+}
+
+func (st *stream[T]) Reduce(fn func([]T, T) []T) StreamI[T] {
+	// TODO: implement
 	return st
 }
 
@@ -197,11 +216,6 @@ func (st *stream[T]) Go(n uint) StreamI[T] {
 	return st
 }
 
-func (st *stream[T]) Cmp(eq func(a, b T) bool) StreamI[T] {
-	st.eq = eq
-	return st
-}
-
 func (st *stream[T]) Split(sp func(T) []T) StreamI[T] {
 	// TODO: implement
 	return st
@@ -209,9 +223,11 @@ func (st *stream[T]) Split(sp func(T) []T) StreamI[T] {
 
 // run start executing st.fns
 func (st *stream[T]) run() {
-	for _, fn := range st.fns {
-		fn(st.dt, 0)
-	}
+	st.onceRun.Do(func() {
+		for _, fn := range st.fns {
+			fn(st.dt, 0)
+		}
+	})
 }
 
 func (st *stream[T]) Slice() []T {
@@ -243,30 +259,48 @@ func (st *stream[T]) Slice() []T {
 }
 
 func (st *stream[T]) Any() bool {
-	st.dtMu.Lock()
-	defer st.dtMu.Unlock()
-	return len(st.dt) == 1
+	return !st.None()
 }
 
 func (st *stream[T]) None() bool {
-	st.dtMu.Lock()
-	defer st.dtMu.Unlock()
-	return len(st.dt) == 0
+	return st.Count() == 0
 }
 
 func (st *stream[T]) Count() int {
-	return len(st.dt)
+	st.run()
+
+	st.bmMu.Lock()
+	defer st.bmMu.Unlock()
+	return int(st.bm.CountOnes())
 }
 
-func (st *stream[T]) Sum() int {
-	// TODO: implement
-	return 0
+func (st *stream[T]) Sum(sum func(int64, T) int64) int64 {
+	if sum == nil {
+		return 0
+	}
+
+	var s int64
+	st.fns = append(st.fns, func(a []T, offset int) {
+		if offset != 0 {
+			return
+		}
+		st.waitSync()
+		for _, dt := range st.bm.Apply(st.dt) {
+			s = sum(s, dt)
+		}
+	})
+
+	st.run()
+	return s
 }
 
-func (st *stream[T]) Contains(item T) bool {
+// Contains returns if the underlying array contains an item
+func (st *stream[T]) Contains(item T, eq func(a, b T) bool) bool {
 	if st.eq == nil {
 		return false
 	}
+
+	st.waitSync()
 	for i := range st.dt {
 		if st.eq(st.dt[i], item) {
 			return true
