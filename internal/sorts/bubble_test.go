@@ -60,5 +60,5 @@ func Test_BubbleSort(t *testing.T) {
 		fmt.Println("sample", n, "average time is", avgDur.Nanoseconds(), "(ns)")
 	}
 
-	require.True(t, true)
+	require.True(t, false)
 }

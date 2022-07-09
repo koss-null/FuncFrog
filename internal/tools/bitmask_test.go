@@ -125,9 +125,11 @@ func Test_settersBenchmark(t *testing.T) {
 	dif1 := finish.Sub(start).Nanoseconds()
 	dif2 := finishNoFn.Sub(startNoFn).Nanoseconds()
 
+	fmt.Println(dif1, dif2)
 	// Time should not be different more than 8%
 	require.Less(t, (dif1 - dif2), dif1>>3)
 	// An actual result is a slow down about 2-3%
+	require.True(t, false)
 }
 
 func Test_PutLine(t *testing.T) {

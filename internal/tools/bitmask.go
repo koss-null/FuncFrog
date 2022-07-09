@@ -288,8 +288,20 @@ func (bm *Bitmask[T]) Copy(lf, rg uint) *Bitmask[T] {
 	}
 	bm.cpMx.Unlock()
 
-	bmCp := Bitmask[T]{mask: mask}
-	return &bmCp
+	return &Bitmask[T]{mask: mask}
+}
+
+// ShallowCopy creates the copy of a bitmask, but it does not copy the underlying array
+// So changes done on this bm fragment will be done in the parent bm
+// It should be used carefully since it does not work with methods that changes the underlying array
+func (bm *Bitmask[T]) ShallowCopy(lf, rg uint) *Bitmask[T] {
+	if lf >= rg {
+		return nil
+	}
+	if rg > len(mask) {
+		rg = uint(len(mask))
+	}
+	return &Bitmask[T]{mask: bm.mask[lf:rg]}
 }
 
 func (bm *Bitmask[T]) CountOnes() (cnt uint64) {
