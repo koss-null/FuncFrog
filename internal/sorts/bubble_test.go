@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/koss-null/lambda-go/internal/sorts"
+	"github.com/koss-null/lambda/internal/sorts"
 
 	"github.com/stretchr/testify/require"
 )

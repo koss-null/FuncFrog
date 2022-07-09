@@ -11,6 +11,7 @@ const (
 	u64max      = ^uint64(0) // all ones
 )
 
+// FIXME: in some places we use uint indexing for non-blocks instances. It need to be changed into uint64
 type Bitmask[T any] struct {
 	mask []uint64
 	cur  uint
@@ -298,8 +299,8 @@ func (bm *Bitmask[T]) ShallowCopy(lf, rg uint) *Bitmask[T] {
 	if lf >= rg {
 		return nil
 	}
-	if rg > len(mask) {
-		rg = uint(len(mask))
+	if rg > uint(len(bm.mask)) {
+		rg = uint(len(bm.mask))
 	}
 	return &Bitmask[T]{mask: bm.mask[lf:rg]}
 }
