@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"fmt"
 	"math"
 	"sync"
 )
@@ -25,12 +24,10 @@ func NewSqrtDecMx(n uint) *SqrtDecMx {
 }
 
 func (sdm *SqrtDecMx) rebuild(n uint) {
-	fmt.Println("retuilding")
 	sdm.setMxLock.Lock()
 	defer sdm.setMxLock.Unlock()
 
 	if sdm.mxs != nil {
-		fmt.Println("msx are not nil !?")
 		for i := range sdm.mxs {
 			sdm.mxs[i].Lock()
 		}
@@ -49,7 +46,6 @@ func (sdm *SqrtDecMx) rebuild(n uint) {
 // Lock blocks until it'll take all the mutexes to use [lf, rg) underlying array
 // returns Unlock function wich is need to be called to unlock
 func (sdm *SqrtDecMx) Lock(lf, rg uint) unlock {
-	fmt.Println("lock", lf, rg)
 	unlocks := []unlock{}
 	sdm.setMxLock.Lock()
 	defer sdm.setMxLock.Unlock()
