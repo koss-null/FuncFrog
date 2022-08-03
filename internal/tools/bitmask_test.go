@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,46 +42,53 @@ func toString[T any](bm *Bitmask[T]) string {
 func Test_getBit(t *testing.T) {
 	bm := Bitmask[int]{}
 	for i := uint(0); i < 12; i++ {
-		require.Equal(t, bm.getBit(uint64(1)<<12, i), false)
+		require.Equal(t, bm.mask[uint64(1)<<12].bit(i), false)
 	}
-	require.Equal(t, bm.getBit(uint64(1)<<12, 12), true)
-	require.Equal(t, bm.getBit(uint64(1)<<12, 13), false)
+	require.Equal(t, bm.mask[uint64(1)<<12].bit(12), true)
+	require.Equal(t, bm.mask[uint64(1)<<12].bit(13), false)
 }
 
 func Test_setTrue(t *testing.T) {
-	bm := Bitmask[int]{mask: []uint64{4096}}
+	bm := Bitmask[int]{
+		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}}}
 	bm.setTrue(0, 5)
-	require.Equal(t, uint64(4096+32), bm.mask[0])
+	require.Equal(t, uint64(4096+32), bm.mask[0].fn())
 }
 
 func Test_setTrue2(t *testing.T) {
-	bm := Bitmask[int]{mask: []uint64{4096}}
+	bm := Bitmask[int]{
+		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
+	}
 	bm.setTrue(0, 5)
 	bm.setTrue(0, 6)
 	bm.setTrue(0, 7)
-	require.Equal(t, uint64(4096+32+64+128), bm.mask[0])
+	require.Equal(t, uint64(4096+32+64+128), bm.mask[0].fn())
 }
 
 func Test_setFalse(t *testing.T) {
-	bm := Bitmask[int]{mask: []uint64{4095}}
+	bm := Bitmask[int]{
+		mask: []block{{fn: func() uint64 { return uint64(4095) }, mx: &sync.Mutex{}}},
+	}
 	bm.setFalse(0, 5)
-	require.Equal(t, uint64(4095-32), bm.mask[0])
+	require.Equal(t, uint64(4095-32), bm.mask[0].fn())
 }
 
 func Test_setFalse2(t *testing.T) {
-	bm := Bitmask[int]{mask: []uint64{4095}}
+	bm := Bitmask[int]{
+		mask: []block{{fn: func() uint64 { return uint64(4095) }, mx: &sync.Mutex{}}},
+	}
 	bm.setFalse(0, 5)
 	bm.setFalse(0, 6)
 	bm.setFalse(0, 7)
-	require.Equal(t, uint64(4095-32-64-128), bm.mask[0])
+	require.Equal(t, uint64(4095-32-64-128), bm.mask[0].fn())
 }
 
 const benchLen = 100500
 
 func initBench() *Bitmask[int] {
-	a := make([]uint64, benchLen)
+	a := make([]block, benchLen)
 	for i := range a {
-		a[i] = uint64(9061 + i)
+		a[i] = wrapUint64(uint64(9061 + i))
 	}
 	return &Bitmask[int]{mask: a}
 }
@@ -115,8 +123,8 @@ func Test_settersBenchmark(t *testing.T) {
 	for i := 0; i < n; i++ {
 		for j := uint(0); j < benchLen; j++ {
 			for k := uint(0); k < blockLen; k += 2 {
-				bm.mask[j] |= 1 << k
-				bm.mask[j] = (bm.mask[j] | (1 << ((k + 1) % blockLen))) - (1 << ((k + 1) % blockLen))
+				// bm.mask[j] |= 1 << k
+				// bm.mask[j] = (bm.mask[j] | (1 << ((k + 1) % blockLen))) - (1 << ((k + 1) % blockLen))
 			}
 		}
 	}
@@ -160,7 +168,7 @@ func Test_CaSBorder(t *testing.T) {
 	require.Equal(t, "100500t", toString(&bm))
 
 	bm.PutLine(100, 200, false)
-	fmt.Printf("%b %b %b\n\n", bm.mask[1], bm.mask[2], bm.mask[3])
+	fmt.Printf("%b %b %b\n\n", bm.mask[1].fn(), bm.mask[2].fn(), bm.mask[3].fn())
 	require.Equal(t, "100t99f100299t", toString(&bm))
 
 	require.True(t, bm.CaSBorder(0, false, 97))

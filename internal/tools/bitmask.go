@@ -15,7 +15,7 @@ const (
 
 type block struct {
 	fn fnmod.SelfFn[uint64]
-	mx *sync.Mutex
+	mx sync.Locker
 }
 
 // FIXME: in some places we use uint indexing for non-blocks instances. It need to be changed into uint64
@@ -24,6 +24,11 @@ type Bitmask[T any] struct {
 	cur  uint
 	cpMx sync.Mutex
 }
+
+type fakeLock struct{}
+
+func (_ *fakeLock) Lock()   {}
+func (_ *fakeLock) Unlock() {}
 
 func wrapUint64(val uint64) block {
 	mx := &sync.Mutex{}
@@ -38,22 +43,28 @@ func wrapUint64(val uint64) block {
 }
 
 func (b *block) true(place uint) {
-	b.mx.Lock()
+	mx := b.mx
+	mx.Lock()
+	b.mx = &fakeLock{}
 
 	val := b.fn() | (uint64(1) << uint64(place%blockLen))
 	*b = wrapUint64(val)
 
 	// this functinos are expected to be fast, so don't use defer here
-	b.mx.Unlock()
+	b.mx = mx
+	mx.Unlock()
 }
 
 func (b *block) false(place uint) {
-	b.mx.Lock()
+	mx := b.mx
+	mx.Lock()
+	b.mx = &fakeLock{}
 
 	val := (b.fn() | (1 << (place % blockLen))) - (1 << (place % blockLen))
 	*b = wrapUint64(val)
 
-	b.mx.Unlock()
+	b.mx = mx
+	mx.Unlock()
 }
 
 func (b *block) bit(place uint) bool {

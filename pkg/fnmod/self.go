@@ -9,6 +9,6 @@ func Self[T any](x T) SelfFn[T] {
 	}
 }
 
-func (fn SelfFn[T]) Wrap[T any](wrapper func(SelfFn[T]) SelfFn[T]) SelfFn[T] {
+func (fn SelfFn[T]) Wrap(wrapper func(SelfFn[T]) SelfFn[T]) SelfFn[T] {
 	return wrapper(fn)
 }
