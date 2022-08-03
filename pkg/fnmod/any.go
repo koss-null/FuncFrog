@@ -1,4 +1,4 @@
-package funcmodel
+package fnmod
 
 type Empty func()
 

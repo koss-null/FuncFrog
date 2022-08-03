@@ -103,7 +103,7 @@ func Test_settersBenchmark(t *testing.T) {
 	start := time.Now()
 	for i := 0; i < n; i++ {
 		for j := uint(0); j < benchLen; j++ {
-			for k := uint(0); k < maskElemLen; k += 2 {
+			for k := uint(0); k < blockLen; k += 2 {
 				bm.setTrue(j, k)
 				bm.setFalse(j, k+1)
 			}
@@ -114,9 +114,9 @@ func Test_settersBenchmark(t *testing.T) {
 	startNoFn := time.Now()
 	for i := 0; i < n; i++ {
 		for j := uint(0); j < benchLen; j++ {
-			for k := uint(0); k < maskElemLen; k += 2 {
+			for k := uint(0); k < blockLen; k += 2 {
 				bm.mask[j] |= 1 << k
-				bm.mask[j] = (bm.mask[j] | (1 << ((k + 1) % maskElemLen))) - (1 << ((k + 1) % maskElemLen))
+				bm.mask[j] = (bm.mask[j] | (1 << ((k + 1) % blockLen))) - (1 << ((k + 1) % blockLen))
 			}
 		}
 	}
