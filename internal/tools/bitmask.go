@@ -15,7 +15,7 @@ const (
 
 type block struct {
 	fn fnmod.SelfFn[uint64]
-	mx sync.Mutex
+	mx *sync.Mutex
 }
 
 // FIXME: in some places we use uint indexing for non-blocks instances. It need to be changed into uint64
@@ -26,15 +26,15 @@ type Bitmask[T any] struct {
 }
 
 func wrapUint64(val uint64) block {
-	// this is made wiered to be able use mutex in b.fn()
-	b := block{}
-	b.fn = func() uint64 {
-		b.mx.Lock()
-		defer b.mx.Unlock()
-		return val
+	mx := &sync.Mutex{}
+	return block{
+		fn: func() uint64 {
+			mx.Lock()
+			defer mx.Unlock()
+			return val
+		},
+		mx: mx,
 	}
-
-	return b
 }
 
 func (b *block) true(place uint) {
@@ -58,6 +58,10 @@ func (b *block) false(place uint) {
 
 func (b *block) bit(place uint) bool {
 	return (b.fn()>>place)&1 == 1
+}
+
+func (b *block) copy() block {
+	return wrapUint64(b.fn())
 }
 
 func (b *block) onesCnt() int {
@@ -320,16 +324,14 @@ func (bm *Bitmask[T]) Copy(lf, rg uint) *Bitmask[T] {
 	if lf >= rg {
 		return nil
 	}
-	mask := make([]uint64, rg/blockLen+1)
+	mask := make([]block, (rg-lf)/blockLen+1)
 
-	bm.cpMx.Lock()
 	for i := lf / blockLen; i < rg/blockLen+1; i++ {
 		if i >= uint(len(bm.mask)) {
 			break
 		}
-		mask[i] = bm.mask[i]
+		mask[i] = bm.mask[i].copy()
 	}
-	bm.cpMx.Unlock()
 
 	return &Bitmask[T]{mask: mask}
 }
