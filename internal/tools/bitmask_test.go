@@ -40,17 +40,20 @@ func toString[T any](bm *Bitmask[T]) string {
 }
 
 func Test_getBit(t *testing.T) {
-	bm := Bitmask[int]{}
-	for i := uint(0); i < 12; i++ {
-		require.Equal(t, bm.mask[uint64(1)<<12].bit(i), false)
+	bm := Bitmask[int]{
+		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
 	}
-	require.Equal(t, bm.mask[uint64(1)<<12].bit(12), true)
-	require.Equal(t, bm.mask[uint64(1)<<12].bit(13), false)
+	for i := uint(0); i < 12; i++ {
+		require.Equal(t, bm.mask[0].bit(i), false)
+	}
+	require.Equal(t, bm.mask[0].bit(12), true)
+	require.Equal(t, bm.mask[0].bit(13), false)
 }
 
 func Test_setTrue(t *testing.T) {
 	bm := Bitmask[int]{
-		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}}}
+		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
+	}
 	bm.setTrue(0, 5)
 	require.Equal(t, uint64(4096+32), bm.mask[0].fn())
 }
