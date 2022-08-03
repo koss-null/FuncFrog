@@ -14,8 +14,8 @@ const (
 )
 
 type block struct {
-	fn fnmod.SelfFn[uint64]
-	mx sync.Locker
+	val fnmod.SelfFn[uint64]
+	mx  sync.Locker
 }
 
 // FIXME: in some places we use uint indexing for non-blocks instances. It need to be changed into uint64
@@ -33,7 +33,7 @@ func (_ *fakeLock) Unlock() {}
 func wrapUint64(val uint64) block {
 	mx := &sync.Mutex{}
 	return block{
-		fn: func() uint64 {
+		val: func() uint64 {
 			mx.Lock()
 			defer mx.Unlock()
 			return val
@@ -47,7 +47,7 @@ func (b *block) true(place uint) {
 	mx.Lock()
 	b.mx = &fakeLock{}
 
-	val := b.fn() | (uint64(1) << uint64(place%blockLen))
+	val := b.val() | (uint64(1) << uint64(place%blockLen))
 	*b = wrapUint64(val)
 
 	// this functinos are expected to be fast, so don't use defer here
@@ -60,7 +60,7 @@ func (b *block) false(place uint) {
 	mx.Lock()
 	b.mx = &fakeLock{}
 
-	val := (b.fn() | (1 << (place % blockLen))) - (1 << (place % blockLen))
+	val := (b.val() | (1 << (place % blockLen))) - (1 << (place % blockLen))
 	*b = wrapUint64(val)
 
 	b.mx = mx
@@ -68,15 +68,15 @@ func (b *block) false(place uint) {
 }
 
 func (b *block) bit(place uint) bool {
-	return (b.fn()>>place)&1 == 1
+	return (b.val()>>place)&1 == 1
 }
 
 func (b *block) copy() block {
-	return wrapUint64(b.fn())
+	return wrapUint64(b.val())
 }
 
 func (b *block) onesCnt() int {
-	return bits.OnesCount64(b.fn())
+	return bits.OnesCount64(b.val())
 }
 
 // setTrue makes bit from block on place equal to 1
@@ -384,7 +384,7 @@ func (bm *Bitmask[T]) Apply(a []T) []T {
 	res := make([]T, elemCnt)
 	resI := 0
 	for i := range bm.mask {
-		curMask, place := bm.mask[i].fn(), 0
+		curMask, place := bm.mask[i].val(), 0
 		for curMask != 0 {
 			if curMask&1 == 1 {
 				res[resI] = a[i*int(blockLen)+place]

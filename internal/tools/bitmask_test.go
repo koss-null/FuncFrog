@@ -41,7 +41,7 @@ func toString[T any](bm *Bitmask[T]) string {
 
 func Test_getBit(t *testing.T) {
 	bm := Bitmask[int]{
-		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
+		mask: []block{{val: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
 	}
 	for i := uint(0); i < 12; i++ {
 		require.Equal(t, bm.mask[0].bit(i), false)
@@ -52,38 +52,38 @@ func Test_getBit(t *testing.T) {
 
 func Test_setTrue(t *testing.T) {
 	bm := Bitmask[int]{
-		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
+		mask: []block{{val: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
 	}
 	bm.setTrue(0, 5)
-	require.Equal(t, uint64(4096+32), bm.mask[0].fn())
+	require.Equal(t, uint64(4096+32), bm.mask[0].val())
 }
 
 func Test_setTrue2(t *testing.T) {
 	bm := Bitmask[int]{
-		mask: []block{{fn: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
+		mask: []block{{val: func() uint64 { return uint64(4096) }, mx: &sync.Mutex{}}},
 	}
 	bm.setTrue(0, 5)
 	bm.setTrue(0, 6)
 	bm.setTrue(0, 7)
-	require.Equal(t, uint64(4096+32+64+128), bm.mask[0].fn())
+	require.Equal(t, uint64(4096+32+64+128), bm.mask[0].val())
 }
 
 func Test_setFalse(t *testing.T) {
 	bm := Bitmask[int]{
-		mask: []block{{fn: func() uint64 { return uint64(4095) }, mx: &sync.Mutex{}}},
+		mask: []block{{val: func() uint64 { return uint64(4095) }, mx: &sync.Mutex{}}},
 	}
 	bm.setFalse(0, 5)
-	require.Equal(t, uint64(4095-32), bm.mask[0].fn())
+	require.Equal(t, uint64(4095-32), bm.mask[0].val())
 }
 
 func Test_setFalse2(t *testing.T) {
 	bm := Bitmask[int]{
-		mask: []block{{fn: func() uint64 { return uint64(4095) }, mx: &sync.Mutex{}}},
+		mask: []block{{val: func() uint64 { return uint64(4095) }, mx: &sync.Mutex{}}},
 	}
 	bm.setFalse(0, 5)
 	bm.setFalse(0, 6)
 	bm.setFalse(0, 7)
-	require.Equal(t, uint64(4095-32-64-128), bm.mask[0].fn())
+	require.Equal(t, uint64(4095-32-64-128), bm.mask[0].val())
 }
 
 const benchLen = 100500
@@ -171,7 +171,7 @@ func Test_CaSBorder(t *testing.T) {
 	require.Equal(t, "100500t", toString(&bm))
 
 	bm.PutLine(100, 200, false)
-	fmt.Printf("%b %b %b\n\n", bm.mask[1].fn(), bm.mask[2].fn(), bm.mask[3].fn())
+	fmt.Printf("%b %b %b\n\n", bm.mask[1].val(), bm.mask[2].val(), bm.mask[3].val())
 	require.Equal(t, "100t99f100299t", toString(&bm))
 
 	require.True(t, bm.CaSBorder(0, false, 97))

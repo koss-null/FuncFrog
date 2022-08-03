@@ -9,10 +9,6 @@ import (
 	"github.com/koss-null/lambda/internal/tools"
 )
 
-const (
-	u0 = uint(0)
-)
-
 type task[T any] struct {
 	op Operation[T]
 	dt []T
@@ -306,7 +302,7 @@ func (st *stream[T]) Slice() []T {
 		if offset != 0 {
 			return
 		}
-		for i := u0; i < st.wrksCnt; i++ {
+		for i := uint(0); i < st.wrksCnt; i++ {
 		}
 
 		st.dtMu.Lock()
