@@ -1,6 +1,6 @@
 # Lambda 
 
-![Lambda gopher picture](https://raw.githubusercontent.com/koss-null/lambda/0.1.0/lambda_favicon.png) 
+![Lambda gopher picture](https://github.com/koss-null/lambda/blob/master/lambda_favicon.png?raw=true) 
 
 Is a library to provide `map`, `reduce` and `filter` operations on slices in one pipeline. 
 The slice can be set by generating function. Also the parallel execution is supported. 
