@@ -3,14 +3,12 @@ package example
 import (
 	"fmt"
 	"math/rand"
-	"testing"
 
 	"github.com/koss-null/lambda/pkg/pipe"
 )
 
-// Examples are made as failing tests to be able to run them and see the output
-
-func Test_PipeEx1(t *testing.T) {
+// This are examples of pipe usage
+func main() {
 	a := make([]int, 100)
 	for i := range a {
 		a[i] = i
@@ -109,6 +107,22 @@ func Test_PipeEx1(t *testing.T) {
 		Count()
 	fmt.Println("result4: ", res4)
 
+	// if you need another type on map's output there is only an ugly prefix solution
+	// since go does not support method's type parameters (which seems to make struct signature known at compile)
+	res5 := pipe.Map(pipe.
+		Func(func(i int) (float32, bool) {
+			return float32(i) * 0.9, true
+		}).
+		Gen(100),
+		func(x float32) int {
+			if x-float32(int(x)) > 0.7 {
+				return int(x) + 1
+			}
+			return int(x)
+		},
+	).Do()
+	fmt.Println("result5: ", res5)
+
 	// and even Sort them
 	// TO BE IMPLEMENTED
 	// res4 := pipe.Func(func(i int) (float32, bool) {
@@ -122,6 +136,4 @@ func Test_PipeEx1(t *testing.T) {
 
 	// you can also have reduce
 	// TODO: add reduce example
-
-	t.Fail()
 }

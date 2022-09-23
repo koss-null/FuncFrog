@@ -27,7 +27,6 @@ type Pipe[T any] struct {
 func Slice[T any](dt []T) *Pipe[T] {
 	dtCp := make([]T, len(dt))
 	copy(dtCp, dt)
-	bm := bitmap.NewNaive(len(dtCp))
 	length := int64(len(dt))
 	zero := int64(0)
 	return &Pipe[T]{
@@ -41,7 +40,7 @@ func Slice[T any](dt []T) *Pipe[T] {
 		},
 		len:      &length,
 		valLim:   &zero,
-		skip:     bm.SetTrue,
+		skip:     bitmap.NewNaive(len(dtCp)).SetTrue,
 		parallel: defaultParallelWrks,
 	}
 }
@@ -54,7 +53,6 @@ func Slice[T any](dt []T) *Pipe[T] {
 func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
 	// FIXME: do we need fncache here?
 	// fnCache := fnintcache.New[T]()
-	bm := bitmap.NewNaive(1024)
 	length := int64(-1)
 	zero := int64(0)
 	return &Pipe[T]{
@@ -70,7 +68,7 @@ func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
 		},
 		len:      &length,
 		valLim:   &zero,
-		skip:     bm.SetTrue,
+		skip:     bitmap.NewNaive(1024).SetTrue,
 		parallel: defaultParallelWrks,
 	}
 }
@@ -282,16 +280,3 @@ func (p *Pipe[T]) Count() int {
 	_, cnt := p.do(false)
 	return cnt
 }
-
-// func reduceSkipped[T any](data []T, skip []bool, skipped int) ([]T, []bool, int) {
-// 	if skipped > len(data)/2 {
-// 		res := make([]T, 0, len(data)-skipped)
-// 		for i := range skip {
-// 			if !skip[i] {
-// 				res = append(res, data[i])
-// 			}
-// 		}
-// 		return res, make([]bool, len(res)), 0
-// 	}
-// 	return data, skip, skipped
-// }
