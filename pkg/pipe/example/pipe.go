@@ -1,8 +1,9 @@
-package example
+package main
 
 import (
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/koss-null/lambda/pkg/pipe"
 )
@@ -96,16 +97,63 @@ func main() {
 	fmt.Println("result3.1: ", res31)
 
 	// you can set the amount of goroutines using Parallel(n int)
-	// the defalut value is 4
+	start := time.Now()
 	res4 := pipe.Func(func(i int) (float32, bool) {
 		return float32(i) * 0.9, true
 	}).
 		Map(func(x float32) float32 { return x * x }).
 		Filter(func(x float32) bool { return x > 5000.6 }).
-		Gen(1_000_000_0).
+		Gen(1_000_000).
 		Parallel(12).
 		Count()
-	fmt.Println("result4: ", res4)
+	fmt.Println("result4: (parallel 12)", res4, "; eval took ", time.Now().Sub(start))
+
+	// single thread
+	start = time.Now()
+	res41 := pipe.Func(func(i int) (float32, bool) {
+		return float32(i) * 0.9, true
+	}).
+		Map(func(x float32) float32 { return x * x }).
+		Filter(func(x float32) bool { return x > 5000.6 }).
+		Gen(1_000_000).
+		Parallel(1).
+		Count()
+	fmt.Println("result41: (parallel 1)", res41, "; eval took ", time.Now().Sub(start))
+
+	// the defalut value is 4
+	start = time.Now()
+	res42 := pipe.Func(func(i int) (float32, bool) {
+		return float32(i) * 0.9, true
+	}).
+		Map(func(x float32) float32 { return x * x }).
+		Filter(func(x float32) bool { return x > 5000.6 }).
+		Gen(1_000_000).
+		Count()
+	fmt.Println("result42 (parallel 4): ", res42, "; eval took ", time.Now().Sub(start))
+
+	// many goroutines are OK
+	start = time.Now()
+	res43 := pipe.Func(func(i int) (float32, bool) {
+		return float32(i) * 0.9, true
+	}).
+		Map(func(x float32) float32 { return x * x }).
+		Filter(func(x float32) bool { return x > 5000.6 }).
+		Gen(1_000_000).
+		Parallel(150).
+		Count()
+	fmt.Println("result43: (parallel 150)", res43, "; eval took ", time.Now().Sub(start))
+
+	// but the best value shoul be about the amount of your CPUs
+	start = time.Now()
+	res44 := pipe.Func(func(i int) (float32, bool) {
+		return float32(i) * 0.9, true
+	}).
+		Map(func(x float32) float32 { return x * x }).
+		Filter(func(x float32) bool { return x > 5000.6 }).
+		Gen(1_000_000).
+		Parallel(1240).
+		Count()
+	fmt.Println("result44: (parallel 1240)", res44, "; eval took ", time.Now().Sub(start))
 
 	// if you need another type on map's output there is only an ugly prefix solution
 	// since go does not support method's type parameters (which seems to make struct signature known at compile)

@@ -197,6 +197,21 @@ type ev[T any] struct {
 	skipped bool
 }
 
+func worker(jobs <-chan func()) func() {
+	finish := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-finish:
+				return
+			case job := <-jobs:
+				job()
+			}
+		}
+	}()
+	return func() { close(finish) }
+}
+
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	if *p.len == -1 && *p.valLim == 0 {
 		return []T{}, 0
@@ -207,40 +222,49 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		return res, len(res)
 	}
 
-	var skipCnt atomic.Int64
-	var res []T
-	var evals []ev[T]
+	var (
+		skipCnt atomic.Int64
+		res     []T
+		evals   []ev[T]
+	)
 	if needResult {
 		res = make([]T, 0, *p.len)
 		evals = make([]ev[T], *p.len)
 	}
 
-	wrks := make(chan struct{}, p.parallel)
+	jobs := make(chan func(), p.parallel)
+	// start workers
+	workerStopper := make([]func(), p.parallel)
 	for i := 0; i < p.parallel; i++ {
-		wrks <- struct{}{}
+		workerStopper[i] = worker(jobs)
 	}
-	var wg sync.WaitGroup
 
-	pfn := p.fn()
+	var wg sync.WaitGroup
 	wg.Add(int(*p.len))
+	pfn := p.fn()
 	for i := 0; i < int(*p.len); i++ {
-		<-wrks
-		go func(i int) {
+		idx := i
+		jobs <- func() {
 			defer func() {
-				wrks <- struct{}{}
 				wg.Done()
 			}()
 
-			obj, skipped := pfn(i)
+			obj, skipped := pfn(idx)
 			if skipped {
 				skipCnt.Add(1)
 			}
 			if needResult {
-				evals[i] = ev[T]{obj, skipped}
+				evals[idx] = ev[T]{obj, skipped}
 			}
-		}(i)
+		}
 	}
 	wg.Wait()
+	// stop workers
+	go func() {
+		for _, stop := range workerStopper {
+			stop()
+		}
+	}()
 
 	if needResult {
 		for _, ev := range evals {
