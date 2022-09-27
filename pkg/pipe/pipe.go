@@ -11,6 +11,7 @@ import (
 const (
 	defaultParallelWrks = 4
 	maxParallelWrks     = 256
+	maxJobsInTask       = 384
 )
 
 // Pipe implements the pipe on any slice.
@@ -197,19 +198,37 @@ type ev[T any] struct {
 	skipped bool
 }
 
-func worker(jobs <-chan func()) func() {
-	finish := make(chan struct{})
+type task struct {
+	jobs [maxJobsInTask]func()
+	done func()
+}
+
+func worker(tasks <-chan task) func() {
+	finish := false
 	go func() {
-		for {
-			select {
-			case <-finish:
-				return
-			case job := <-jobs:
-				job()
+		for !finish {
+			if task, ok := <-tasks; ok {
+				for _, job := range task.jobs {
+					if job != nil {
+						job()
+					}
+				}
+				task.done()
 			}
 		}
 	}()
-	return func() { close(finish) }
+	return func() { finish = false }
+}
+
+func intCircle(n int) func() int {
+	var i int
+	return func() int {
+		if i == n {
+			i = 0
+		}
+		i++
+		return i - 1
+	}
 }
 
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
@@ -232,23 +251,27 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		evals = make([]ev[T], *p.len)
 	}
 
-	jobs := make(chan func(), p.parallel)
+	jobKeeper := make([]chan task, p.parallel)
 	// start workers
 	workerStopper := make([]func(), p.parallel)
 	for i := 0; i < p.parallel; i++ {
-		workerStopper[i] = worker(jobs)
+		keeper := make(chan task)
+		jobKeeper[i] = keeper
+		workerStopper[i] = worker(keeper)
 	}
 
+	// TODO: it looks like it's overcomplicated and need to be refactored
 	var wg sync.WaitGroup
-	wg.Add(int(*p.len))
 	pfn := p.fn()
+	curTask := task{
+		jobs: [maxJobsInTask]func(){},
+		done: func() { wg.Done() },
+	}
+	nextWorkerIdx := intCircle(p.parallel)
+	jobIdx := 0
 	for i := 0; i < int(*p.len); i++ {
 		idx := i
-		jobs <- func() {
-			defer func() {
-				wg.Done()
-			}()
-
+		curTask.jobs[jobIdx] = func() {
 			obj, skipped := pfn(idx)
 			if skipped {
 				skipCnt.Add(1)
@@ -257,12 +280,26 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 				evals[idx] = ev[T]{obj, skipped}
 			}
 		}
+		jobIdx++
+
+		if jobIdx == maxJobsInTask || i+1 == int(*p.len) {
+			wg.Add(1)
+			jobKeeper[nextWorkerIdx()] <- curTask
+			jobIdx = 0
+			curTask = task{
+				jobs: [maxJobsInTask]func(){},
+				done: func() { wg.Done() },
+			}
+		}
 	}
 	wg.Wait()
 	// stop workers
 	go func() {
 		for _, stop := range workerStopper {
 			stop()
+		}
+		for i := range jobKeeper {
+			close(jobKeeper[i])
 		}
 	}()
 
