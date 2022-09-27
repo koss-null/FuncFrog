@@ -12,7 +12,6 @@ const (
 	defaultParallelWrks = 4
 	maxParallelWrks     = 256
 	maxJobsInTask       = 384
-	onceTaskAlloc       = 3 // memoty allocated for n tasks at once
 )
 
 // Pipe implements the pipe on any slice.
@@ -232,18 +231,15 @@ func intCircle(n int) func() int {
 	}
 }
 
-type funcAllocator struct {
-	curAllocated []func()
-	idx          int
+type intAllocator struct {
+	curAllocated []int
+	idx int
 }
 
-func (a funcAllocator) alloc(n int) []func() {
-	if n+a.idx >= len(a.curAllocated) {
-		a.curAllocated = make([]func(), maxJobsInTask*onceTaskAlloc)
-		a.idx = 0
+func (a intAllocator) next(n int) []int {
+	if n + a.idx >= len(a.curAllocated) {
+		a.curAllocated := make([]int)
 	}
-	a.idx += n
-	return a.curAllocated[a.idx-n : a.idx]
 }
 
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
@@ -275,13 +271,11 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		workerStopper[i] = worker(keeper)
 	}
 
-	fnHub := funcAllocator{}
-
 	// TODO: it looks like it's overcomplicated and need to be refactored
 	var wg sync.WaitGroup
 	pfn := p.fn()
 	curTask := task{
-		jobs: fnHub.alloc(maxJobsInTask),
+		jobs: [maxJobsInTask]func(){},
 		done: func() { wg.Done() },
 	}
 	nextWorkerIdx := intCircle(p.parallel)
@@ -304,7 +298,7 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 			jobKeeper[nextWorkerIdx()] <- curTask
 			jobIdx = 0
 			curTask = task{
-				jobs: fnHub.alloc(maxJobsInTask),
+				jobs: [maxJobsInTask]func(){},
 				done: func() { wg.Done() },
 			}
 		}
