@@ -251,57 +251,28 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		evals = make([]ev[T], *p.len)
 	}
 
-	jobKeeper := make([]chan task, p.parallel)
-	// start workers
-	workerStopper := make([]func(), p.parallel)
-	for i := 0; i < p.parallel; i++ {
-		keeper := make(chan task)
-		jobKeeper[i] = keeper
-		workerStopper[i] = worker(keeper)
-	}
-
-	// TODO: it looks like it's overcomplicated and need to be refactored
-	var wg sync.WaitGroup
+	step := int(math.Ceil(float64(*p.len) / float64(p.parallel)))
 	pfn := p.fn()
-	curTask := task{
-		jobs: [maxJobsInTask]func(){},
-		done: func() { wg.Done() },
-	}
-	nextWorkerIdx := intCircle(p.parallel)
-	jobIdx := 0
-	for i := 0; i < int(*p.len); i++ {
-		idx := i
-		curTask.jobs[jobIdx] = func() {
-			obj, skipped := pfn(idx)
-			if skipped {
-				skipCnt.Add(1)
+	var wg sync.WaitGroup
+	for i := 0; i < int(*p.len); i += step {
+		wg.Add(1)
+		go func(lf, rg int) {
+			if rg > int(*p.len) {
+				rg = int(*p.len)
 			}
-			if needResult {
-				evals[idx] = ev[T]{obj, skipped}
+			for i := lf; i < rg; i++ {
+				obj, skipped := pfn(i)
+				if skipped {
+					skipCnt.Add(1)
+				}
+				if needResult {
+					evals[i] = ev[T]{obj, skipped}
+				}
 			}
-		}
-		jobIdx++
-
-		if jobIdx == maxJobsInTask || i+1 == int(*p.len) {
-			wg.Add(1)
-			jobKeeper[nextWorkerIdx()] <- curTask
-			jobIdx = 0
-			curTask = task{
-				jobs: [maxJobsInTask]func(){},
-				done: func() { wg.Done() },
-			}
-		}
+			wg.Done()
+		}(i, i+step)
 	}
 	wg.Wait()
-	// stop workers
-	go func() {
-		for _, stop := range workerStopper {
-			stop()
-		}
-		for i := range jobKeeper {
-			close(jobKeeper[i])
-		}
-	}()
 
 	if needResult {
 		for _, ev := range evals {
