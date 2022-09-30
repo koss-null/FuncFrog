@@ -154,9 +154,9 @@ func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 	return &res
 }
 
-// Get set the amount of values expected to be in result slice
-// Applied only the first Gen() or Get() function in the pipe
-func (p *Pipe[T]) Get(n int) *Pipe[T] {
+// Take set the amount of values expected to be in result slice
+// Applied only the first Gen() or Take() function in the pipe
+func (p *Pipe[T]) Take(n int) *Pipe[T] {
 	if n < 0 || *p.valLim != 0 || *p.len != -1 {
 		return p
 	}
@@ -166,7 +166,7 @@ func (p *Pipe[T]) Get(n int) *Pipe[T] {
 }
 
 // Gen set the amount of values to generate as initial array
-// Applied only the first Gen() or Get() function in the pipe
+// Applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Gen(n int) *Pipe[T] {
 	if n < 0 || *p.len != -1 || *p.valLim != 0 {
 		return p
