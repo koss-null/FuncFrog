@@ -2,6 +2,7 @@ package pipe
 
 import (
 	"math"
+	"sort"
 	"sync"
 
 	"github.com/koss-null/lambda/internal/bitmap"
@@ -9,9 +10,10 @@ import (
 )
 
 const (
-	defaultParallelWrks = 4
-	maxParallelWrks     = 256
-	maxJobsInTask       = 384
+	defaultParallelWrks      = 4
+	maxParallelWrks          = 256
+	maxJobsInTask            = 384
+	singleThreadSortTreshold = 5000
 )
 
 // Pipe implements the pipe on any slice.
@@ -115,31 +117,140 @@ func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 	}
 }
 
+func merge[T any](a []T, lf, rg, lf1, rg1 int, less func(T, T) bool) {
+	st := lf
+	res := make([]T, 0, rg1-lf)
+	for lf < rg && lf1 < rg1 {
+		if less(a[lf], a[lf1]) {
+			res = append(res, a[lf])
+			lf++
+			continue
+		}
+		res = append(res, a[lf1])
+		lf1++
+	}
+	for lf < rg {
+		res = append(res, a[lf])
+		lf++
+	}
+	for lf1 < rg1 {
+		res = append(res, a[lf1])
+		lf1++
+	}
+	copy(a[st:], res)
+}
+
+func mergeSplits[T any](
+	data []T,
+	splits []struct{ lf, rg int },
+	threads int,
+	less func(T, T) bool,
+) {
+	jobTicket := make(chan struct{}, threads)
+	for i := 0; i < threads; i++ {
+		jobTicket <- struct{}{}
+	}
+	newSplits := []struct{ lf, rg int }{}
+	var wg sync.WaitGroup
+	for i := 0; i < len(splits); i += 2 {
+		if i+1 >= len(splits) {
+			newSplits = append(newSplits, splits[i])
+			break
+		}
+
+		<-jobTicket
+		wg.Add(1)
+		go func(i int) {
+			merge(
+				data,
+				splits[i].lf, splits[i].rg,
+				splits[i+1].lf, splits[i+1].rg,
+				less,
+			)
+			jobTicket <- struct{}{}
+			wg.Done()
+		}(i)
+		newSplits = append(
+			newSplits,
+			struct{ lf, rg int }{
+				splits[i].lf,
+				splits[i+1].rg,
+			},
+		)
+	}
+	wg.Wait()
+
+	if len(newSplits) == 1 {
+		return
+	}
+	mergeSplits(data, newSplits, threads, less)
+}
+
+func sortParallel[T any](data []T, less func(T, T) bool, threads int) []T {
+	cmp := func(i, j int) bool {
+		return less(data[i], data[j])
+	}
+	if len(data) < singleThreadSortTreshold {
+		sort.Slice(data, cmp)
+		return data
+	}
+	min := func(a, b int) int {
+		if a > b {
+			return b
+		}
+		return a
+	}
+	splits := []struct{ lf, rg int }{}
+	step := (len(data) / threads) + 1
+	lf, rg := 0, min(step, len(data))
+	var wg sync.WaitGroup
+	for lf < len(data) {
+		wg.Add(1)
+		go func(lf, rg int) {
+			sort.Slice(data[lf:rg], cmp)
+			wg.Done()
+		}(lf, rg)
+		splits = append(splits, struct {
+			lf int
+			rg int
+		}{lf: lf, rg: rg})
+
+		lf += step
+		rg = min(rg+step, len(data))
+	}
+	wg.Wait()
+
+	mergeSplits(data, splits, threads, less)
+	return data
+}
+
 // Sort sorts the underlying slice
-// TO BE IMPLEMENTED
-// func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
-// 	return &Pipe[T]{
-// 		fn: func() ([]T, []bool) {
-// 			data, skip := p.fn()
-// 			filtered := make([]T, 0, len(data)-*p.skipped)
-// 			for i := range data {
-// 				if !skip[i] {
-// 					filtered = append(filtered, data[i])
-// 				}
-// 			}
-// 			sort.Slice(
-// 				filtered,
-// 				func(i, j int) bool {
-// 					return less(filtered[i], filtered[j])
-// 				},
-// 			)
-// 			*p.skipped = 0
-// 			return filtered, make([]bool, len(filtered))
-// 		},
-// 		skipped:    p.skipped,
-// 		infinitSeq: p.infinitSeq,
-// 	}
-// }
+func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
+	var once sync.Once
+	var sorted []T
+
+	return &Pipe[T]{
+		fn: func() func(int) (*T, bool) {
+			return func(i int) (*T, bool) {
+				once.Do(func() {
+					data := p.Do()
+					if len(data) == 0 {
+						return
+					}
+					sorted = sortParallel(data, less, p.parallel)
+				})
+				if i >= len(sorted) {
+					return nil, false
+				}
+				return &sorted[i], true
+			}
+		},
+		len:      p.len,
+		valLim:   p.valLim,
+		skip:     p.skip,
+		parallel: p.parallel,
+	}
+}
 
 // Reduce applies the result of a function to each element one-by-one
 func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
