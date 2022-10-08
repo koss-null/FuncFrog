@@ -31,7 +31,8 @@ func Slice[T any](dt []T) *Pipe[T] {
 	dtCp := make([]T, len(dt))
 	copy(dtCp, dt)
 	length := int64(len(dt))
-	zero := int64(0)
+	varLim := int64(0)
+
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
@@ -42,7 +43,7 @@ func Slice[T any](dt []T) *Pipe[T] {
 			}
 		},
 		len:      &length,
-		valLim:   &zero,
+		valLim:   &varLim,
 		skip:     bitmap.NewNaive(len(dtCp)).SetTrue,
 		parallel: defaultParallelWrks,
 	}
@@ -54,18 +55,13 @@ func Slice[T any](dt []T) *Pipe[T] {
 // output value amount using Get(n int) or
 // the amount of generated values Gen(n int)
 func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
-	// FIXME: do we need fncache here?
-	// fnCache := fnintcache.New[T]()
 	length := int64(-1)
 	zero := int64(0)
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
-				// if res, found := fnCache.Get(i); found {
-				// return res, false
-				// }
+				// FIXME: this code looks ugly
 				obj, exist := fn(i)
-				// fnCache.Set(i, obj)
 				return &obj, !exist
 			}
 		},
@@ -76,7 +72,8 @@ func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
 	}
 }
 
-// Map applies fn to each element of the underlying slice
+// Map applies given function to each element of the underlying slice
+// returns the slice where each element is n[i] = f(p[i])
 func (p *Pipe[T]) Map(fn func(T) T) *Pipe[T] {
 	return &Pipe[T]{
 		fn: func() func(i int) (*T, bool) {
@@ -95,7 +92,7 @@ func (p *Pipe[T]) Map(fn func(T) T) *Pipe[T] {
 	}
 }
 
-// Filter leaves only items of an underlying slice where fn(d[i]) is true
+// Filter leaves only items of an underlying slice where f(p[i]) is true
 func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 	return &Pipe[T]{
 		fn: func() func(i int) (*T, bool) {
@@ -117,6 +114,7 @@ func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 	}
 }
 
+// merge is an inner function to merge two sorted slices into one sorted slice
 func merge[T any](a []T, lf, rg, lf1, rg1 int, less func(T, T) bool) {
 	st := lf
 	res := make([]T, 0, rg1-lf)
@@ -140,6 +138,7 @@ func merge[T any](a []T, lf, rg, lf1, rg1 int, less func(T, T) bool) {
 	copy(a[st:], res)
 }
 
+// mergeSplits is an inner functnon to merge all sorted splits of a slice into a one sorted slice
 func mergeSplits[T any](
 	data []T,
 	splits []struct{ lf, rg int },
@@ -150,14 +149,17 @@ func mergeSplits[T any](
 	for i := 0; i < threads; i++ {
 		jobTicket <- struct{}{}
 	}
-	newSplits := []struct{ lf, rg int }{}
+
 	var wg sync.WaitGroup
+	newSplits := []struct{ lf, rg int }{}
 	for i := 0; i < len(splits); i += 2 {
+		// this is the last iteration
 		if i+1 >= len(splits) {
 			newSplits = append(newSplits, splits[i])
 			break
 		}
 
+		// this one controls amount of simultanious merge processes running
 		<-jobTicket
 		wg.Add(1)
 		go func(i int) {
@@ -186,6 +188,8 @@ func mergeSplits[T any](
 	mergeSplits(data, newSplits, threads, less)
 }
 
+// sortParallel is an inner implementation of a parallel merge sort where sort.Slice()
+// is used to sort small array parts
 func sortParallel[T any](data []T, less func(T, T) bool, threads int) []T {
 	cmp := func(i, j int) bool {
 		return less(data[i], data[j])
@@ -224,25 +228,30 @@ func sortParallel[T any](data []T, less func(T, T) bool, threads int) []T {
 	return data
 }
 
-// Sort sorts the underlying slice
+// Sort sorts the underlying slice on a current step of a pipeline
 func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
 	var once sync.Once
 	var sorted []T
+	sortedArrayInit := func() {
+		once.Do(func() {
+			data := p.Do()
+			if len(data) == 0 {
+				return
+			}
+			sorted = sortParallel(data, less, p.parallel)
+		})
+	}
+	emptyFunc := func() {}
 
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
-				once.Do(func() {
-					data := p.Do()
-					if len(data) == 0 {
-						return
-					}
-					sorted = sortParallel(data, less, p.parallel)
-				})
+				sortedArrayInit()
+				sortedArrayInit = emptyFunc
 				if i >= len(sorted) {
-					return nil, false
+					return nil, true
 				}
-				return &sorted[i], true
+				return &sorted[i], false
 			}
 		},
 		len:      p.len,
@@ -252,7 +261,7 @@ func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
 	}
 }
 
-// Reduce applies the result of a function to each element one-by-one
+// Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...])))
 func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 	data := p.Do()
 	if len(data) == 0 {
@@ -265,8 +274,8 @@ func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 	return &res
 }
 
-// Take set the amount of values expected to be in result slice
-// Applied only the first Gen() or Take() function in the pipe
+// Take is used to set the amount of values expected to be in result slice.
+// It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Take(n int) *Pipe[T] {
 	if n < 0 || *p.valLim != 0 || *p.len != -1 {
 		return p
@@ -276,8 +285,8 @@ func (p *Pipe[T]) Take(n int) *Pipe[T] {
 	return p
 }
 
-// Gen set the amount of values to generate as initial array
-// Applied only the first Gen() or Take() function in the pipe
+// Gen set the amount of values to generate as initial array.
+// It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Gen(n int) *Pipe[T] {
 	if n < 0 || *p.len != -1 || *p.valLim != 0 {
 		return p
@@ -287,6 +296,7 @@ func (p *Pipe[T]) Gen(n int) *Pipe[T] {
 	return p
 }
 
+// doToLimit internal executor for Take
 func (p *Pipe[T]) doToLimit() []T {
 	pfn := p.fn()
 	res := make([]T, 0, *p.valLim)
@@ -342,6 +352,7 @@ func intCircle(n int) func() int {
 	}
 }
 
+// do is the main result evaluation pipeline
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	if *p.len == -1 && *p.valLim == 0 {
 		return []T{}, 0
