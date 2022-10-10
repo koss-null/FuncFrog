@@ -264,14 +264,18 @@ func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
 // Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...])))
 func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 	data := p.Do()
-	if len(data) == 0 {
+	switch len(data) {
+	case 0:
 		return nil
+	case 1:
+		return &data[0]
+	default:
+		res := data[0]
+		for i := range data[1:] {
+			res = fn(res, data[i+1])
+		}
+		return &res
 	}
-	res := data[0]
-	for i := range data[1:] {
-		res = fn(res, data[i+1])
-	}
-	return &res
 }
 
 // Take is used to set the amount of values expected to be in result slice.
