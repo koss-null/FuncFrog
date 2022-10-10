@@ -23,7 +23,7 @@ To play around with simple examples check out: `pkg/pipe/example/`.
 Also feel free to run it with `go run pkg/pipe/example/`. 
  
 Here are some more examples (pretty mutch same as in the example package): 
-First of all let's make a simple slice:
+first of all let's make a simple slice:
 
 ```go
 a := make([]int, 100)
@@ -94,13 +94,3 @@ pipe.Func(func(i int) (float32, bool) {
 	Parallel(12).
 	Do()
 ```
-Also if you don't whant to carry the result array on your shoulders and only worry about the amount, you better use
-`Count()` instead of `Do()`.
- 
-What's next? 
-I hope to provide some roadmap of the project soon. 
-Also I am going to craft some unit-tests and may be set up github pipelines eventually. 
-Before any roadmap and contribution policies being written I will unlikely accept any merge requests, but I will consider it in some
-time. 
-Anyway feel free to fork, inspire and use! I will try to supply all version tags by some manual testing and quality
-control at least. 
