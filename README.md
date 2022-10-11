@@ -90,6 +90,7 @@ pipe.Func(func(i int) (float32, bool) {
 }).
 	Map(func(x float32) float32 { return x * x }).
 	Gen(100500).
+	Sort(pipe.Less).
 	// This is how you can sort in parallel (it's rly faster!)
 	Parallel(12).
 	Do()
