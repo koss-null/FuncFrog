@@ -56,7 +56,7 @@ Sort(less func(x, y T) bool) // sotrs the array in parallel,
 Do() []T // executes all the pipe and returns the resulting slice
 ```
 ```go
-Reduce(func(x, y T) T) []T // executes all the pipe and returns the resulting value
+Reduce(func(x, y T) T) T // executes all the pipe and returns the resulting value
 ```
 ```go
 Sum(func(x, y) T) T // is pretty similar to Reduce, but works in parallel
