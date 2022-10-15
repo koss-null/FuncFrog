@@ -76,6 +76,13 @@ MoreThan(n int) bool // returns if there is at least n elements in the result sl
 Revere() // reverses the underlying slice
 ```
  
+### Important note:
+ 
+```
+pipelines initiated with Func(...) are not parallelize yet
+```
+
+
 ### Quick usage review
  
 Here are some more examples (pretty mutch same as in the example package):  
