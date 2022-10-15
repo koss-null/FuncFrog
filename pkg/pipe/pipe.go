@@ -170,53 +170,6 @@ func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 	}
 }
 
-// Sum returns the sum of all elements
-func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
-	data := p.Do()
-	switch len(data) {
-	case 0:
-		return nil
-	case 1:
-		return &data[0]
-	default:
-		step := int64(math.Ceil(float64(*p.len) / float64(p.parallel)))
-		totalLength := (*p.len) / step
-		if (*p.len)%step != 0 {
-			totalLength += 1
-		}
-		var (
-			totalRes = make([]*T, totalLength)
-			stepCnt  = int64(0)
-		)
-
-		var wg sync.WaitGroup
-		for lf := int64(0); lf < *p.len; lf += step {
-			rs := int64(0)
-			for i := lf; i < min(lf+step, *p.len); i++ {
-				rs += i
-			}
-			// totalRes = append(totalRes, zero)
-			wg.Add(1)
-			go func(data []T, stepCnt int64) {
-				for i := 1; i < len(data); i++ {
-					data[0] = sum(data[0], data[i])
-				}
-				totalRes[stepCnt] = &data[0]
-				wg.Done()
-			}(data[lf:min(lf+step, *p.len)], stepCnt)
-			stepCnt++
-		}
-		wg.Wait()
-
-		res := *totalRes[0]
-		// no NPE since switch checks above
-		for i := 1; i < len(totalRes); i++ {
-			res = sum(res, *(totalRes[i]))
-		}
-		return &res
-	}
-}
-
 // Take is used to set the amount of values expected to be in result slice.
 // It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Take(n int) *Pipe[T] {
@@ -265,6 +218,137 @@ func (p *Pipe[T]) Count() int {
 	}
 	_, cnt := p.do(false)
 	return cnt
+}
+
+// Sum returns the sum of all elements
+func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
+	data := p.Do()
+	switch len(data) {
+	case 0:
+		return nil
+	case 1:
+		return &data[0]
+	default:
+		step := int64(math.Ceil(float64(*p.len) / float64(p.parallel)))
+		totalLength := (*p.len) / step
+		if (*p.len)%step != 0 {
+			totalLength += 1
+		}
+		var (
+			totalRes = make([]*T, totalLength)
+			stepCnt  = int64(0)
+		)
+
+		var wg sync.WaitGroup
+		for lf := int64(0); lf < *p.len; lf += step {
+			rs := int64(0)
+			for i := lf; i < min(lf+step, *p.len); i++ {
+				rs += i
+			}
+			// totalRes = append(totalRes, zero)
+			wg.Add(1)
+			go func(data []T, stepCnt int64) {
+				for i := 1; i < len(data); i++ {
+					data[0] = sum(data[0], data[i])
+				}
+				totalRes[stepCnt] = &data[0]
+				wg.Done()
+			}(data[lf:min(lf+step, *p.len)], stepCnt)
+			stepCnt++
+		}
+		wg.Wait()
+
+		res := *totalRes[0]
+		// no NPE since switch checks above
+		for i := 1; i < len(totalRes); i++ {
+			res = sum(res, *(totalRes[i]))
+		}
+		return &res
+	}
+}
+
+// TODO: technically, First can work with Func pipe without Take() or Gen()
+// First returns the first element of the pipe
+func (p *Pipe[T]) First() *T {
+	if *p.len == -1 && *p.valLim == 0 {
+		return nil
+	}
+
+	// pipe init was done with a Func function
+	if *p.len == -1 {
+		// FIXME: may work in parallel
+		pfn := p.fn()
+		limit := math.MaxInt
+		if *p.valLim < int64(limit) {
+			limit = int(*p.valLim)
+		}
+		for i := 0; i < limit; i++ {
+			obj, skipped := pfn(i)
+			if !skipped {
+				return obj
+			}
+
+			if i == math.MaxInt {
+				return nil
+			}
+		}
+		return nil
+	}
+
+	var (
+		step = int(math.Ceil(float64(*p.len) / float64(p.parallel)))
+		res  = make([]*T, int(math.Ceil(float64(*p.len)/float64(step))))
+		// dirty hack to be able to check zero step element was found fast
+		res0    = make(chan *T, 1)
+		pfn     = p.fn()
+		wg      sync.WaitGroup
+		stepCnt int
+	)
+	for i := 0; i < int(*p.len); i += step {
+		wg.Add(1)
+		go func(lf, rg, stepCnt int) {
+			defer wg.Done()
+			if rg > int(*p.len) {
+				rg = int(*p.len)
+			}
+			for i := lf; i < rg; i++ {
+				obj, skipped := pfn(i)
+				if !skipped {
+					if stepCnt == 0 {
+						res0 <- obj
+					}
+					res[stepCnt] = obj
+					return
+				}
+				if stepCnt != 0 && i%345 == 0 {
+					// check if there is any result from the left
+					if res[stepCnt-1] != nil {
+						return
+					}
+				}
+			}
+		}(i, i+step, stepCnt)
+		stepCnt++
+	}
+
+	result := make(chan *T)
+	go func() {
+		wg.Wait()
+		for i := range res {
+			if res[i] != nil {
+				result <- res[i]
+				return
+			}
+		}
+		result <- nil
+	}()
+
+	select {
+	case r := <-result:
+		return r
+	case r := <-res0:
+		return r
+	}
 }
 
 // doToLimit internal executor for Take
