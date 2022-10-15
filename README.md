@@ -69,6 +69,8 @@ you about to send any function here where f(a, b) = f(b, a) and f(f(a, b), c) ==
 First() T // returns the first found value in the result slice
 Any() T // returns the first found T instance (ont in order)
 IsAny() bool // returns true if there is at least 1 element in the result slice
+MoreThan(n int) bool // returns if there is at least n elements in the result slice
+Revere() // reverses the underlying slice
 ```
  
 ### Quick usage review

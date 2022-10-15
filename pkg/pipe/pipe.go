@@ -170,53 +170,6 @@ func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 	}
 }
 
-// Sum returns the sum of all elements
-func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
-	data := p.Do()
-	switch len(data) {
-	case 0:
-		return nil
-	case 1:
-		return &data[0]
-	default:
-		step := int64(math.Ceil(float64(*p.len) / float64(p.parallel)))
-		totalLength := (*p.len) / step
-		if (*p.len)%step != 0 {
-			totalLength += 1
-		}
-		var (
-			totalRes = make([]*T, totalLength)
-			stepCnt  = int64(0)
-		)
-
-		var wg sync.WaitGroup
-		for lf := int64(0); lf < *p.len; lf += step {
-			rs := int64(0)
-			for i := lf; i < min(lf+step, *p.len); i++ {
-				rs += i
-			}
-			// totalRes = append(totalRes, zero)
-			wg.Add(1)
-			go func(data []T, stepCnt int64) {
-				for i := 1; i < len(data); i++ {
-					data[0] = sum(data[0], data[i])
-				}
-				totalRes[stepCnt] = &data[0]
-				wg.Done()
-			}(data[lf:min(lf+step, *p.len)], stepCnt)
-			stepCnt++
-		}
-		wg.Wait()
-
-		res := *totalRes[0]
-		// no NPE since switch checks above
-		for i := 1; i < len(totalRes); i++ {
-			res = sum(res, *(totalRes[i]))
-		}
-		return &res
-	}
-}
-
 // Take is used to set the amount of values expected to be in result slice.
 // It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Take(n int) *Pipe[T] {
@@ -265,6 +218,104 @@ func (p *Pipe[T]) Count() int {
 	}
 	_, cnt := p.do(false)
 	return cnt
+}
+
+// Sum returns the sum of all elements
+func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
+	data := p.Do()
+	switch len(data) {
+	case 0:
+		return nil
+	case 1:
+		return &data[0]
+	default:
+		step := int64(math.Ceil(float64(*p.len) / float64(p.parallel)))
+		totalLength := (*p.len) / step
+		if (*p.len)%step != 0 {
+			totalLength += 1
+		}
+		var (
+			totalRes = make([]*T, totalLength)
+			stepCnt  = int64(0)
+		)
+
+		var wg sync.WaitGroup
+		for lf := int64(0); lf < *p.len; lf += step {
+			rs := int64(0)
+			for i := lf; i < min(lf+step, *p.len); i++ {
+				rs += i
+			}
+			// totalRes = append(totalRes, zero)
+			wg.Add(1)
+			go func(data []T, stepCnt int64) {
+				for i := 1; i < len(data); i++ {
+					data[0] = sum(data[0], data[i])
+				}
+				totalRes[stepCnt] = &data[0]
+				wg.Done()
+			}(data[lf:min(lf+step, *p.len)], stepCnt)
+			stepCnt++
+		}
+		wg.Wait()
+
+		res := *totalRes[0]
+		// no NPE since switch checks above
+		for i := 1; i < len(totalRes); i++ {
+			res = sum(res, *(totalRes[i]))
+		}
+		return &res
+	}
+}
+
+// TODO: technically, First can work with Func pipe without Take() or Gen()
+// First returns the first element of the pipe
+func (p *Pipe[T]) First() T {
+	if *p.len == -1 && *p.valLim == 0 {
+		var empty T
+		return empty
+	}
+
+	if *p.valLim != 0 {
+		// FIXME: this is not fast
+		return p.doToLimit()[0]
+	}
+
+	var (
+		skipCnt atomic.Int64
+		res     []T
+		evals   []ev[T]
+	)
+	res = make([]T, 0, *p.len)
+	evals = make([]ev[T], *p.len)
+
+	step := int(math.Ceil(float64(*p.len) / float64(p.parallel)))
+	pfn := p.fn()
+	var wg sync.WaitGroup
+	for i := 0; i < int(*p.len); i += step {
+		wg.Add(1)
+		go func(lf, rg int) {
+			if rg > int(*p.len) {
+				rg = int(*p.len)
+			}
+			for i := lf; i < rg; i++ {
+				obj, skipped := pfn(i)
+				if skipped {
+					skipCnt.Add(1)
+				}
+				evals[i] = ev[T]{obj, skipped}
+			}
+			wg.Done()
+		}(i, i+step)
+	}
+	wg.Wait()
+
+	for _, ev := range evals {
+		if !ev.skipped {
+			res = append(res, *ev.obj)
+		}
+	}
+	return res[0]
+
 }
 
 // doToLimit internal executor for Take
