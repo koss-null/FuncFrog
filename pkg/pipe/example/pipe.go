@@ -279,8 +279,22 @@ Do()
 		Gen(10000).
 		// This is how you can sort in parallel (it's rly faster!)
 		Parallel(12).
+		Sort(pipe.Less[float32]).
 		Do()
 	fmt.Println("6: Soring in parallel! (first, middle and last item) ", res6[0], res6[len(res6)/2], res6[len(res6)-1])
 
+	res7 := pipe.Func(func(i int) (int, bool) {
+		return i, true
+	}).
+		Gen(10000).
+		// This is how you can sort in parallel (it's rly faster!)
+		Parallel(12).
+		Sum(pipe.Sum[int])
+	fmt.Println("7: Sum (all nums from 0 to 10^5-1):", int64(*res7))
+	sm := 0
+	for i := 0; i < 10000; i++ {
+		sm += i
+	}
+	fmt.Println("7: Sum should be", sm)
 	// TODO: add reduce example
 }

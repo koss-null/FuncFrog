@@ -58,14 +58,13 @@ Do() []T // executes all the pipe and returns the resulting slice
 ```go
 Reduce(func(x, y T) T) []T // executes all the pipe and returns the resulting value
 ```
- 
-### To be done functions (the names are not settled yet):
- 
 ```go
 Sum(func(x, y) T) T // is pretty similar to Reduce, but works in parallel
 ```
 you about to send any function here where f(a, b) = f(b, a) and f(f(a, b), c) == f((c, b), a) == f(f(a,c), b)
-
+ 
+### To be done functions (the names are not settled yet):
+ 
 ```go
 First() T // returns the first found value in the result slice
 Any() T // returns the first found T instance (ont in order)

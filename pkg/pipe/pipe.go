@@ -7,6 +7,7 @@ import (
 
 	"github.com/koss-null/lambda/internal/bitmap"
 	"go.uber.org/atomic"
+	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -15,6 +16,11 @@ const (
 	maxJobsInTask            = 384
 	singleThreadSortTreshold = 5000
 )
+
+type ev[T any] struct {
+	obj     *T
+	skipped bool
+}
 
 // Pipe implements the pipe on any slice.
 // Pipe should be initialized with New() or NewFn()
@@ -114,6 +120,226 @@ func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 	}
 }
 
+// Sort sorts the underlying slice on a current step of a pipeline
+func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
+	var once sync.Once
+	var sorted []T
+	sortedArrayInit := func() {
+		once.Do(func() {
+			data := p.Do()
+			if len(data) == 0 {
+				return
+			}
+			sorted = sortParallel(data, less, p.parallel)
+		})
+	}
+	emptyFunc := func() {}
+
+	return &Pipe[T]{
+		fn: func() func(int) (*T, bool) {
+			return func(i int) (*T, bool) {
+				sortedArrayInit()
+				sortedArrayInit = emptyFunc
+				if i >= len(sorted) {
+					return nil, true
+				}
+				return &sorted[i], false
+			}
+		},
+		len:      p.len,
+		valLim:   p.valLim,
+		skip:     p.skip,
+		parallel: p.parallel,
+	}
+}
+
+// Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...])))
+func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
+	data := p.Do()
+	switch len(data) {
+	case 0:
+		return nil
+	case 1:
+		return &data[0]
+	default:
+		res := data[0]
+		for i := range data[1:] {
+			res = fn(res, data[i+1])
+		}
+		return &res
+	}
+}
+
+// Sum returns the sum of all elements
+func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
+	data := p.Do()
+	switch len(data) {
+	case 0:
+		return nil
+	case 1:
+		return &data[0]
+	default:
+		step := int64(math.Ceil(float64(*p.len) / float64(p.parallel)))
+		totalLength := (*p.len) / step
+		if (*p.len)%step != 0 {
+			totalLength += 1
+		}
+		var (
+			totalRes = make([]*T, totalLength)
+			stepCnt  = int64(0)
+		)
+
+		var wg sync.WaitGroup
+		for lf := int64(0); lf < *p.len; lf += step {
+			rs := int64(0)
+			for i := lf; i < min(lf+step, *p.len); i++ {
+				rs += i
+			}
+			// totalRes = append(totalRes, zero)
+			wg.Add(1)
+			go func(data []T, stepCnt int64) {
+				for i := 1; i < len(data); i++ {
+					data[0] = sum(data[0], data[i])
+				}
+				totalRes[stepCnt] = &data[0]
+				wg.Done()
+			}(data[lf:min(lf+step, *p.len)], stepCnt)
+			stepCnt++
+		}
+		wg.Wait()
+
+		res := *totalRes[0]
+		// no NPE since switch checks above
+		for i := 1; i < len(totalRes); i++ {
+			res = sum(res, *(totalRes[i]))
+		}
+		return &res
+	}
+}
+
+// Take is used to set the amount of values expected to be in result slice.
+// It's applied only the first Gen() or Take() function in the pipe
+func (p *Pipe[T]) Take(n int) *Pipe[T] {
+	if n < 0 || *p.valLim != 0 || *p.len != -1 {
+		return p
+	}
+	valLim := int64(n)
+	p.valLim = &valLim
+	return p
+}
+
+// Gen set the amount of values to generate as initial array.
+// It's applied only the first Gen() or Take() function in the pipe
+func (p *Pipe[T]) Gen(n int) *Pipe[T] {
+	if n < 0 || *p.len != -1 || *p.valLim != 0 {
+		return p
+	}
+	length := int64(n)
+	p.len = &length
+	return p
+}
+
+// Parallel set n - the amount of goroutines to run on. The value by defalut is 4
+// Only the first Parallel() call is not ignored
+func (p *Pipe[T]) Parallel(n int) *Pipe[T] {
+	if n < 1 {
+		return p
+	}
+	if n > maxParallelWrks {
+		n = maxParallelWrks
+	}
+	p.parallel = n
+	return p
+}
+
+// Do evaluates all the pipeline and returns the result slice
+func (p *Pipe[T]) Do() []T {
+	res, _ := p.do(true)
+	return res
+}
+
+// Count evaluates all the pipeline and returns the amount of left items
+func (p *Pipe[T]) Count() int {
+	if *p.valLim != 0 {
+		return int(*p.valLim)
+	}
+	_, cnt := p.do(false)
+	return cnt
+}
+
+// doToLimit internal executor for Take
+func (p *Pipe[T]) doToLimit() []T {
+	pfn := p.fn()
+	res := make([]T, 0, *p.valLim)
+	for i := 0; int64(len(res)) < *p.valLim; i++ {
+		obj, skipped := pfn(i)
+		if !skipped {
+			res = append(res, *obj)
+		}
+
+		if i == math.MaxInt {
+			// TODO: should we panic here?
+			break
+		}
+	}
+	return res
+}
+
+// do is the main result evaluation pipeline
+func (p *Pipe[T]) do(needResult bool) ([]T, int) {
+	if *p.len == -1 && *p.valLim == 0 {
+		return []T{}, 0
+	}
+
+	if *p.valLim != 0 {
+		res := p.doToLimit()
+		return res, len(res)
+	}
+
+	var (
+		skipCnt atomic.Int64
+		res     []T
+		evals   []ev[T]
+	)
+	if needResult {
+		res = make([]T, 0, *p.len)
+		evals = make([]ev[T], *p.len)
+	}
+
+	step := int(math.Ceil(float64(*p.len) / float64(p.parallel)))
+	pfn := p.fn()
+	var wg sync.WaitGroup
+	for i := 0; i < int(*p.len); i += step {
+		wg.Add(1)
+		go func(lf, rg int) {
+			if rg > int(*p.len) {
+				rg = int(*p.len)
+			}
+			for i := lf; i < rg; i++ {
+				obj, skipped := pfn(i)
+				if skipped {
+					skipCnt.Add(1)
+				}
+				if needResult {
+					evals[i] = ev[T]{obj, skipped}
+				}
+			}
+			wg.Done()
+		}(i, i+step)
+	}
+	wg.Wait()
+
+	if needResult {
+		for _, ev := range evals {
+			if !ev.skipped {
+				res = append(res, *ev.obj)
+			}
+		}
+	}
+
+	return res, int(*p.len - skipCnt.Load())
+}
+
 // merge is an inner function to merge two sorted slices into one sorted slice
 func merge[T any](a []T, lf, rg, lf1, rg1 int, less func(T, T) bool) {
 	st := lf
@@ -198,12 +424,7 @@ func sortParallel[T any](data []T, less func(T, T) bool, threads int) []T {
 		sort.Slice(data, cmp)
 		return data
 	}
-	min := func(a, b int) int {
-		if a > b {
-			return b
-		}
-		return a
-	}
+
 	splits := []struct{ lf, rg int }{}
 	step := (len(data) / threads) + 1
 	lf, rg := 0, min(step, len(data))
@@ -228,213 +449,9 @@ func sortParallel[T any](data []T, less func(T, T) bool, threads int) []T {
 	return data
 }
 
-// Sort sorts the underlying slice on a current step of a pipeline
-func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
-	var once sync.Once
-	var sorted []T
-	sortedArrayInit := func() {
-		once.Do(func() {
-			data := p.Do()
-			if len(data) == 0 {
-				return
-			}
-			sorted = sortParallel(data, less, p.parallel)
-		})
+func min[T constraints.Ordered](a, b T) T {
+	if a > b {
+		return b
 	}
-	emptyFunc := func() {}
-
-	return &Pipe[T]{
-		fn: func() func(int) (*T, bool) {
-			return func(i int) (*T, bool) {
-				sortedArrayInit()
-				sortedArrayInit = emptyFunc
-				if i >= len(sorted) {
-					return nil, true
-				}
-				return &sorted[i], false
-			}
-		},
-		len:      p.len,
-		valLim:   p.valLim,
-		skip:     p.skip,
-		parallel: p.parallel,
-	}
-}
-
-// Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...])))
-func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
-	data := p.Do()
-	switch len(data) {
-	case 0:
-		return nil
-	case 1:
-		return &data[0]
-	default:
-		res := data[0]
-		for i := range data[1:] {
-			res = fn(res, data[i+1])
-		}
-		return &res
-	}
-}
-
-// Take is used to set the amount of values expected to be in result slice.
-// It's applied only the first Gen() or Take() function in the pipe
-func (p *Pipe[T]) Take(n int) *Pipe[T] {
-	if n < 0 || *p.valLim != 0 || *p.len != -1 {
-		return p
-	}
-	valLim := int64(n)
-	p.valLim = &valLim
-	return p
-}
-
-// Gen set the amount of values to generate as initial array.
-// It's applied only the first Gen() or Take() function in the pipe
-func (p *Pipe[T]) Gen(n int) *Pipe[T] {
-	if n < 0 || *p.len != -1 || *p.valLim != 0 {
-		return p
-	}
-	length := int64(n)
-	p.len = &length
-	return p
-}
-
-// doToLimit internal executor for Take
-func (p *Pipe[T]) doToLimit() []T {
-	pfn := p.fn()
-	res := make([]T, 0, *p.valLim)
-	for i := 0; int64(len(res)) < *p.valLim; i++ {
-		obj, skipped := pfn(i)
-		if !skipped {
-			res = append(res, *obj)
-		}
-
-		if i == math.MaxInt {
-			// TODO: should we panic here?
-			break
-		}
-	}
-	return res
-}
-
-type ev[T any] struct {
-	obj     *T
-	skipped bool
-}
-
-type task struct {
-	jobs [maxJobsInTask]func()
-	done func()
-}
-
-func worker(tasks <-chan task) func() {
-	finish := false
-	go func() {
-		for !finish {
-			if task, ok := <-tasks; ok {
-				for _, job := range task.jobs {
-					if job != nil {
-						job()
-					}
-				}
-				task.done()
-			}
-		}
-	}()
-	return func() { finish = false }
-}
-
-func intCircle(n int) func() int {
-	var i int
-	return func() int {
-		if i == n {
-			i = 0
-		}
-		i++
-		return i - 1
-	}
-}
-
-// do is the main result evaluation pipeline
-func (p *Pipe[T]) do(needResult bool) ([]T, int) {
-	if *p.len == -1 && *p.valLim == 0 {
-		return []T{}, 0
-	}
-
-	if *p.valLim != 0 {
-		res := p.doToLimit()
-		return res, len(res)
-	}
-
-	var (
-		skipCnt atomic.Int64
-		res     []T
-		evals   []ev[T]
-	)
-	if needResult {
-		res = make([]T, 0, *p.len)
-		evals = make([]ev[T], *p.len)
-	}
-
-	step := int(math.Ceil(float64(*p.len) / float64(p.parallel)))
-	pfn := p.fn()
-	var wg sync.WaitGroup
-	for i := 0; i < int(*p.len); i += step {
-		wg.Add(1)
-		go func(lf, rg int) {
-			if rg > int(*p.len) {
-				rg = int(*p.len)
-			}
-			for i := lf; i < rg; i++ {
-				obj, skipped := pfn(i)
-				if skipped {
-					skipCnt.Add(1)
-				}
-				if needResult {
-					evals[i] = ev[T]{obj, skipped}
-				}
-			}
-			wg.Done()
-		}(i, i+step)
-	}
-	wg.Wait()
-
-	if needResult {
-		for _, ev := range evals {
-			if !ev.skipped {
-				res = append(res, *ev.obj)
-			}
-		}
-	}
-
-	return res, int(*p.len - skipCnt.Load())
-}
-
-// Parallel set n - the amount of goroutines to run on. The value by defalut is 4
-// Only the first Parallel() call is not ignored
-func (p *Pipe[T]) Parallel(n int) *Pipe[T] {
-	if n < 1 {
-		return p
-	}
-	if n > maxParallelWrks {
-		n = maxParallelWrks
-	}
-	p.parallel = n
-	return p
-}
-
-// Do evaluates all the pipeline and returns the result slice
-func (p *Pipe[T]) Do() []T {
-	res, _ := p.do(true)
-	return res
-}
-
-// Count evaluates all the pipeline and returns the amount of left items
-func (p *Pipe[T]) Count() int {
-	if *p.valLim != 0 {
-		return int(*p.valLim)
-	}
-	_, cnt := p.do(false)
-	return cnt
+	return a
 }
