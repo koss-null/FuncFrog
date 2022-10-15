@@ -269,53 +269,86 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 
 // TODO: technically, First can work with Func pipe without Take() or Gen()
 // First returns the first element of the pipe
-func (p *Pipe[T]) First() T {
+func (p *Pipe[T]) First() *T {
 	if *p.len == -1 && *p.valLim == 0 {
-		var empty T
-		return empty
+		return nil
 	}
 
-	if *p.valLim != 0 {
-		// FIXME: this is not fast
-		return p.doToLimit()[0]
+	// pipe init was done with a Func function
+	if *p.len == -1 {
+		// FIXME: may work in parallel
+		pfn := p.fn()
+		limit := math.MaxInt
+		if *p.valLim < int64(limit) {
+			limit = int(*p.valLim)
+		}
+		for i := 0; i < limit; i++ {
+			obj, skipped := pfn(i)
+			if !skipped {
+				return obj
+			}
+
+			if i == math.MaxInt {
+				return nil
+			}
+		}
+		return nil
 	}
 
 	var (
-		skipCnt atomic.Int64
-		res     []T
-		evals   []ev[T]
+		step = int(math.Ceil(float64(*p.len) / float64(p.parallel)))
+		res  = make([]*T, int(math.Ceil(float64(*p.len)/float64(step))))
+		// dirty hack to be able to check zero step element was found fast
+		res0    = make(chan *T, 1)
+		pfn     = p.fn()
+		wg      sync.WaitGroup
+		stepCnt int
 	)
-	res = make([]T, 0, *p.len)
-	evals = make([]ev[T], *p.len)
-
-	step := int(math.Ceil(float64(*p.len) / float64(p.parallel)))
-	pfn := p.fn()
-	var wg sync.WaitGroup
 	for i := 0; i < int(*p.len); i += step {
 		wg.Add(1)
-		go func(lf, rg int) {
+		go func(lf, rg, stepCnt int) {
+			defer wg.Done()
 			if rg > int(*p.len) {
 				rg = int(*p.len)
 			}
 			for i := lf; i < rg; i++ {
 				obj, skipped := pfn(i)
-				if skipped {
-					skipCnt.Add(1)
+				if !skipped {
+					if stepCnt == 0 {
+						res0 <- obj
+					}
+					res[stepCnt] = obj
+					return
 				}
-				evals[i] = ev[T]{obj, skipped}
+				if stepCnt != 0 && i%345 == 0 {
+					// check if there is any result from the left
+					if res[stepCnt-1] != nil {
+						return
+					}
+				}
 			}
-			wg.Done()
-		}(i, i+step)
+		}(i, i+step, stepCnt)
+		stepCnt++
 	}
-	wg.Wait()
 
-	for _, ev := range evals {
-		if !ev.skipped {
-			res = append(res, *ev.obj)
+	result := make(chan *T)
+	go func() {
+		wg.Wait()
+		for i := range res {
+			if res[i] != nil {
+				result <- res[i]
+				return
+			}
 		}
-	}
-	return res[0]
+		result <- nil
+	}()
 
+	select {
+	case r := <-result:
+		return r
+	case r := <-res0:
+		return r
+	}
 }
 
 // doToLimit internal executor for Take

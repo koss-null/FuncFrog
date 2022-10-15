@@ -30,14 +30,14 @@ Slice([]T) // creates a pipe of a given type T from a slice.
 ```go
 Func(func(i int) (T, bool)) // creates a pipe of type T from a function.
 ```
-The bool parameter is wether it's skipped (true if yes), `i int` is for the i'th element of initial pipe
+The bool parameter is wether it's taken (true if it's taken, false - skipped), `i int` is for the i'th element of initial pipe
 ```go
 Take(n int) // if it's a Func made pipe, it expects n values to be eventually returned
 ```
 ```go
 Gen(n int) // if it's a Func made pipe, it generates a sequence from [0, n) and applies other function to it
 ```
-Only the first of `Gen` or `Take` functions in the pipe (from left to right) is applied.  
+Only the first of `Gen`, `Take` or `First` functions in the pipe (from left to right) is applied.  
 You can't have `Func` made pipe and not set either `Gen` or `Take`, it's set to 0 by default.  
 ```go
 Parallel(n int) // set the number of goroutines to be executed on (4 by default)
@@ -62,11 +62,14 @@ Reduce(func(x, y T) T) T // executes all the pipe and returns the resulting valu
 Sum(func(x, y) T) T // is pretty similar to Reduce, but works in parallel
 ```
 you about to send any function here where f(a, b) = f(b, a) and f(f(a, b), c) == f((c, b), a) == f(f(a,c), b)
+```go
+First() T // returns the first found value in the result slice
+// Works with Func(...) like magic
+```
  
 ### To be done functions (the names are not settled yet):
  
 ```go
-First() T // returns the first found value in the result slice
 Any() T // returns the first found T instance (ont in order)
 IsAny() bool // returns true if there is at least 1 element in the result slice
 MoreThan(n int) bool // returns if there is at least n elements in the result slice
