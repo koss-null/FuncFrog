@@ -113,3 +113,31 @@ func TestFirst_ok_func_bigint_nogen_notake(t *testing.T) {
 	require.NotNil(t, s)
 	require.Equal(t, *s, float64(100_001))
 }
+
+func TestSum_ok_slice(t *testing.T) {
+	initA10kk()
+
+	s := pipe.Slice(a10kk).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Sum(pipe.Sum[float64])
+	require.NotNil(t, s)
+	require.Equal(t, *s, float64(49994994950000))
+}
+
+func TestSum_ok_func_gen(t *testing.T) {
+	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Gen(10_000_000).
+		Sum(pipe.Sum[float64])
+	require.NotNil(t, s)
+	require.Equal(t, *s, float64(49994994950000))
+}
+
+func TestSum_ok_func_take(t *testing.T) {
+	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Take(10_000_000).
+		Sum(pipe.Sum[float64])
+	require.NotNil(t, s)
+	require.Equal(t, *s, float64(51000005000000))
+}

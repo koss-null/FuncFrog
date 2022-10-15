@@ -229,20 +229,24 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 	case 1:
 		return &data[0]
 	default:
-		step := int64(math.Ceil(float64(*p.len) / float64(p.parallel)))
-		totalLength := (*p.len) / step
-		if (*p.len)%step != 0 {
-			totalLength += 1
+		totalLen := *p.len
+		if totalLen == -1 {
+			totalLen = *p.valLim
+		}
+		if totalLen == 0 {
+			return nil
 		}
 		var (
-			totalRes = make([]*T, totalLength)
-			stepCnt  = int64(0)
-		)
+			step        = int64(math.Ceil(float64(totalLen) / float64(p.parallel)))
+			totalLength = int(math.Ceil(float64(totalLen) / float64(step)))
+			totalRes    = make([]*T, totalLength)
 
-		var wg sync.WaitGroup
-		for lf := int64(0); lf < *p.len; lf += step {
-			rs := int64(0)
-			for i := lf; i < min(lf+step, *p.len); i++ {
+			stepCnt int64
+			wg      sync.WaitGroup
+		)
+		for lf := int64(0); lf < totalLen; lf += step {
+			var rs int64
+			for i := lf; i < min(lf+step, totalLen); i++ {
 				rs += i
 			}
 			// totalRes = append(totalRes, zero)
@@ -253,7 +257,7 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 				}
 				totalRes[stepCnt] = &data[0]
 				wg.Done()
-			}(data[lf:min(lf+step, *p.len)], stepCnt)
+			}(data[lf:min(lf+step, totalLen)], stepCnt)
 			stepCnt++
 		}
 		wg.Wait()
