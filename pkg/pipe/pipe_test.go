@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/koss-null/lambda/internal/primitive/pointer"
 	"github.com/koss-null/lambda/pkg/pipe"
 )
 
@@ -89,7 +90,7 @@ func TestFirst_ok_slice(t *testing.T) {
 		Filter(func(x float64) bool { return x > 100_000 }).
 		First()
 	require.NotNil(t, s)
-	require.Equal(t, *s, float64(100_001))
+	require.Equal(t, float64(100_001), *s)
 }
 
 func TestFirst_ok_func(t *testing.T) {
@@ -100,7 +101,7 @@ func TestFirst_ok_func(t *testing.T) {
 		Take(200_000).
 		First()
 	require.NotNil(t, s)
-	require.Equal(t, *s, float64(100_001))
+	require.Equal(t, float64(100_001), *s)
 }
 
 func TestFirst_ok_func_bigint_nogen_notake(t *testing.T) {
@@ -111,7 +112,7 @@ func TestFirst_ok_func_bigint_nogen_notake(t *testing.T) {
 		Take(math.MaxInt64).
 		First()
 	require.NotNil(t, s)
-	require.Equal(t, *s, float64(100_001))
+	require.Equal(t, float64(100_001), *s)
 }
 
 func TestSum_ok_slice(t *testing.T) {
@@ -121,7 +122,7 @@ func TestSum_ok_slice(t *testing.T) {
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Sum(pipe.Sum[float64])
 	require.NotNil(t, s)
-	require.Equal(t, *s, float64(49994994950000))
+	require.Equal(t, float64(49994994950000), *s)
 }
 
 func TestSum_ok_func_gen(t *testing.T) {
@@ -130,7 +131,7 @@ func TestSum_ok_func_gen(t *testing.T) {
 		Gen(10_000_000).
 		Sum(pipe.Sum[float64])
 	require.NotNil(t, s)
-	require.Equal(t, *s, float64(49994994950000))
+	require.Equal(t, float64(49994994950000), *s)
 }
 
 func TestSum_ok_func_take(t *testing.T) {
@@ -139,5 +140,24 @@ func TestSum_ok_func_take(t *testing.T) {
 		Take(10_000_000).
 		Sum(pipe.Sum[float64])
 	require.NotNil(t, s)
-	require.Equal(t, *s, float64(51000005000000))
+	require.Equal(t, float64(51000005000000), *s)
+}
+
+func TestFilter_NotNull_ok(t *testing.T) {
+	genFunc := func(i int) (*float64, bool) {
+		if i%10 == 0 {
+			return nil, true
+		}
+		return pointer.To(float64(i)), true
+	}
+
+	s := pipe.Map(
+		pipe.Func(genFunc).
+			Filter(pipe.NotNull[*float64]).
+			Take(10_000),
+		func(x *float64) float64 { return *x },
+	).
+		Sum(pipe.Sum[float64])
+	require.NotNil(t, s)
+	require.Equal(t, float64(55555556), *s)
 }
