@@ -19,8 +19,8 @@ res := pipe.Slice(a).
 	Do()
 ```
  
-To play around with simple examples check out: `pkg/pipe/example/`.  
-Also feel free to run it with `go run pkg/pipe/example/`.  
+To play around with simple examples check out: `go run examples/main.go`.  
+Also feel free to run it with `go run examples/main.go`.  
  
 ### Supported functions:
  
