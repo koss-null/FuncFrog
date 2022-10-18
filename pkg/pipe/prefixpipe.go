@@ -20,3 +20,19 @@ func Map[SrcT, DstT any](p *Pipe[SrcT], fn func(x SrcT) DstT) *Pipe[DstT] {
 		parallel: p.parallel,
 	}
 }
+
+func Reduce[SrcT any, DstT any](p *Pipe[SrcT], fn func(DstT, SrcT) DstT, initVal DstT) DstT {
+	data := p.Do()
+	switch len(data) {
+	case 0:
+		return initVal
+	case 1:
+		return fn(initVal, data[0])
+	default:
+		res := fn(initVal, data[0])
+		for i := range data[1:] {
+			res = fn(res, data[i+1])
+		}
+		return res
+	}
+}

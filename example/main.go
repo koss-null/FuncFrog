@@ -11,6 +11,13 @@ import (
 	"github.com/koss-null/lambda/pkg/pipe"
 )
 
+// User is an example struct
+type User struct {
+	FirstName, LastName string
+	Age                 int
+	OtherInfo           any
+}
+
 // This are examples of pipe usage
 func main() {
 	defer profile.Start(profile.ProfilePath(".")).Stop()
@@ -296,5 +303,24 @@ Do()
 		sm += i
 	}
 	fmt.Println("7: Sum should be", sm)
-	// TODO: add reduce example
+
+	res8 := pipe.Func(func(i int) (int, bool) {
+		return i, true
+	}).
+		Gen(10000).
+		Reduce(func(a, b int) int { return a + b })
+	fmt.Println("8: Sum with reduce", res8)
+
+	res81 := pipe.Reduce(
+		pipe.Func(func(i int) (User, bool) {
+			return User{"Slim", fmt.Sprintf("Shady %d", i), i % 45, nil}, true
+		}).
+			Gen(6000).
+			Filter(func(x User) bool { return x.Age > 43 }),
+		func(superName string, u User) string {
+			return superName + u.LastName + " "
+		},
+		"My name is: ",
+	)
+	fmt.Println("8.1: reduced super name is:", res81)
 }
