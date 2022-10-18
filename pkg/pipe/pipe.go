@@ -123,22 +123,19 @@ func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
 	var once sync.Once
 	var sorted []T
-	sortedArrayInit := func() {
-		once.Do(func() {
-			data := p.Do()
-			if len(data) == 0 {
-				return
-			}
-			sorted = sortParallel(data, less, p.parallel)
-		})
-	}
-	emptyFunc := func() {}
 
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
-				sortedArrayInit()
-				sortedArrayInit = emptyFunc
+				if sorted == nil {
+					once.Do(func() {
+						data := p.Do()
+						if len(data) == 0 {
+							return
+						}
+						sorted = sortParallel(data, less, p.parallel)
+					})
+				}
 				if i >= len(sorted) {
 					return nil, true
 				}
