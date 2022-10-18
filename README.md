@@ -66,6 +66,7 @@ you about to send any function here where f(a, b) = f(b, a) and f(f(a, b), c) ==
 First() T // returns the first found value in the result slice
 // Works with Func(...) like magic
 ```
+Also check out `prefixpipe.go` file: it provides `Map(T1) T2` and `Reduce(T1, T2) T1`  
  
 ### To be done functions (the names are not settled yet):
  
