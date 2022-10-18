@@ -12,7 +12,6 @@ import (
 
 const (
 	defaultParallelWrks      = 4
-	maxParallelWrks          = 256
 	maxJobsInTask            = 384
 	singleThreadSortTreshold = 5000
 )
@@ -26,7 +25,7 @@ type ev[T any] struct {
 // Pipe should be initialized with New() or NewFn()
 type Pipe[T any] struct {
 	fn       func() func(int) (*T, bool)
-	len      *int64
+	len      *int
 	valLim   *int64
 	skip     func(i int)
 	parallel int
@@ -36,7 +35,7 @@ type Pipe[T any] struct {
 func Slice[T any](dt []T) *Pipe[T] {
 	dtCp := make([]T, len(dt))
 	copy(dtCp, dt)
-	length := int64(len(dt))
+	length := len(dt)
 	varLim := int64(0)
 
 	return &Pipe[T]{
@@ -61,7 +60,7 @@ func Slice[T any](dt []T) *Pipe[T] {
 // output value amount using Get(n int) or
 // the amount of generated values Gen(n int)
 func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
-	length := int64(-1)
+	length := -1
 	zero := int64(0)
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
@@ -187,21 +186,18 @@ func (p *Pipe[T]) Gen(n int) *Pipe[T] {
 	if n < 0 || *p.len != -1 || *p.valLim != 0 {
 		return p
 	}
-	length := int64(n)
-	p.len = &length
+	p.len = &n
 	return p
 }
 
 // Parallel set n - the amount of goroutines to run on. The value by defalut is 4
 // Only the first Parallel() call is not ignored
-func (p *Pipe[T]) Parallel(n int) *Pipe[T] {
+func (p *Pipe[T]) Parallel(n uint16) *Pipe[T] {
 	if n < 1 {
 		return p
 	}
-	if n > maxParallelWrks {
-		n = maxParallelWrks
-	}
-	p.parallel = n
+
+	p.parallel = int(n)
 	return p
 }
 
@@ -229,7 +225,7 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 	case 1:
 		return &data[0]
 	default:
-		totalLen := *p.len
+		totalLen := int64(*p.len)
 		if totalLen == -1 {
 			totalLen = *p.valLim
 		}
@@ -237,8 +233,8 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 			return nil
 		}
 		var (
-			step        = int64(math.Ceil(float64(totalLen) / float64(p.parallel)))
-			totalLength = int(math.Ceil(float64(totalLen) / float64(step)))
+			step        = ceil(totalLen, p.parallel)
+			totalLength = ceil(totalLen, step)
 			totalRes    = make([]*T, totalLength)
 
 			stepCnt int64
@@ -300,8 +296,8 @@ func (p *Pipe[T]) First() *T {
 	}
 
 	var (
-		step = int(math.Ceil(float64(*p.len) / float64(p.parallel)))
-		res  = make([]*T, int(math.Ceil(float64(*p.len)/float64(step))))
+		step = int(max(ceil(*p.len, p.parallel), 1))
+		res  = make([]*T, ceil(*p.len, step))
 		// dirty hack to be able to check zero step element was found fast
 		res0    = make(chan *T, 1)
 		pfn     = p.fn()
@@ -425,7 +421,7 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		}
 	}
 
-	return res, int(*p.len - skipCnt.Load())
+	return res, *p.len - int(skipCnt.Load())
 }
 
 // merge is an inner function to merge two sorted slices into one sorted slice
@@ -542,4 +538,15 @@ func min[T constraints.Ordered](a, b T) T {
 		return b
 	}
 	return a
+}
+
+func max[T constraints.Ordered](a, b T) T {
+	if a < b {
+		return b
+	}
+	return a
+}
+
+func ceil[T1, T2 int | int64](a T1, b T2) int64 {
+	return int64(math.Ceil(float64(a) / float64(b)))
 }

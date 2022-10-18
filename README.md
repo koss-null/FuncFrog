@@ -109,7 +109,6 @@ pipe.Slice(a).
 Here are some fun facts: 
 * it's executed in *4 threads* by default. (I am still hesitating about it, so the value may still change [most likley to 1]) 
 * if there is less than *5k* items in your slice, it will be executed in a single thread anyway. 
-* you can set custom number of goroutines to execute on with `Parallel(int)` method. But it is limited from above to *256* (it's also may change if a good reason will be found).  
  
 Do I have some more tricks? Shure!  
 ```go
@@ -132,8 +131,8 @@ pipe.Func(func(i int) (float32, bool) {
 	return rnd.Float32(), true
 }).
 	Filter(func(x float32) bool { return x > 0.5 }).
-	// Take 100500 values, don't stop generate before get all of them
-	Take(100500).
+	// Take 65000 values, don't stop generate before get all of them
+	Take(65000).
 	// There is no Sum() yet but no worries
 	Reduce(func(x, y float32) float32 { return x + y})
 ```

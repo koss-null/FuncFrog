@@ -257,7 +257,7 @@ Do()
 		Map(func(x float32) float32 { return x * x }).
 		Filter(func(x float32) bool { return x > 5000.6 }).
 		Gen(1_000_000).
-		Parallel(100500).
+		Parallel(65000).
 		Count()
 	fmt.Println("result44: but too many is not great (parallel 100500 > 256)", res44, "; eval took ", time.Now().Sub(start))
 	runtime.GC()
@@ -309,7 +309,7 @@ Do()
 	}).
 		Gen(10000).
 		Reduce(func(a, b int) int { return a + b })
-	fmt.Println("8: Sum with reduce", res8)
+	fmt.Println("8: Sum with reduce", *res8)
 
 	res81 := pipe.Reduce(
 		pipe.Func(func(i int) (User, bool) {
