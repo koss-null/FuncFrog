@@ -2,18 +2,18 @@ package pipe
 
 import (
 	"math"
-	"sort"
 	"sync"
 
+	"github.com/koss-null/lambda/internal/algo/parallel/mergesort"
 	"github.com/koss-null/lambda/internal/bitmap"
+
 	"go.uber.org/atomic"
 	"golang.org/x/exp/constraints"
 )
 
 const (
-	defaultParallelWrks      = 4
-	maxJobsInTask            = 384
-	singleThreadSortTreshold = 5000
+	defaultParallelWrks = 4
+	maxJobsInTask       = 384
 )
 
 type ev[T any] struct {
@@ -133,7 +133,7 @@ func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
 						if len(data) == 0 {
 							return
 						}
-						sorted = sortParallel(data, less, p.parallel)
+						sorted = mergesort.Sort(data, less, p.parallel)
 					})
 				}
 				if i >= len(sorted) {
@@ -419,115 +419,6 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	}
 
 	return res, *p.len - int(skipCnt.Load())
-}
-
-// merge is an inner function to merge two sorted slices into one sorted slice
-func merge[T any](a []T, lf, rg, lf1, rg1 int, less func(T, T) bool) {
-	st := lf
-	res := make([]T, 0, rg1-lf)
-	for lf < rg && lf1 < rg1 {
-		if less(a[lf], a[lf1]) {
-			res = append(res, a[lf])
-			lf++
-			continue
-		}
-		res = append(res, a[lf1])
-		lf1++
-	}
-	for lf < rg {
-		res = append(res, a[lf])
-		lf++
-	}
-	for lf1 < rg1 {
-		res = append(res, a[lf1])
-		lf1++
-	}
-	copy(a[st:], res)
-}
-
-// mergeSplits is an inner functnon to merge all sorted splits of a slice into a one sorted slice
-func mergeSplits[T any](
-	data []T,
-	splits []struct{ lf, rg int },
-	threads int,
-	less func(T, T) bool,
-) {
-	jobTicket := make(chan struct{}, threads)
-	for i := 0; i < threads; i++ {
-		jobTicket <- struct{}{}
-	}
-
-	var wg sync.WaitGroup
-	newSplits := []struct{ lf, rg int }{}
-	for i := 0; i < len(splits); i += 2 {
-		// this is the last iteration
-		if i+1 >= len(splits) {
-			newSplits = append(newSplits, splits[i])
-			break
-		}
-
-		// this one controls amount of simultanious merge processes running
-		<-jobTicket
-		wg.Add(1)
-		go func(i int) {
-			merge(
-				data,
-				splits[i].lf, splits[i].rg,
-				splits[i+1].lf, splits[i+1].rg,
-				less,
-			)
-			jobTicket <- struct{}{}
-			wg.Done()
-		}(i)
-		newSplits = append(
-			newSplits,
-			struct{ lf, rg int }{
-				splits[i].lf,
-				splits[i+1].rg,
-			},
-		)
-	}
-	wg.Wait()
-
-	if len(newSplits) == 1 {
-		return
-	}
-	mergeSplits(data, newSplits, threads, less)
-}
-
-// sortParallel is an inner implementation of a parallel merge sort where sort.Slice()
-// is used to sort small array parts
-func sortParallel[T any](data []T, less func(T, T) bool, threads int) []T {
-	cmp := func(i, j int) bool {
-		return less(data[i], data[j])
-	}
-	if len(data) < singleThreadSortTreshold {
-		sort.Slice(data, cmp)
-		return data
-	}
-
-	splits := []struct{ lf, rg int }{}
-	step := (len(data) / threads) + 1
-	lf, rg := 0, min(step, len(data))
-	var wg sync.WaitGroup
-	for lf < len(data) {
-		wg.Add(1)
-		go func(lf, rg int) {
-			sort.Slice(data[lf:rg], cmp)
-			wg.Done()
-		}(lf, rg)
-		splits = append(splits, struct {
-			lf int
-			rg int
-		}{lf: lf, rg: rg})
-
-		lf += step
-		rg = min(rg+step, len(data))
-	}
-	wg.Wait()
-
-	mergeSplits(data, splits, threads, less)
-	return data
 }
 
 func min[T constraints.Ordered](a, b T) T {

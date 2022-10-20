@@ -1,7 +1,10 @@
 package pipe_test
 
 import (
+	"fmt"
 	"math"
+	"math/rand"
+	"sort"
 	"sync"
 	"testing"
 
@@ -160,4 +163,77 @@ func TestFilter_NotNull_ok(t *testing.T) {
 		Sum(pipe.Sum[float64])
 	require.NotNil(t, s)
 	require.Equal(t, float64(55555556), *s)
+}
+
+func TestSort_ok_parallel1(t *testing.T) {
+	s := pipe.Func(func(i int) (float32, bool) {
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Parallel(1).
+		Take(100_000).
+		Sort(pipe.Less[float32]).
+		Do()
+
+	require.NotNil(t, s)
+	prevItem := s[0]
+	for _, item := range s {
+		require.GreaterOrEqual(t, item, prevItem)
+	}
+}
+
+func TestSort_ok_parallel_default(t *testing.T) {
+	s := pipe.Func(func(i int) (float32, bool) {
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Take(100_000).
+		Sort(pipe.Less[float32]).
+		Do()
+
+	require.NotNil(t, s)
+	prevItem := s[0]
+	for _, item := range s {
+		require.GreaterOrEqual(t, item, prevItem)
+	}
+}
+
+func TestSort_ok_parallel_slice(t *testing.T) {
+	a := make([]int, 6000)
+	for i := range a {
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		a[i] = int(rnd.Float32() * 100_000.0)
+	}
+
+	s := pipe.Slice(a).
+		Sort(pipe.Less[int]).
+		Do()
+
+	require.NotNil(t, s)
+	sort.Ints(a)
+	fmt.Println(s)
+	for i := range a {
+		require.Equal(t, s[i], a[i])
+	}
+}
+
+func TestSort_ok_parallel12(t *testing.T) {
+	s := pipe.Func(func(i int) (float32, bool) {
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Parallel(12).
+		Take(100_000).
+		Sort(pipe.Less[float32]).
+		Do()
+
+	require.NotNil(t, s)
+	prevItem := s[0]
+	for _, item := range s {
+		require.GreaterOrEqual(t, item, prevItem)
+	}
 }
