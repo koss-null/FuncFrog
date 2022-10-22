@@ -118,6 +118,57 @@ func TestFirst_ok_func_bigint_nogen_notake(t *testing.T) {
 	require.Equal(t, float64(100_001), *s)
 }
 
+// Any() function
+
+func TestAny_ok_slice(t *testing.T) {
+	initA10kk()
+
+	s := pipe.Slice(a10kk).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Any()
+	require.NotNil(t, s)
+}
+
+func TestAny_ok_func(t *testing.T) {
+	initA10kk()
+
+	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Take(200_000).
+		Any()
+	require.NotNil(t, s)
+}
+
+func TestAny_ok_func_nf(t *testing.T) {
+	initA10kk()
+
+	s := pipe.Func(func(i int) (float64, bool) { return float64(i), false }).
+		Take(200_000).
+		Any()
+	require.Nil(t, s)
+}
+
+func TestAny_ok_func_bigint_nogen_notake(t *testing.T) {
+	initA10kk()
+
+	a := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Filter(func(x float64) bool { return x < 100_002 }).
+		Take(200_000).
+		Do()
+	t.Log(a)
+	require.Nil(t, a)
+
+	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Filter(func(x float64) bool { return x < 100_002 }).
+		Any()
+	require.NotNil(t, s)
+	require.Equal(t, float64(100_001), *s)
+}
+
+// Sum() function
+
 func TestSum_ok_slice(t *testing.T) {
 	initA10kk()
 
@@ -146,6 +197,8 @@ func TestSum_ok_func_take(t *testing.T) {
 	require.Equal(t, float64(51000005000000), *s)
 }
 
+// Filter() function
+
 func TestFilter_NotNull_ok(t *testing.T) {
 	genFunc := func(i int) (*float64, bool) {
 		if i%10 == 0 {
@@ -164,6 +217,8 @@ func TestFilter_NotNull_ok(t *testing.T) {
 	require.NotNil(t, s)
 	require.Equal(t, float64(55555556), *s)
 }
+
+// Sort() function
 
 func TestSort_ok_parallel1(t *testing.T) {
 	s := pipe.Func(func(i int) (float32, bool) {

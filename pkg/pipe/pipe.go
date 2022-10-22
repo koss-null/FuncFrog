@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/koss-null/lambda/internal/algo/parallel/mergesort"
-	"github.com/koss-null/lambda/internal/bitmap"
 
 	"go.uber.org/atomic"
 	"golang.org/x/exp/constraints"
@@ -27,8 +26,8 @@ type Pipe[T any] struct {
 	fn       func() func(int) (*T, bool)
 	len      *int
 	valLim   *int64
-	skip     func(i int)
 	parallel int
+	prlSet   *struct{}
 }
 
 // Slice creates a Pipe from a slice
@@ -49,8 +48,8 @@ func Slice[T any](dt []T) *Pipe[T] {
 		},
 		len:      &length,
 		valLim:   &varLim,
-		skip:     bitmap.NewNaive(len(dtCp)).SetTrue,
 		parallel: defaultParallelWrks,
+		prlSet:   nil,
 	}
 }
 
@@ -72,8 +71,8 @@ func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
 		},
 		len:      &length,
 		valLim:   &zero,
-		skip:     bitmap.NewNaive(1024).SetTrue,
 		parallel: defaultParallelWrks,
+		prlSet:   nil,
 	}
 }
 
@@ -92,8 +91,8 @@ func (p *Pipe[T]) Map(fn func(T) T) *Pipe[T] {
 		},
 		len:      p.len,
 		valLim:   p.valLim,
-		skip:     p.skip,
 		parallel: p.parallel,
+		prlSet:   p.prlSet,
 	}
 }
 
@@ -104,7 +103,6 @@ func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 			return func(i int) (*T, bool) {
 				if obj, skipped := p.fn()(i); !skipped {
 					if !fn(*obj) {
-						p.skip(i)
 						return nil, true
 					}
 					return obj, false
@@ -114,8 +112,8 @@ func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 		},
 		len:      p.len,
 		valLim:   p.valLim,
-		skip:     p.skip,
 		parallel: p.parallel,
+		prlSet:   p.prlSet,
 	}
 }
 
@@ -144,8 +142,8 @@ func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
 		},
 		len:      p.len,
 		valLim:   p.valLim,
-		skip:     p.skip,
 		parallel: p.parallel,
+		prlSet:   p.prlSet,
 	}
 }
 
@@ -195,6 +193,7 @@ func (p *Pipe[T]) Parallel(n uint16) *Pipe[T] {
 	}
 
 	p.parallel = int(n)
+	p.prlSet = &struct{}{}
 	return p
 }
 
@@ -264,7 +263,6 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 	}
 }
 
-// TODO: technically, First can work with Func pipe without Take() or Gen()
 // First returns the first element of the pipe
 func (p *Pipe[T]) First() *T {
 	if *p.len == -1 && *p.valLim == 0 {
@@ -273,12 +271,13 @@ func (p *Pipe[T]) First() *T {
 
 	// pipe init was done with a Func function
 	if *p.len == -1 {
-		// FIXME: may work in parallel
-		pfn := p.fn()
 		limit := math.MaxInt
 		if *p.valLim < int64(limit) {
 			limit = int(*p.valLim)
 		}
+
+		pfn := p.fn()
+		// FIXME: may work in parallel
 		for i := 0; i < limit; i++ {
 			obj, skipped := pfn(i)
 			if !skipped {
@@ -348,11 +347,67 @@ func (p *Pipe[T]) First() *T {
 	}
 }
 
+func (p *Pipe[T]) Any() *T {
+	if *p.len == -1 && *p.valLim == 0 {
+		return nil
+	}
+
+	limit := *p.len
+	// pipe init was done with a Func function
+	if *p.len == -1 {
+		limit = math.MaxInt - 1
+		if *p.valLim < int64(limit) {
+			limit = int(*p.valLim)
+		}
+	}
+
+	var (
+		step = int(max(ceil(limit, p.parallel), 1))
+		done bool
+		res  = make(chan *T, 32)
+		pfn  = p.fn()
+		wg   sync.WaitGroup
+	)
+	if p.prlSet == nil && *p.len == -1 {
+		step = int(math.MaxInt16)
+	}
+	for i := 0; i < limit; i += step {
+		wg.Add(1)
+		go func(lf, rg int) {
+			if rg > limit {
+				rg = limit
+			}
+
+			for i := lf; i < rg && !done; i++ {
+				obj, skipped := pfn(i)
+				if !skipped {
+					if done {
+						continue
+					} // this check may be falcie
+					res <- obj // this one may jam
+					done = true
+					return
+				}
+			}
+
+			wg.Done()
+		}(i, i+step)
+	}
+
+	go func() {
+		wg.Wait()
+		done = true
+		res <- nil
+	}()
+
+	return <-res
+}
+
 // doToLimit internal executor for Take
 func (p *Pipe[T]) doToLimit() []T {
 	pfn := p.fn()
 	res := make([]T, 0, *p.valLim)
-	for i := 0; int64(len(res)) < *p.valLim; i++ {
+	for i := 0; len(res) < int(*p.valLim); i++ {
 		obj, skipped := pfn(i)
 		if !skipped {
 			res = append(res, *obj)
