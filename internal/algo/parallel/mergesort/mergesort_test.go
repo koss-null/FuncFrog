@@ -72,11 +72,12 @@ func Test_mergeSplits2(t *testing.T) {
 }
 
 func Test_Sort(t *testing.T) {
-	a := make([]int, 10_000)
+	a := make([]int, 0, 10_000)
 	for i := 0; i < 10_000; i++ {
 		a = append(a, 10_000-i)
 	}
-	res := Sort(a, _less, 2)
+	res := Sort(a, _less, 12)
+	t.Log(res)
 
 	prev := -1
 	for _, item := range res {

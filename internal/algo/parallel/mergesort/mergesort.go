@@ -17,11 +17,10 @@ type border struct{ lf, rg int }
 // Sort is an inner implementation of a parallel merge sort where sort.Slice()
 // is used to sort sliced array parts
 func Sort[T any](data []T, less func(T, T) bool, threads int) []T {
-	cmp := func(i, j int) bool {
-		return less(data[i], data[j])
-	}
 	if len(data) < singleThreadSortTreshold {
-		sort.Slice(data, cmp)
+		sort.Slice(data, func(i, j int) bool {
+			return less(data[i], data[j])
+		})
 		return data
 	}
 
@@ -32,7 +31,11 @@ func Sort[T any](data []T, less func(T, T) bool, threads int) []T {
 	for lf < len(data) {
 		wg.Add(1)
 		go func(lf, rg int) {
-			sort.Slice(data[lf:rg], cmp)
+			d := data[lf:rg]
+			cmp := func(i, j int) bool {
+				return less(d[i], d[j])
+			}
+			sort.Slice(d, cmp)
 			wg.Done()
 		}(lf, rg)
 		splits = append(splits, border{lf: lf, rg: rg})
