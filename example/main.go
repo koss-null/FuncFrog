@@ -37,12 +37,12 @@ func main() {
 
 	fmt.Println("1: simple pipeline result")
 	fmt.Println(`pipe.Slice(a).
-	Map(func(x int) int { return x * x }).
-	Map(func(x int) int { return x + 1 }).
-	Filter(func(x int) bool { return x > 100 }).
-	Filter(func(x int) bool { return x < 1000 }).
-	Do()
-	`)
+		Map(func(x int) int { return x * x }).
+		Map(func(x int) int { return x + 1 }).
+		Filter(func(x int) bool { return x > 100 }).
+		Filter(func(x int) bool { return x < 1000 }).
+		Do()
+		`)
 	fmt.Println(res1)
 
 	// walues can be achieved from a function
@@ -61,14 +61,14 @@ func main() {
 
 	fmt.Println("2: creating pipe from a function")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-Filter(func(x float32) bool { return x > 0.5 }).
-Gen(100).
-Do()
-	`)
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+	Filter(func(x float32) bool { return x > 0.5 }).
+	Gen(100).
+	Do()
+		`)
 	fmt.Println(res2)
 
 	// We can Take(n) the exact amount of values - it will be executed until the length of the result slice will be n
@@ -84,15 +84,15 @@ Do()
 
 	fmt.Println("2.1: creating pipe from a function but using Take(n) to gen exactly n values")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-	Filter(func(x float32) bool { return x > 0.5 }).
-	// Take 100 values, don't stop generate before get all of them
-	Take(100).
-	Do()
-	`)
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Filter(func(x float32) bool { return x > 0.5 }).
+		// Take 100 values, don't stop generate before get all of them
+		Take(100).
+		Do()
+		`)
 	fmt.Println(res21)
 
 	// walues can be achieved from a function, but it have no sence if there is no Take() or Gen()
@@ -107,13 +107,13 @@ Do()
 
 	fmt.Println("2.2: if there is no Take and no Gen, the len of result slice is 0")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-	Filter(func(x float32) bool { return x > 0.5 }).
-	Do()
-	`)
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Filter(func(x float32) bool { return x > 0.5 }).
+		Do()
+		`)
 	fmt.Println(res22)
 
 	res23 := pipe.Func(func(i int) (float32, bool) {
@@ -128,13 +128,13 @@ Do()
 		Count()
 	fmt.Println("2.3: count is -1 if there is Func() but no Gen or Take provided")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-	Filter(func(x float32) bool { return x > 0.5 }).
-	Count()
-	`)
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Filter(func(x float32) bool { return x > 0.5 }).
+		Count()
+		`)
 	fmt.Println(res23)
 
 	// you can just count values:
@@ -148,14 +148,14 @@ Do()
 		Count()
 	fmt.Println("3: counting Gen(100) items values")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-	Filter(func(x float32) bool { return x > 0.6 }).
-	Gen(100).
-	Count()
-	`)
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Filter(func(x float32) bool { return x > 0.6 }).
+		Gen(100).
+		Count()
+		`)
 	fmt.Println(res3)
 
 	// trying to count values with Take(n int) will return n:
@@ -169,14 +169,14 @@ Do()
 		Count()
 	fmt.Println("result3.1: trying to count values with Take(n int) will return n")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-	Filter(func(x float32) bool { return x > 0.6 }).
-	Take(100).
-	Count()
-	`)
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Filter(func(x float32) bool { return x > 0.6 }).
+		Take(100).
+		Count()
+		`)
 	fmt.Println(res31)
 
 	runtime.GC()
