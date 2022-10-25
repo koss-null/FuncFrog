@@ -87,7 +87,7 @@ func mergeSplits[T any](
 		}(i)
 		newSplits = append(
 			newSplits,
-			struct{ lf, rg int }{
+			border{
 				splits[i].lf,
 				splits[i+1].rg,
 			},
