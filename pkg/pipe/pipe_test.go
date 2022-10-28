@@ -151,14 +151,6 @@ func TestAny_ok_func_nf(t *testing.T) {
 func TestAny_ok_func_bigint_nogen_notake(t *testing.T) {
 	initA10kk()
 
-	a := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
-		Filter(func(x float64) bool { return x > 100_000 }).
-		Filter(func(x float64) bool { return x < 100_002 }).
-		Take(200_000).
-		Do()
-	t.Log(a)
-	require.Nil(t, a)
-
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Filter(func(x float64) bool { return x < 100_002 }).

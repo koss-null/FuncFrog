@@ -348,56 +348,62 @@ func (p *Pipe[T]) First() *T {
 }
 
 func (p *Pipe[T]) Any() *T {
-	if *p.len == -1 && *p.valLim == 0 {
-		return nil
-	}
-
 	limit := *p.len
 	// pipe init was done with a Func function
 	if *p.len == -1 {
 		limit = math.MaxInt - 1
-		if *p.valLim < int64(limit) {
+		if *p.valLim != 0 && *p.valLim < int64(limit) {
 			limit = int(*p.valLim)
 		}
 	}
 
 	var (
-		step = int(max(ceil(limit, p.parallel), 1))
-		done bool
-		res  = make(chan *T, 32)
-		pfn  = p.fn()
-		wg   sync.WaitGroup
+		step    = int(max(ceil(limit, p.parallel), 1))
+		tickets = make(chan struct{}, p.parallel)
+		done    bool
+		res     = make(chan *T, 1)
+		pfn     = p.fn()
+		wg      sync.WaitGroup
 	)
+	// if p.len is not set, we need tickets to control the amount of goroutines
+	for i := 0; i < max(p.parallel, 1); i++ {
+		tickets <- struct{}{}
+	}
 	if p.prlSet == nil && *p.len == -1 {
 		step = int(math.MaxInt16)
 	}
-	for i := 0; i < limit; i += step {
-		wg.Add(1)
-		go func(lf, rg int) {
-			if rg > limit {
-				rg = limit
-			}
-
-			for i := lf; i < rg && !done; i++ {
-				obj, skipped := pfn(i)
-				if !skipped {
-					if done {
-						continue
-					} // this check may be falcie
-					res <- obj // this one may jam
-					done = true
-					return
+	wg.Add(int(math.Ceil(float64(limit+1) / float64(step))))
+	go func() {
+		for i := 0; i < limit; i += step {
+			<-tickets
+			go func(lf, rg int) {
+				defer func() {
+					tickets <- struct{}{}
+					wg.Done()
+				}()
+				if rg > limit {
+					rg = limit
 				}
-			}
 
-			wg.Done()
-		}(i, i+step)
-	}
+				for i := lf; i < rg && !done; i++ {
+					obj, skipped := pfn(i)
+					if !skipped {
+						if done {
+							continue
+						} // this check is just for fun here
+						res <- obj // this one may jam
+						done = true
+						return
+					}
+				}
+			}(i, i+step)
+		}
+	}()
 
 	go func() {
 		wg.Wait()
-		done = true
 		res <- nil
+		done = true
 	}()
 
 	return <-res
