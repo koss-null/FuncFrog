@@ -1,7 +1,6 @@
 package pipe_test
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -97,8 +96,6 @@ func TestFirst_ok_slice(t *testing.T) {
 }
 
 func TestFirst_ok_func(t *testing.T) {
-	initA10kk()
-
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Take(200_000).
@@ -140,8 +137,6 @@ func TestAny_ok_func(t *testing.T) {
 }
 
 func TestAny_ok_func_nf(t *testing.T) {
-	initA10kk()
-
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), false }).
 		Take(200_000).
 		Any()
@@ -149,8 +144,6 @@ func TestAny_ok_func_nf(t *testing.T) {
 }
 
 func TestAny_ok_func_bigint_nogen_notake(t *testing.T) {
-	initA10kk()
-
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Filter(func(x float64) bool { return x < 100_002 }).
@@ -261,7 +254,6 @@ func TestSort_ok_parallel_slice(t *testing.T) {
 
 	require.NotNil(t, s)
 	sort.Ints(a)
-	fmt.Println(s)
 	for i := range a {
 		require.Equal(t, s[i], a[i])
 	}

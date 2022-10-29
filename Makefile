@@ -2,5 +2,5 @@ example:
 	go run ./example/main.go
 
 test:
-	go test -v ./...
+	go test --parallel 8 -v ./...
 

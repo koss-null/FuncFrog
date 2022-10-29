@@ -236,13 +236,13 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 			stepCnt int64
 			wg      sync.WaitGroup
 		)
+		wg.Add(int(math.Ceil(float64(totalLen) / float64(step))))
 		for lf := int64(0); lf < totalLen; lf += step {
 			var rs int64
 			for i := lf; i < min(lf+step, totalLen); i++ {
 				rs += i
 			}
 			// totalRes = append(totalRes, zero)
-			wg.Add(1)
 			go func(data []T, stepCnt int64) {
 				for i := 1; i < len(data); i++ {
 					data[0] = sum(data[0], data[i])
@@ -372,14 +372,14 @@ func (p *Pipe[T]) Any() *T {
 	if p.prlSet == nil && *p.len == -1 {
 		step = int(math.MaxInt16)
 	}
-	wg.Add(int(math.Ceil(float64(limit+1) / float64(step))))
 	go func() {
 		for i := 0; i < limit; i += step {
+			wg.Add(1)
 			<-tickets
 			go func(lf, rg int) {
 				defer func() {
-					tickets <- struct{}{}
 					wg.Done()
+					tickets <- struct{}{}
 				}()
 				if rg > limit {
 					rg = limit
@@ -398,12 +398,12 @@ func (p *Pipe[T]) Any() *T {
 				}
 			}(i, i+step)
 		}
-	}()
 
-	go func() {
-		wg.Wait()
-		res <- nil
-		done = true
+		go func() {
+			wg.Wait()
+			res <- nil
+			done = true
+		}()
 	}()
 
 	return <-res
