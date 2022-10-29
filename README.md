@@ -67,7 +67,7 @@ First() T // returns the first found value in the result slice
 // Works with Func(...) like magic
 ```
 there is also a function that works with `Func()` but without both `Take()` or `Gen()`: Any!  
-```
+```go
 Any() T // returns the first found T instance (ont in order)
 ```
  
