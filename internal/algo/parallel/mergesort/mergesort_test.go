@@ -77,7 +77,6 @@ func Test_Sort(t *testing.T) {
 		a = append(a, 10_000-i)
 	}
 	res := Sort(a, _less, 12)
-	t.Log(res)
 
 	prev := -1
 	for _, item := range res {

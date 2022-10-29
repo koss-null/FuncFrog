@@ -61,17 +61,32 @@ Reduce(func(x, y T) T) T // executes all the pipe and returns the resulting valu
 ```go
 Sum(func(x, y) T) T // is pretty similar to Reduce, but works in parallel
 ```
-you about to send any function here where f(a, b) = f(b, a) and f(f(a, b), c) == f((c, b), a) == f(f(a,c), b)
+you about to send any function here where f(a, b) = f(b, a) and f(f(a, b), c) == f((c, b), a) == f(f(a,c), b)  
 ```go
 First() T // returns the first found value in the result slice
 // Works with Func(...) like magic
 ```
-Also check out `prefixpipe.go` file: it provides `Map(T1) T2` and `Reduce(T1, T2) T1`  
+there is also a function that works with `Func()` but without both `Take()` or `Gen()`: Any!  
+```
+Any() T // returns the first found T instance (ont in order)
+```
+ 
+### But what about Map and Reduce to another type?
+ 
+It is possible with `prefixpipe.go`: it provides `Map(T1) T2` and `Reduce(T1, T2) T1`  
+It may look a little bit more ugly, but it is what it is for now and untill v1.0.0 for sure.  
+I am concidering to create some another Pipe implementations in future to be able to write beautiful oneline
+convertions.  
+ 
+### Does it stable?
+ 
+In short: not yet. But(!) for each release I do manual testing of everything I have touched since the previous release
+and also I have a nice pack of unit-tests. So I beleve it is stable enough to use in your pet projects.  
+I will provide some more convincing quality guarantees and benchmarks with `v1.0.0` release.  
  
 ### To be done functions (the names are not settled yet):
  
 ```go
-Any() T // returns the first found T instance (ont in order)
 IsAny() bool // returns true if there is at least 1 element in the result slice
 MoreThan(n int) bool // returns if there is at least n elements in the result slice
 Reverse() // reverses the underlying slice
@@ -161,10 +176,15 @@ pipe.Func(func(i int) (float32, bool) {
 Also if you don't whant to carry the result array on your shoulders and only worry about the amount, you better use
 `Count()` instead of `Do()`.  
  
-What's next?  
+### Contribution
+ 
+For now I will accept any sane tests. Feel free to use any frameworks you would like.  
+Any bugfixes are also welcome. I am going to do some refactor and maybe some decisions will be changed, so I will not
+accept any new features PR's for now.  
+ 
+###What's next?  
+ 
 I hope to provide some roadmap of the project soon.   
 Also I am going to craft some unit-tests and may be set up github pipelines eventually.   
-Before any roadmap and contribution policies being written I will unlikely accept any merge requests, but I will consider it in some
-time.   
-Anyway feel free to fork, inspire and use! I will try to supply all version tags by some manual testing and quality
+Feel free to fork, inspire and use! I will try to supply all version tags by some manual testing and quality
 control at least.   

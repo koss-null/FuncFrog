@@ -1,6 +1,8 @@
 package bitmap
 
-import "sync"
+import (
+	"sync"
+)
 
 type naiveBM struct {
 	mx *sync.Mutex

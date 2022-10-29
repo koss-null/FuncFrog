@@ -16,7 +16,6 @@ func Map[SrcT, DstT any](p *Pipe[SrcT], fn func(x SrcT) DstT) *Pipe[DstT] {
 		},
 		len:      p.len,
 		valLim:   p.valLim,
-		skip:     p.skip,
 		parallel: p.parallel,
 	}
 }
