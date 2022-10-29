@@ -1,7 +1,6 @@
 package bitmap
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -36,7 +35,6 @@ func (b *naiveBM) Set(lf int, rg int, val bool) {
 	defer b.mx.Unlock()
 
 	if rg >= len(b.bm) {
-		fmt.Println(rg)
 		larger := make([]bool, rg)
 		cp := b.bm
 		if lf < len(b.bm) {
