@@ -89,7 +89,7 @@ I will provide some more convincing quality guarantees and benchmarks with `v1.0
 ```go
 IsAny() bool // returns true if there is at least 1 element in the result slice
 MoreThan(n int) bool // returns if there is at least n elements in the result slice
-Reverse() // reverses the underlying slice
+Reverse() // reverses the underlying slice [under discussion]
 ```
  
 ### Important note:

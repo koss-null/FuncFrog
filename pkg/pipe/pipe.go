@@ -12,30 +12,26 @@ import (
 
 const (
 	defaultParallelWrks = 4
-	maxJobsInTask       = 384
 )
-
-type ev[T any] struct {
-	obj     *T
-	skipped bool
-}
 
 // Pipe implements the pipe on any slice.
 // Pipe should be initialized with New() or NewFn()
 type Pipe[T any] struct {
 	fn       func() func(int) (*T, bool)
 	len      *int
-	valLim   *int64
+	valLim   *int
 	parallel int
 	prlSet   *struct{}
 }
 
 // Slice creates a Pipe from a slice
 func Slice[T any](dt []T) *Pipe[T] {
-	dtCp := make([]T, len(dt))
+	var (
+		dtCp   = make([]T, len(dt))
+		length = len(dt)
+		varLim = 0
+	)
 	copy(dtCp, dt)
-	length := len(dt)
-	varLim := int64(0)
 
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
@@ -59,8 +55,10 @@ func Slice[T any](dt []T) *Pipe[T] {
 // output value amount using Get(n int) or
 // the amount of generated values Gen(n int)
 func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
-	length := -1
-	zero := int64(0)
+	var (
+		length = -1
+		zero   = 0
+	)
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
@@ -170,8 +168,7 @@ func (p *Pipe[T]) Take(n int) *Pipe[T] {
 	if n < 0 || *p.valLim != 0 || *p.len != -1 {
 		return p
 	}
-	valLim := int64(n)
-	p.valLim = &valLim
+	p.valLim = &n
 	return p
 }
 
@@ -206,7 +203,7 @@ func (p *Pipe[T]) Do() []T {
 // Count evaluates all the pipeline and returns the amount of left items
 func (p *Pipe[T]) Count() int {
 	if *p.valLim != 0 {
-		return int(*p.valLim)
+		return *p.valLim
 	}
 	_, cnt := p.do(false)
 	return cnt
@@ -221,7 +218,7 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 	case 1:
 		return &data[0]
 	default:
-		totalLen := int64(*p.len)
+		totalLen := *p.len
 		if totalLen == -1 {
 			totalLen = *p.valLim
 		}
@@ -229,16 +226,16 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 			return nil
 		}
 		var (
-			step        = ceil(totalLen, p.parallel)
-			totalLength = ceil(totalLen, step)
+			step        = divUp(totalLen, p.parallel)
+			totalLength = divUp(totalLen, step)
 			totalRes    = make([]*T, totalLength)
 
 			stepCnt int64
 			wg      sync.WaitGroup
 		)
 		wg.Add(int(math.Ceil(float64(totalLen) / float64(step))))
-		for lf := int64(0); lf < totalLen; lf += step {
-			var rs int64
+		for lf := 0; lf < totalLen; lf += step {
+			rs := 0
 			for i := lf; i < min(lf+step, totalLen); i++ {
 				rs += i
 			}
@@ -272,8 +269,8 @@ func (p *Pipe[T]) First() *T {
 	// pipe init was done with a Func function
 	if *p.len == -1 {
 		limit := math.MaxInt
-		if *p.valLim < int64(limit) {
-			limit = int(*p.valLim)
+		if *p.valLim < limit {
+			limit = *p.valLim
 		}
 
 		pfn := p.fn()
@@ -292,20 +289,20 @@ func (p *Pipe[T]) First() *T {
 	}
 
 	var (
-		step = int(max(ceil(*p.len, p.parallel), 1))
-		res  = make([]*T, ceil(*p.len, step))
+		step = int(max(divUp(*p.len, p.parallel), 1))
+		res  = make([]*T, divUp(*p.len, step))
 		// dirty hack to be able to check zero step element was found fast
 		res0    = make(chan *T, 1)
 		pfn     = p.fn()
 		wg      sync.WaitGroup
 		stepCnt int
 	)
-	for i := 0; i < int(*p.len); i += step {
+	for i := 0; i < *p.len; i += step {
 		wg.Add(1)
 		go func(lf, rg, stepCnt int) {
 			defer wg.Done()
-			if rg > int(*p.len) {
-				rg = int(*p.len)
+			if rg > *p.len {
+				rg = *p.len
 			}
 			for i := lf; i < rg; i++ {
 				obj, skipped := pfn(i)
@@ -352,13 +349,13 @@ func (p *Pipe[T]) Any() *T {
 	// pipe init was done with a Func function
 	if *p.len == -1 {
 		limit = math.MaxInt - 1
-		if *p.valLim != 0 && *p.valLim < int64(limit) {
-			limit = int(*p.valLim)
+		if *p.valLim != 0 && *p.valLim < limit {
+			limit = *p.valLim
 		}
 	}
 
 	var (
-		step    = int(max(ceil(limit, p.parallel), 1))
+		step    = max(divUp(limit, p.parallel), 1)
 		tickets = make(chan struct{}, p.parallel)
 		done    bool
 		res     = make(chan *T, 1)
@@ -413,7 +410,7 @@ func (p *Pipe[T]) Any() *T {
 func (p *Pipe[T]) doToLimit() []T {
 	pfn := p.fn()
 	res := make([]T, 0, *p.valLim)
-	for i := 0; len(res) < int(*p.valLim); i++ {
+	for i := 0; len(res) < *p.valLim; i++ {
 		obj, skipped := pfn(i)
 		if !skipped {
 			res = append(res, *obj)
@@ -448,14 +445,16 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		evals = make([]ev[T], *p.len)
 	}
 
-	step := int(math.Ceil(float64(*p.len) / float64(p.parallel)))
-	pfn := p.fn()
-	var wg sync.WaitGroup
-	for i := 0; i < int(*p.len); i += step {
+	var (
+		step = divUp(*p.len, p.parallel)
+		pfn  = p.fn()
+		wg   sync.WaitGroup
+	)
+	for i := 0; i < *p.len; i += step {
 		wg.Add(1)
 		go func(lf, rg int) {
-			if rg > int(*p.len) {
-				rg = int(*p.len)
+			if rg > *p.len {
+				rg = *p.len
 			}
 			for i := lf; i < rg; i++ {
 				obj, skipped := pfn(i)
@@ -482,6 +481,11 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	return res, *p.len - int(skipCnt.Load())
 }
 
+type ev[T any] struct {
+	obj     *T
+	skipped bool
+}
+
 func min[T constraints.Ordered](a, b T) T {
 	if a > b {
 		return b
@@ -496,6 +500,6 @@ func max[T constraints.Ordered](a, b T) T {
 	return a
 }
 
-func ceil[T1, T2 int | int64](a T1, b T2) int64 {
-	return int64(math.Ceil(float64(a) / float64(b)))
+func divUp(a, b int) int {
+	return int(math.Ceil(float64(a) / float64(b)))
 }
