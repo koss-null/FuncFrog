@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/koss-null/lambda/internal/algo/parallel/mergesort"
+	"github.com/koss-null/lambda/internal/primitive/pointer"
 
 	"go.uber.org/atomic"
 	"golang.org/x/exp/constraints"
@@ -12,6 +13,7 @@ import (
 
 const (
 	defaultParallelWrks = 4
+	firstCheckInterval  = 345
 )
 
 // Pipe implements the pipe on any slice.
@@ -21,16 +23,12 @@ type Pipe[T any] struct {
 	len      *int
 	valLim   *int
 	parallel int
-	prlSet   *struct{}
+	prlSet   *bool
 }
 
 // Slice creates a Pipe from a slice
 func Slice[T any](dt []T) *Pipe[T] {
-	var (
-		dtCp   = make([]T, len(dt))
-		length = len(dt)
-		varLim = 0
-	)
+	dtCp := make([]T, len(dt))
 	copy(dtCp, dt)
 
 	return &Pipe[T]{
@@ -42,10 +40,10 @@ func Slice[T any](dt []T) *Pipe[T] {
 				return &dtCp[i], false
 			}
 		},
-		len:      &length,
-		valLim:   &varLim,
+		len:      pointer.To(len(dtCp)),
+		valLim:   pointer.To(0),
 		parallel: defaultParallelWrks,
-		prlSet:   nil,
+		prlSet:   pointer.To(false),
 	}
 }
 
@@ -55,22 +53,17 @@ func Slice[T any](dt []T) *Pipe[T] {
 // output value amount using Get(n int) or
 // the amount of generated values Gen(n int)
 func Func[T any](fn func(i int) (T, bool)) *Pipe[T] {
-	var (
-		length = -1
-		zero   = 0
-	)
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
-				// FIXME: this code looks ugly
 				obj, exist := fn(i)
 				return &obj, !exist
 			}
 		},
-		len:      &length,
-		valLim:   &zero,
+		len:      pointer.To(-1),
+		valLim:   pointer.To(0),
 		parallel: defaultParallelWrks,
-		prlSet:   nil,
+		prlSet:   pointer.To(false),
 	}
 }
 
@@ -117,8 +110,10 @@ func (p *Pipe[T]) Filter(fn func(T) bool) *Pipe[T] {
 
 // Sort sorts the underlying slice on a current step of a pipeline
 func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
-	var once sync.Once
-	var sorted []T
+	var (
+		once   sync.Once
+		sorted []T
+	)
 
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
@@ -190,7 +185,7 @@ func (p *Pipe[T]) Parallel(n uint16) *Pipe[T] {
 	}
 
 	p.parallel = int(n)
-	p.prlSet = &struct{}{}
+	*p.prlSet = true
 	return p
 }
 
@@ -218,22 +213,25 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 	case 1:
 		return &data[0]
 	default:
+		if *p.valLim == 0 && *p.len == -1 {
+			return nil
+		}
+
 		totalLen := *p.len
 		if totalLen == -1 {
 			totalLen = *p.valLim
 		}
-		if totalLen == 0 {
-			return nil
-		}
+
 		var (
 			step        = divUp(totalLen, p.parallel)
-			totalLength = divUp(totalLen, step)
-			totalRes    = make([]*T, totalLength)
+			totalResLen = divUp(totalLen, step)
+			totalRes    = make([]*T, totalResLen)
 
 			stepCnt int64
 			wg      sync.WaitGroup
 		)
-		wg.Add(int(math.Ceil(float64(totalLen) / float64(step))))
+		wg.Add(totalResLen)
+
 		for lf := 0; lf < totalLen; lf += step {
 			rs := 0
 			for i := lf; i < min(lf+step, totalLen); i++ {
@@ -289,11 +287,12 @@ func (p *Pipe[T]) First() *T {
 	}
 
 	var (
-		step = int(max(divUp(*p.len, p.parallel), 1))
+		step = max(divUp(*p.len, p.parallel), 1)
 		res  = make([]*T, divUp(*p.len, step))
-		// dirty hack to be able to check zero step element was found fast
-		res0    = make(chan *T, 1)
-		pfn     = p.fn()
+		// it's a hack to be able to check zero step element was found fast
+		res0 = make(chan *T, 1)
+		pfn  = p.fn()
+
 		wg      sync.WaitGroup
 		stepCnt int
 	)
@@ -313,7 +312,7 @@ func (p *Pipe[T]) First() *T {
 					res[stepCnt] = obj
 					return
 				}
-				if stepCnt != 0 && i%345 == 0 {
+				if stepCnt != 0 && i%firstCheckInterval == 0 {
 					// check if there is any result from the left
 					if res[stepCnt-1] != nil {
 						return
@@ -357,17 +356,18 @@ func (p *Pipe[T]) Any() *T {
 	var (
 		step    = max(divUp(limit, p.parallel), 1)
 		tickets = make(chan struct{}, p.parallel)
-		done    bool
 		res     = make(chan *T, 1)
 		pfn     = p.fn()
-		wg      sync.WaitGroup
+
+		wg   sync.WaitGroup
+		done bool
 	)
 	// if p.len is not set, we need tickets to control the amount of goroutines
 	for i := 0; i < max(p.parallel, 1); i++ {
 		tickets <- struct{}{}
 	}
-	if p.prlSet == nil && *p.len == -1 {
-		step = int(math.MaxInt16)
+	if !*p.prlSet && *p.len == -1 {
+		step = 1 << 15
 	}
 	go func() {
 		for i := 0; i < limit; i += step {
