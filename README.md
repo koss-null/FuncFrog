@@ -37,8 +37,10 @@ Take(n int) // if it's a Func made pipe, it expects n values to be eventually re
 ```go
 Gen(n int) // if it's a Func made pipe, it generates a sequence from [0, n) and applies other function to it
 ```
-Only the first of `Gen`, `Take` or `First` functions in the pipe (from left to right) is applied.  
-You can't have `Func` made pipe and not set either `Gen` or `Take`, it's set to 0 by default.  
+Only the first of `Gen` or `Take` functions in the pipe (from the left to the right) is applied.  
+You can almost never have a pipe made with `Func` and not set either `Gen` or `Take`, it's set to 0 by default.  
+Anyway there are some exceptions: when any of `First`, `Any` [to be implemented `IsAny`, `MoreThan`] methods are called 
+you may not specify the amount if you are shure enough it will be not exectuted forever.
 ```go
 Parallel(n int) // set the number of goroutines to be executed on (4 by default)
 ```
@@ -80,8 +82,8 @@ convertions.
  
 ### Does it stable?
  
-In short: not yet. But(!) for each release I do manual testing of everything I have touched since the previous release
-and also I have a nice pack of unit-tests. So I beleve it is stable enough to use in your pet projects.  
+In short: not yet. But(!) for each release I do manual testing for everything I have touched since the previous release
+and also I have a nice growing set of unit-tests. So I beleve it is stable enough to use in your pet projects.  
 I will provide some more convincing quality guarantees and benchmarks with `v1.0.0` release.  
  
 ### To be done functions (the names are not settled yet):
@@ -95,13 +97,13 @@ Reverse() // reverses the underlying slice [under discussion]
 ### Important note:
  
 ```
-pipelines initiated with Func(...) are not parallelize yet
+pipelines initiated with Func(...) are not parallelized in some methods yet
 ```
 
 
 ### Quick usage review
  
-Here are some more examples (pretty mutch same as in the example package):  
+Here are some more examples (pretty mutch the same as in the example package):  
 First of all let's make a simple slice:  
 
 ```go
@@ -160,7 +162,7 @@ Due to what we've said before about **zero** `p[0] = p[1]` now
 Now we are doing the same operation for `p[0]` and `p[1]` while we have `p[1]`   
 Eventually `p[0]` will be the result.  
  
-Anything else?  
+### Anything else?  
 You can  sort faster than the wind using all power of your core2duo:  
 ```go
 pipe.Func(func(i int) (float32, bool) {
@@ -173,16 +175,19 @@ pipe.Func(func(i int) (float32, bool) {
 	Parallel(12).
 	Do()
 ```
-Also if you don't whant to carry the result array on your shoulders and only worry about the amount, you better use
+Note! Current sort implementation uses `O(n*n)` memory. It will be fixed soon, but nonetheless it worth to be mentioned. 
+Also if you don't whant to carry the result array on your shoulders and only worry about the total count, you better use
 `Count()` instead of `Do()`.  
  
 ### Contribution
  
-For now I will accept any sane tests. Feel free to use any frameworks you would like.  
-Any bugfixes are also welcome. I am going to do some refactor and maybe some decisions will be changed, so I will not
-accept any new features PR's for now.  
+For now I will accept any sane tests.  
+Feel free to use any frameworks you may like.  
+Any bugfixes are also welcome.  
+I am going to do some refactor and maybe some decisions will be changed, so for now 
+please communicate with the owner to find out if the feature you whant to implement is to be merged.  
  
-###What's next?  
+### What's next?  
  
 I hope to provide some roadmap of the project soon.   
 Also I am going to craft some unit-tests and may be set up github pipelines eventually.   
