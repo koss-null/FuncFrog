@@ -1,7 +1,6 @@
 package pipe
 
 import (
-	"fmt"
 	"math"
 	"sync"
 
@@ -292,7 +291,8 @@ func (p *Pipe[T]) First() *T {
 	)
 
 	go func() {
-		for i := 0; i < limit; i += step {
+		// i >= 0 is for an int owerflow case
+		for i := 0; i >= 0 && i < limit; i += step {
 			wg.Add(1)
 			<-tickets
 			// an owerflow is possible here since we rounded strep up
@@ -301,7 +301,6 @@ func (p *Pipe[T]) First() *T {
 				next = math.MaxInt - 1
 			}
 			go func(lf, rg, stepCnt int) {
-				fmt.Println(lf, rg, stepCnt, step)
 				defer func() {
 					wg.Done()
 					tickets <- struct{}{}
@@ -378,7 +377,8 @@ func (p *Pipe[T]) Any() *T {
 	}
 
 	go func() {
-		for i := 0; i < limit; i += step {
+		// i >= 0 is for an int owerflow case
+		for i := 0; i >= 0 && i < limit; i += step {
 			wg.Add(1)
 			<-tickets
 			go func(lf, rg int) {
@@ -387,7 +387,8 @@ func (p *Pipe[T]) Any() *T {
 					tickets <- struct{}{}
 				}()
 
-				rg = min(rg, limit)
+				// accounting int owerflow case with max(rg, 0)
+				rg = min(max(rg, 0), limit)
 				for i := lf; i < rg && !done; i++ {
 					obj, skipped := pfn(i)
 					if !skipped {
