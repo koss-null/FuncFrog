@@ -1,6 +1,7 @@
 package pipe
 
 import (
+	"fmt"
 	"math"
 	"sync"
 
@@ -14,6 +15,10 @@ import (
 const (
 	defaultParallelWrks = 4
 	firstCheckInterval  = 345
+)
+
+const (
+	panicLimitExceededMsg = "the limit is exceeded, but the result is not calculated"
 )
 
 type ev[T any] struct {
@@ -165,7 +170,7 @@ func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 // Take is used to set the amount of values expected to be in result slice.
 // It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Take(n int) *Pipe[T] {
-	if n < 0 || p.lenAlreadySet() {
+	if n < 0 || p.lenIsFinite() {
 		return p
 	}
 	p.valLim = &n
@@ -175,7 +180,7 @@ func (p *Pipe[T]) Take(n int) *Pipe[T] {
 // Gen set the amount of values to generate as initial array.
 // It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Gen(n int) *Pipe[T] {
-	if n < 0 || p.lenAlreadySet() {
+	if n < 0 || p.lenIsFinite() {
 		return p
 	}
 	p.len = &n
@@ -218,7 +223,7 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 	case 1:
 		return &data[0]
 	default:
-		if *p.valLim == 0 && *p.len == -1 {
+		if !p.lenIsFinite() {
 			return nil
 		}
 
@@ -265,115 +270,113 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 
 // First returns the first element of the pipe
 func (p *Pipe[T]) First() *T {
-	if *p.len == -1 && *p.valLim == 0 {
+	// FIXME: to be removed when the ussue with too big resStorage will be solved
+	if !p.lenIsFinite() {
 		return nil
 	}
-
-	// pipe init was done with a Func function
-	if *p.len == -1 {
-		limit := math.MaxInt
-		if *p.valLim < limit {
-			limit = *p.valLim
-		}
-
-		pfn := p.fn()
-		// FIXME: may work in parallel
-		for i := 0; i < limit; i++ {
-			obj, skipped := pfn(i)
-			if !skipped {
-				return obj
-			}
-
-			if i == math.MaxInt {
-				return nil
-			}
-		}
-		return nil
-	}
-
 	var (
-		step = max(divUp(*p.len, p.parallel), 1)
-		res  = make([]*T, divUp(*p.len, step))
+		limit   = p.limit()
+		step    = max(divUp(limit, p.parallel), 1)
+		tickets = genTickets(p.parallel)
+		pfn     = p.fn()
+
+		// this allocation may take a lot of memory on MaxInt length
+		resStorage = make([]*T, divUp(limit, step))
 		// it's a hack to be able to check zero step element was found fast
 		res0 = make(chan *T, 1)
-		pfn  = p.fn()
+		// this res is calculated if there was no res found on the first step
+		resNot0 = make(chan *T)
 
 		wg      sync.WaitGroup
 		stepCnt int
 	)
-	for i := 0; i < *p.len; i += step {
-		wg.Add(1)
-		go func(lf, rg, stepCnt int) {
-			defer wg.Done()
-			if rg > *p.len {
-				rg = *p.len
+
+	go func() {
+		for i := 0; i < limit; i += step {
+			wg.Add(1)
+			<-tickets
+			// an owerflow is possible here since we rounded strep up
+			next := i + step
+			if next < 0 {
+				next = math.MaxInt - 1
 			}
-			for i := lf; i < rg; i++ {
-				obj, skipped := pfn(i)
-				if !skipped {
-					if stepCnt == 0 {
-						res0 <- obj
-					}
-					res[stepCnt] = obj
-					return
-				}
-				if stepCnt != 0 && i%firstCheckInterval == 0 {
-					// check if there is any result from the left
-					if res[stepCnt-1] != nil {
+			go func(lf, rg, stepCnt int) {
+				fmt.Println(lf, rg, stepCnt, step)
+				defer func() {
+					wg.Done()
+					tickets <- struct{}{}
+				}()
+
+				rg = max(rg, limit)
+				for i := lf; i < rg; i++ {
+					obj, skipped := pfn(i)
+					if !skipped {
+						if stepCnt == 0 {
+							res0 <- obj
+						}
+						resStorage[stepCnt] = obj
 						return
 					}
+
+					if stepCnt != 0 && i%firstCheckInterval == 0 {
+						// check if there is any result from the left
+						if resStorage[stepCnt-1] != nil {
+							return
+						}
+					}
+				}
+			}(i, next, stepCnt)
+			stepCnt++
+		}
+
+		go func() {
+			wg.Wait()
+			for i := range resStorage {
+				if resStorage[i] != nil {
+					resNot0 <- resStorage[i]
+					return
 				}
 			}
-		}(i, i+step, stepCnt)
-		stepCnt++
-	}
-
-	result := make(chan *T)
-	go func() {
-		wg.Wait()
-		for i := range res {
-			if res[i] != nil {
-				result <- res[i]
-				return
-			}
-		}
-		result <- nil
+			resNot0 <- nil
+		}()
 	}()
 
 	select {
-	case r := <-result:
-		return r
 	case r := <-res0:
+		return r
+	case r := <-resNot0:
 		return r
 	}
 }
 
 func (p *Pipe[T]) Any() *T {
-	limit := *p.len
-	// pipe init was done with a Func function
-	if *p.len == -1 {
-		limit = math.MaxInt - 1
-		if *p.valLim != 0 && *p.valLim < limit {
-			limit = *p.valLim
-		}
-	}
-
 	var (
+		res = make(chan *T, 1)
+		// if p.len is not set, we need tickets to control the amount of goroutines
+		tickets = genTickets(p.parallel)
+		limit   = p.limit()
 		step    = max(divUp(limit, p.parallel), 1)
-		tickets = make(chan struct{}, p.parallel)
-		res     = make(chan *T, 1)
 		pfn     = p.fn()
 
-		wg   sync.WaitGroup
-		done bool
+		wg    sync.WaitGroup
+		resMx sync.Mutex
+		done  bool
 	)
-	// if p.len is not set, we need tickets to control the amount of goroutines
-	for i := 0; i < max(p.parallel, 1); i++ {
-		tickets <- struct{}{}
-	}
-	if !*p.prlSet && *p.len == -1 {
+	if !*p.prlSet && !p.lenSet() {
 		step = 1 << 15
 	}
+
+	setObj := func(obj *T) {
+		resMx.Lock()
+		defer resMx.Unlock()
+
+		if done {
+			return
+		}
+		res <- obj
+		done = true
+	}
+
 	go func() {
 		for i := 0; i < limit; i += step {
 			wg.Add(1)
@@ -383,18 +386,12 @@ func (p *Pipe[T]) Any() *T {
 					wg.Done()
 					tickets <- struct{}{}
 				}()
-				if rg > limit {
-					rg = limit
-				}
 
+				rg = min(rg, limit)
 				for i := lf; i < rg && !done; i++ {
 					obj, skipped := pfn(i)
 					if !skipped {
-						if done {
-							continue
-						} // this check is just for fun here
-						res <- obj // this one may jam
-						done = true
+						setObj(obj)
 						return
 					}
 				}
@@ -403,8 +400,7 @@ func (p *Pipe[T]) Any() *T {
 
 		go func() {
 			wg.Wait()
-			res <- nil
-			done = true
+			setObj(nil)
 		}()
 	}()
 
@@ -422,8 +418,7 @@ func (p *Pipe[T]) doToLimit() []T {
 		}
 
 		if i == math.MaxInt {
-			// TODO: should we panic here?
-			break
+			panic(panicLimitExceededMsg)
 		}
 	}
 	return res
@@ -431,7 +426,7 @@ func (p *Pipe[T]) doToLimit() []T {
 
 // do is the main result evaluation pipeline
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
-	if *p.len == -1 && *p.valLim == 0 {
+	if !p.lenIsFinite() {
 		return []T{}, 0
 	}
 
@@ -486,8 +481,27 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	return res, *p.len - int(skipCnt.Load())
 }
 
-func (p *Pipe[T]) lenAlreadySet() bool {
-	return *p.len != -1 || *p.valLim != 0
+func (p *Pipe[T]) limit() int {
+	switch {
+	case p.lenSet():
+		return *p.len
+	case p.limitSet():
+		return *p.valLim
+	default:
+		return math.MaxInt - 1
+	}
+}
+
+func (p *Pipe[T]) lenSet() bool {
+	return *p.len != -1
+}
+
+func (p *Pipe[T]) limitSet() bool {
+	return *p.valLim != 0
+}
+
+func (p *Pipe[T]) lenIsFinite() bool {
+	return p.lenSet() || p.limitSet()
 }
 
 func min[T constraints.Ordered](a, b T) T {
@@ -506,4 +520,12 @@ func max[T constraints.Ordered](a, b T) T {
 
 func divUp(a, b int) int {
 	return int(math.Ceil(float64(a) / float64(b)))
+}
+
+func genTickets(n int) chan struct{} {
+	tickets := make(chan struct{}, n)
+	for i := 0; i < max(n, 1); i++ {
+		tickets <- struct{}{}
+	}
+	return tickets
 }
