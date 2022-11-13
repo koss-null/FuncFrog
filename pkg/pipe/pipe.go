@@ -16,6 +16,11 @@ const (
 	firstCheckInterval  = 345
 )
 
+type ev[T any] struct {
+	obj     *T
+	skipped bool
+}
+
 // Pipe implements the pipe on any slice.
 // Pipe should be initialized with New() or NewFn()
 type Pipe[T any] struct {
@@ -160,7 +165,7 @@ func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 // Take is used to set the amount of values expected to be in result slice.
 // It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Take(n int) *Pipe[T] {
-	if n < 0 || *p.valLim != 0 || *p.len != -1 {
+	if n < 0 || p.lenAlreadySet() {
 		return p
 	}
 	p.valLim = &n
@@ -170,7 +175,7 @@ func (p *Pipe[T]) Take(n int) *Pipe[T] {
 // Gen set the amount of values to generate as initial array.
 // It's applied only the first Gen() or Take() function in the pipe
 func (p *Pipe[T]) Gen(n int) *Pipe[T] {
-	if n < 0 || *p.len != -1 || *p.valLim != 0 {
+	if n < 0 || p.lenAlreadySet() {
 		return p
 	}
 	p.len = &n
@@ -481,9 +486,8 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	return res, *p.len - int(skipCnt.Load())
 }
 
-type ev[T any] struct {
-	obj     *T
-	skipped bool
+func (p *Pipe[T]) lenAlreadySet() bool {
+	return *p.len != -1 || *p.valLim != 0
 }
 
 func min[T constraints.Ordered](a, b T) T {
