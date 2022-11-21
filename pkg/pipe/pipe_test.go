@@ -276,3 +276,21 @@ func TestSort_ok_parallel12(t *testing.T) {
 		require.GreaterOrEqual(t, item, prevItem)
 	}
 }
+
+func TestSort_ok_parallel_large(t *testing.T) {
+	s := pipe.Func(func(i int) (float32, bool) {
+		rnd := rand.New(rand.NewSource(42))
+		rnd.Seed(int64(i))
+		return rnd.Float32(), true
+	}).
+		Parallel(12).
+		Take(100_000_000).
+		Sort(pipe.Less[float32]).
+		Do()
+
+	require.NotNil(t, s)
+	prevItem := s[0]
+	for _, item := range s {
+		require.GreaterOrEqual(t, item, prevItem)
+	}
+}

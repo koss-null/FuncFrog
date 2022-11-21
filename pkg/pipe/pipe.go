@@ -4,7 +4,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/koss-null/lambda/internal/algo/parallel/mergesort"
+	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
 	"github.com/koss-null/lambda/internal/primitive/pointer"
 
 	"go.uber.org/atomic"
@@ -133,7 +133,7 @@ func (p *Pipe[T]) Sort(less func(T, T) bool) *Pipe[T] {
 						if len(data) == 0 {
 							return
 						}
-						sorted = mergesort.Sort(data, less, p.parallel)
+						sorted = qsort.Sort(data, less, p.parallel)
 					})
 				}
 				if i >= len(sorted) {
@@ -525,7 +525,8 @@ func divUp(a, b int) int {
 
 func genTickets(n int) chan struct{} {
 	tickets := make(chan struct{}, n)
-	for i := 0; i < max(n, 1); i++ {
+	n = max(n, 1)
+	for i := 0; i < n; i++ {
 		tickets <- struct{}{}
 	}
 	return tickets

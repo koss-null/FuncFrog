@@ -192,7 +192,7 @@ func main() {
 			cnt++
 		}
 	}
-	fmt.Println("4 iterating and doing ops over 10^7 elems (by-hand): ", cnt, " time ", time.Now().Sub(start))
+	fmt.Println("4 iterating and doing ops over 10^7 elems (by-hand): ", cnt, " time ", time.Since(start))
 	runtime.GC()
 
 	runtime.GC()
@@ -207,7 +207,7 @@ func main() {
 		Gen(1_000_000).
 		Parallel(12).
 		Count()
-	fmt.Println("4 (using pipe): (parallel 12)", res4, "; eval took ", time.Now().Sub(start))
+	fmt.Println("4 (using pipe): (parallel 12)", res4, "; eval took ", time.Since(start))
 	runtime.GC()
 
 	// single thread
@@ -220,7 +220,7 @@ func main() {
 		Gen(1_000_000).
 		Parallel(1).
 		Count()
-	fmt.Println("4.1: (parallel 1)", res41, "; eval took ", time.Now().Sub(start))
+	fmt.Println("4.1: (parallel 1)", res41, "; eval took ", time.Since(start))
 	runtime.GC()
 
 	// the defalut value is 4
@@ -232,7 +232,7 @@ func main() {
 		Filter(func(x float32) bool { return x > 5000.6 }).
 		Gen(1_000_000).
 		Count()
-	fmt.Println("4.2: (parallel 4): ", res42, "; eval took ", time.Now().Sub(start))
+	fmt.Println("4.2: (parallel 4): ", res42, "; eval took ", time.Since(start))
 	runtime.GC()
 
 	// many goroutines are OK
@@ -245,7 +245,7 @@ func main() {
 		Gen(1_000_000).
 		Parallel(150).
 		Count()
-	fmt.Println("4.3: many goroutines are OK (parallel 150)", res43, "; eval took ", time.Now().Sub(start))
+	fmt.Println("4.3: many goroutines are OK (parallel 150)", res43, "; eval took ", time.Since(start))
 	runtime.GC()
 
 	// but the best value shoul be about the amount of your CPUs (do not set it very high)
@@ -259,7 +259,7 @@ func main() {
 		Gen(1_000_000).
 		Parallel(65000).
 		Count()
-	fmt.Println("result44: but too many is not great (parallel 100500 > 256)", res44, "; eval took ", time.Now().Sub(start))
+	fmt.Println("result44: but too many is not great (parallel 100500 > 256)", res44, "; eval took ", time.Since(start))
 	runtime.GC()
 
 	// if you need another type on map's output there is only an ugly prefix solution
