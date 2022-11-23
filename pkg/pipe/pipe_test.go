@@ -278,13 +278,12 @@ func TestSort_ok_parallel12(t *testing.T) {
 }
 
 func TestSort_ok_parallel_large(t *testing.T) {
+	rnd := rand.New(rand.NewSource(42))
 	s := pipe.Func(func(i int) (float32, bool) {
-		rnd := rand.New(rand.NewSource(42))
-		rnd.Seed(int64(i))
 		return rnd.Float32(), true
 	}).
 		Parallel(12).
-		Take(100_000_000).
+		Take(10_000_000).
 		Sort(pipe.Less[float32]).
 		Do()
 
