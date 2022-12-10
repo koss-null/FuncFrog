@@ -2,7 +2,8 @@
 
 ![Lambda gopher picture](https://github.com/koss-null/lambda/blob/master/lambda_favicon.png?raw=true) 
 
-Is a library to provide `map`, `reduce` and `filter` operations on slices in one pipeline.  
+Lambda [the name will change since there is already more popular go project with the same name]
+is a library to provide parallel, lazy `map`, `reduce` and `filter` operations on slices in one pipeline.  
 The slice can be set by generating function. Also the parallel execution is supported.  
 It's strongly expected all function arguments to be **pure functions** (functions with no side effects, can be cached by
 args).  
@@ -19,7 +20,7 @@ res := pipe.Slice(a).
 	Do()
 ```
  
-To play around with simple examples check out: `go run examples/main.go`.  
+To play around with simple examples check out: `examples/main.go`.  
 Also feel free to run it with `go run examples/main.go`.  
  
 ### Supported functions:
@@ -37,7 +38,7 @@ Take(n int) // if it's a Func made pipe, it expects n values to be eventually re
 ```go
 Gen(n int) // if it's a Func made pipe, it generates a sequence from [0, n) and applies other function to it
 ```
-Only the first of `Gen` or `Take` functions in the pipe (from the left to the right) is applied.  
+Only the first one of `Gen` or `Take` functions in the pipe (from the left to the right) is applied.  
 You can almost never have a pipe made with `Func` and not set either `Gen` or `Take`, it's set to 0 by default.  
 Anyway there are some exceptions: when any of `First`, `Any` [to be implemented `IsAny`, `MoreThan`] methods are called 
 you may not specify the amount if you are shure enough it will be not exectuted forever.
@@ -56,6 +57,9 @@ Sort(less func(x, y T) bool) // sotrs the array in parallel,
 ```
 ```go
 Do() []T // executes all the pipe and returns the resulting slice
+```
+```go
+Count() []T // executes all the pipe and returns the result length. If Take was used, it does not evaluate anything
 ```
 ```go
 Reduce(func(x, y T) T) T // executes all the pipe and returns the resulting value
@@ -175,9 +179,9 @@ pipe.Func(func(i int) (float32, bool) {
 	Parallel(12).
 	Do()
 ```
-Note! Current sort implementation uses `O(n*n)` memory. It will be fixed soon, but nonetheless it worth to be mentioned. 
-Also if you don't whant to carry the result array on your shoulders and only worry about the total count, you better use
-`Count()` instead of `Do()`.  
+Under the hood there is a parallel implementation of a pretty standard QSort, 
+buy you may find mergesort implementation in `internal/algo/parallel/mergesort`, fork and use it if you would like. 
+In time it may become a configurable parameter, but it looks like n*n memory consumption is pretty bad for mergesort. 
  
 ### Contribution
  
