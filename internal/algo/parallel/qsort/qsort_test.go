@@ -42,6 +42,17 @@ func Test_sort(t *testing.T) {
 	}
 }
 
+func Test_sort_one(t *testing.T) {
+	a := rnd(1)
+	require.Equal(t, len(a), 1)
+	tickets := genTickets(3)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	qsort(a, 0, len(a)-1, func(a, b int) bool { return a < b }, tickets, &wg)
+	wg.Wait()
+	require.Equal(t, len(a), 1)
+}
+
 func Test_sort_big(t *testing.T) {
 	a := rnd(100_000)
 	tickets := genTickets(6)
