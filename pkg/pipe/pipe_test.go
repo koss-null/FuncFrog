@@ -293,3 +293,31 @@ func TestSort_ok_parallel_large(t *testing.T) {
 		require.GreaterOrEqual(t, item, prevItem)
 	}
 }
+
+func TestReduce(t *testing.T) {
+	res := pipe.Func(func(i int) (int, bool) {
+		return i, true
+	}).
+		Gen(6000).
+		Reduce(func(a, b int) int { return a + b })
+
+	expected := 0
+	for i := 1; i < 6000; i++ {
+		expected += i
+	}
+	require.Equal(t, expected, *res)
+}
+
+func TestSum(t *testing.T) {
+	res := pipe.Func(func(i int) (int, bool) {
+		return i, true
+	}).
+		Gen(6000).
+		Sum(func(a, b int) int { return a + b })
+
+	expected := 0
+	for i := 1; i < 6000; i++ {
+		expected += i
+	}
+	require.Equal(t, expected, *res)
+}

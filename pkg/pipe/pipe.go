@@ -159,8 +159,8 @@ func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 		return &data[0]
 	default:
 		res := data[0]
-		for i := range data[1:] {
-			res = fn(res, data[i+1])
+		for _, val := range data[1:] {
+			res = fn(res, val)
 		}
 		return &res
 	}

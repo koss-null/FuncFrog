@@ -30,7 +30,7 @@ func Reduce[SrcT any, DstT any](p *Pipe[SrcT], fn func(DstT, SrcT) DstT, initVal
 	default:
 		res := fn(initVal, data[0])
 		for i := range data[1:] {
-			res = fn(res, data[i+1])
+			res = fn(res, data[i])
 		}
 		return res
 	}
