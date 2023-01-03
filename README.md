@@ -1,6 +1,7 @@
 # Lambda 
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda)
+[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda) 
+
 ![Lambda gopher picture](https://github.com/koss-null/lambda/blob/master/lambda_favicon.png?raw=true) 
 
 Lambda [the name will change since there is already more popular go project with the same name]
