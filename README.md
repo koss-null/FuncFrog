@@ -1,7 +1,8 @@
 # Lambda 
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda) 
-
+[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
+ 
 ![Lambda gopher picture](https://github.com/koss-null/lambda/blob/master/lambda_favicon.png?raw=true) 
 
 Lambda [the name will change since there is already more popular go project with the same name]
@@ -24,6 +25,27 @@ res := pipe.Slice(a).
  
 To play around with simple examples check out: `examples/main.go`.  
 Also feel free to run it with `go run examples/main.go`.  
+ 
+Here is an example of a pipeline from one type to another: it uses prefix form 
+
+```go
+type Params struct {
+    circleS float32
+    sphereS float32
+}
+
+p := pipe.Slice(a)
+circleS := pipe.Map(a, func(x int) float32 { return float32(x * x) * 3.1415 })
+circleSphereS := pipe.Map(circleS, func(x float32) Params {
+		    			return Prams{
+						circleS: x,
+						sphereS: x * 4,
+					},
+		 })
+
+filteredByS := circleSphereS.Filter(func(x Params) bool { return x.circleS > 10.5 && x.sphereS < 60.0})
+result := pipe.Reduce(filteredByS, func(x, y Params) int { return int(x.circleS + y.circleS) }) // returns int value [with no sense]
+```
  
 ### Supported functions:
  
