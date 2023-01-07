@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Lambda is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments).
+Lambda is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments). It is capable of handling large amounts of data with minimal overhead, and its parallel execution capabilities allow for even faster processing times. Additionally, the library is easy to use and has a clean, intuitive API. [Here](https://macias.info/entry/202212020000_go_streams.md) is some performance review.
 
 ## Getting Started
 
@@ -38,30 +38,30 @@ To see more examples of how to use Lambda, check out the `examples/main.go` file
 The `Pipe` type is an interface that represents a lazy, potentially infinite sequence of data. The `Pipe` interface provides a set of methods that can be used to transform and filter the data in the sequence.
 
 The following functions can be used to create a new `Pipe`:
-- `Slice([]T) *Pipe`: creates a `Pipe` of a given type `T` from a slice.
-- `Func(func(i int) (T, bool)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`).
-- `Take(n int) *Pipe`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned.
-- `Gen(n int) *Pipe`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it.
-- TBD: `Cycle(data []T) *Pipe`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely.
-- TBD: `Range(start, end, step T) *Pipe`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`.
+- :frog: `Slice([]T) *Pipe`: creates a `Pipe` of a given type `T` from a slice.
+- :frog: `Func(func(i int) (T, bool)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`).
+- :frog: `Take(n int) *Pipe`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned.
+- :frog: `Gen(n int) *Pipe`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it.
+- :seedling: TBD: `Cycle(data []T) *Pipe`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely.
+- :seedling: TBD: `Range(start, end, step T) *Pipe`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`.
 
 The following functions can be used to transform and filter the data in the `Pipe`:
-- `Map(fn func(x T) T) *Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data.
-- `Filter(fn func(x T) bool) *Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate.
-- `Reduce(fn func(x, y T) T) T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction.
-- `Sum(sum func(x, y) T) T`: makes parallel reduce with associative function `sum`.
-- `Sort(less func(x, y T) bool) *Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
+- :frog: `Map(fn func(x T) T) *Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data.
+- :frog: `Filter(fn func(x T) bool) *Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate.
+- :frog: `Reduce(fn func(x, y T) T) T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction.
+- :frog: `Sum(sum func(x, y) T) T`: makes parallel reduce with associative function `sum`.
+- :frog: `Sort(less func(x, y T) bool) *Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
 
 The following functions can be used to retrieve a single element or perform a boolean check on the `Pipe` without executing the entire pipeline:
-- `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise.
-- `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty.
-- `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
-- TBD: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise.
-- TBD: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise.
+- :frog: `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise.
+- :frog: `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty.
+- :frog: `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
+- :seedling: TBD: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise.
+- :seedling: TBD: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise.
 
-The `Parallel(n int) *Pipe` function can be used to specify the level of parallelism in the pipeline, by setting the number of goroutines to be executed on (4 by default).
+The :frog: `Parallel(n int) *Pipe` function can be used to specify the level of parallelism in the pipeline, by setting the number of goroutines to be executed on (4 by default).
 
-Finally, the `Do() []T` function is used to execute the pipeline and return the resulting slice of data. This function should be called at the end of the pipeline to retrieve the final result.
+Finally, the :frog: `Do() []T` function is used to execute the pipeline and return the resulting slice of data. This function should be called at the end of the pipeline to retrieve the final result.
 
 In addition to the functions described above, the `pipe` package also provides several utility functions that can be used to create common types of `Pipe`s, such as `Range`, `Repeat`, and `Cycle`. These functions can be useful for creating `Pipe`s of data that follow a certain pattern or sequence.```
 
@@ -199,20 +199,20 @@ Feel free to fork, inspire and use! I will try to supply all version tags by som
 
 ## Supported functions list
 
-- `Slice([]T) *Pipe`: creates a `Pipe` of a given type `T` from a slice.
-- `Func(func(i int) (T, bool)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`). This function can be used to generate elements on demand, rather than creating a slice beforehand.
-- `Take(n int) *Pipe`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. This function can be used to limit the number of elements generated by the function.
-- `Gen(n int) *Pipe`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it. This function can be used to generate a predetermined number of elements using the function.
-- `Parallel(n int) *Pipe`: sets the number of goroutines to be executed on (4 by default). This function can be used to specify the level of parallelism in the pipeline.
-- `Map(fn func(x T) T) *Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data. This function can be used to apply a transformation to each element in the `Pipe`.
-- `Filter(fn func(x T) bool) *Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate. This function can be used to select a subset of elements from the `Pipe`.
-- `Reduce(fn func(x, y T) T) T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction. This function can be used to combine the elements of the `Pipe` into a single value.
-- `Sum(sum func(x, y) T) T`: makes parallel reduce with associative function `sum`.
-- `Do() []T`: executes the `Pipe` and returns the resulting slice of data.
-- `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty. This function can be used to retrieve the first element of the `Pipe` without executing the entire pipeline.
-- `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise. This function can be used to check if any element in the `Pipe` satisfies a given condition.
-- `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
-- `Sort(less func(x, y T) bool) *Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function
-- TBD: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise. This function can be used to check if the `Pipe` is empty.
-- TBD: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise.
-- TBD: `Reverse() *Pipe`: reverses the underlying slice.
+- :frog: `Slice([]T) *Pipe`: creates a `Pipe` of a given type `T` from a slice.
+- :frog: `Func(func(i int) (T, bool)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`). This function can be used to generate elements on demand, rather than creating a slice beforehand.
+- :frog: `Take(n int) *Pipe`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. This function can be used to limit the number of elements generated by the function.
+- :frog: `Gen(n int) *Pipe`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it. This function can be used to generate a predetermined number of elements using the function.
+- :frog: `Parallel(n int) *Pipe`: sets the number of goroutines to be executed on (4 by default). This function can be used to specify the level of parallelism in the pipeline.
+- :frog: `Map(fn func(x T) T) *Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data. This function can be used to apply a transformation to each element in the `Pipe`.
+- :frog: `Filter(fn func(x T) bool) *Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate. This function can be used to select a subset of elements from the `Pipe`.
+- :frog: `Reduce(fn func(x, y T) T) T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction. This function can be used to combine the elements of the `Pipe` into a single value.
+- :frog: `Sum(sum func(x, y) T) T`: makes parallel reduce with associative function `sum`.
+- :frog: `Do() []T`: executes the `Pipe` and returns the resulting slice of data.
+- :frog: `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty. This function can be used to retrieve the first element of the `Pipe` without executing the entire pipeline.
+- :frog: `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise. This function can be used to check if any element in the `Pipe` satisfies a given condition.
+- :frog: `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
+- :frog: `Sort(less func(x, y T) bool) *Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function
+- :seedling: TBD: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise. This function can be used to check if the `Pipe` is empty.
+- :seedling: TBD: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise.
+- :seedling: TBD: `Reverse() *Pipe`: reverses the underlying slice.
