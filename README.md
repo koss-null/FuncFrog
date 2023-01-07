@@ -65,10 +65,6 @@ Finally, the `Do() []T` function is used to execute the pipeline and return the 
 
 In addition to the functions described above, the `pipe` package also provides several utility functions that can be used to create common types of `Pipe`s, such as `Range`, `Repeat`, and `Cycle`. These functions can be useful for creating `Pipe`s of data that follow a certain pattern or sequence.```
 
-## Is this package stable?
-
-In short: not yet. However, for each release I manually test everything that has been modified since the previous release, and I have a growing set of unit tests. While it may not be suitable for use in production environments, it should be stable enough for use in pet projects. I will provide more convincing quality guarantees and benchmarks with the v1.0.0 release. 
-
 ## Examples
 
 ### Basic example:
@@ -98,14 +94,21 @@ p := pipe.Func(func(i int) (int, bool) {
 ### Example using `Filter` and `Map`:
 
 ```go
-p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).Filter(func(x int) bool { return x % 2 == 0 }).Map(func(x int) string { return strconv.Itoa(x) }).Do()
+p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).
+	Filter(func(x int) bool { return x % 2 == 0 }).
+	Map(func(x int) string { return strconv.Itoa(x) }).
+	Do()
 // p will be ["2", "4", "6", "8", "10"]
 ```
 
 ### Example using `Map` and `Reduce` :
 
 ```go
-p := pipe.Slice([]int{1, 2, 3, 4, 5}).Map(func(x int) int { return x * x }).Reduce(func(x, y int) string { return strconv.Itoa(x) + "-" + strconv.Itoa(y) })
+p := pipe.Slice([]int{1, 2, 3, 4, 5}).
+	Map(func(x int) int { return x * x }).
+	Reduce(func(x, y int) string { 
+		return strconv.Itoa(x) + "-" + strconv.Itoa(y) 
+	})
 // p will be "1-4-9-16-25"
 ```
 
@@ -180,6 +183,9 @@ p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x int) bool { return x % 2 == 0 }).T
 // p will be [2, 2, 2, 2]
 ```
 
+## Is this package stable?
+
+In short: not yet. However, for each release I manually test everything that has been modified since the previous release, and I have a growing set of unit tests. While it may not be suitable for use in production environments, it should be stable enough for use in pet projects. I will provide more convincing quality guarantees and benchmarks with the v1.0.0 release. 
 
 ## Contributions
 
