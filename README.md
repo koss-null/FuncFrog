@@ -1,15 +1,75 @@
-# Lambda 
+# Lambda
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
- 
-![Lambda gopher picture](https://github.com/koss-null/lambda/blob/master/lambda_favicon.png?raw=true) 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Lambda [the name will change since there is already more popular go project with the same name]
-is a library to provide parallel, lazy `map`, `reduce` and `filter` operations on slices in one pipeline.  
-The slice can be set by generating function. Also the parallel execution is supported.  
-It's strongly expected all function arguments to be **pure functions** (functions with no side effects, can be cached by
-args).  
+Lambda is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments).
+
+## Getting Started
+
+To install Lambda, run the following command:
+
+```
+go get github.com/koss-null/lambda
+```
+
+
+Then, import the library into your Go code (basically you need the pipe package):
+
+```go
+import "github.com/koss-null/lambda/pkg/pipe"
+```
+
+You can then use the `pipe` package to create a pipeline of operations on a slice:
+```go
+res := pipe.Slice(a).
+    Map(func(x int) int { return x * x }).
+    Map(func(x int) int { return x + 1 }).
+    Filter(func(x int) bool { return x > 100 }).
+    Filter(func(x int) bool { return x < 1000 }).
+    Parallel(12).
+    Do()
+```
+
+To see more examples of how to use Lambda, check out the `examples/main.go` file. You can also run this file with `go run examples/main.go`.
+
+## Basic information
+
+The `Pipe` type is an interface that represents a lazy, potentially infinite sequence of data. The `Pipe` interface provides a set of methods that can be used to transform and filter the data in the sequence.
+
+The following functions can be used to create a new `Pipe`:
+- `Slice([]T) *Pipe`: creates a `Pipe` of a given type `T` from a slice.
+- `Func(func(i int) (T, bool)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`).
+- `Take(n int) *Pipe`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned.
+- `Gen(n int) *Pipe`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it.
+- TBD: `Cycle(data []T) *Pipe`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely.
+- TBD: `Range(start, end, step T) *Pipe`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`.
+
+The following functions can be used to transform and filter the data in the `Pipe`:
+- `Map(fn func(x T) T) *Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data.
+- `Filter(fn func(x T) bool) *Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate.
+- `Reduce(fn func(x, y T) T) T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction.
+- `Sum(sum func(x, y) T) T`: makes parallel reduce with associative function `sum`.
+- `Sort(less func(x, y T) bool) *Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
+
+The following functions can be used to retrieve a single element or perform a boolean check on the `Pipe` without executing the entire pipeline:
+- `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise.
+- `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty.
+- `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
+- TBD: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise.
+- TBD: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise.
+
+The `Parallel(n int) *Pipe` function can be used to specify the level of parallelism in the pipeline, by setting the number of goroutines to be executed on (4 by default).
+
+Finally, the `Do() []T` function is used to execute the pipeline and return the resulting slice of data. This function should be called at the end of the pipeline to retrieve the final result.
+
+In addition to the functions described above, the `pipe` package also provides several utility functions that can be used to create common types of `Pipe`s, such as `Range`, `Repeat`, and `Cycle`. These functions can be useful for creating `Pipe`s of data that follow a certain pattern or sequence.```
+
+## Is this package stable?
+
+In short: not yet. However, for each release I manually test everything that has been modified since the previous release, and I have a growing set of unit tests. While it may not be suitable for use in production environments, it should be stable enough for use in pet projects. I will provide more convincing quality guarantees and benchmarks with the v1.0.0 release. 
+
+## Examples
 
 ### Basic example:
 
@@ -22,202 +82,131 @@ res := pipe.Slice(a).
 	Parallel(12).
 	Do()
 ```
- 
-To play around with simple examples check out: `examples/main.go`.  
-Also feel free to run it with `go run examples/main.go`.  
- 
-Here is an example of a pipeline from one type to another: it uses prefix form 
+
+### Example using `Func` and `Take`:
 
 ```go
-type Params struct {
-    circleS float32
-    sphereS float32
-}
-
-p := pipe.Slice(a)
-circleS := pipe.Map(a, func(x int) float32 { return float32(x * x) * 3.1415 })
-circleSphereS := pipe.Map(circleS, func(x float32) Params {
-		    			return Prams{
-						circleS: x,
-						sphereS: x * 4,
-					},
-		 })
-
-filteredByS := circleSphereS.Filter(func(x Params) bool { return x.circleS > 10.5 && x.sphereS < 60.0})
-result := pipe.Reduce(filteredByS, func(x, y Params) int { return int(x.circleS + y.circleS) }) // returns int value [with no sense]
-```
- 
-### Supported functions:
- 
-```go
-Slice([]T) // creates a pipe of a given type T from a slice.
-```
-```go
-Func(func(i int) (T, bool)) // creates a pipe of type T from a function.
-```
-The bool parameter is wether it's taken (true if it's taken, false - skipped), `i int` is for the i'th element of initial pipe
-```go
-Take(n int) // if it's a Func made pipe, it expects n values to be eventually returned
-```
-```go
-Gen(n int) // if it's a Func made pipe, it generates a sequence from [0, n) and applies other function to it
-```
-Only the first one of `Gen` or `Take` functions in the pipe (from the left to the right) is applied.  
-You can almost never have a pipe made with `Func` and not set either `Gen` or `Take`, it's set to 0 by default.  
-Anyway there are some exceptions: when any of `First`, `Any` [to be implemented `IsAny`, `MoreThan`] methods are called 
-you may not specify the amount if you are shure enough it will be not exectuted forever.
-```go
-Parallel(n int) // set the number of goroutines to be executed on (4 by default)
-```
-```go
-Map(fn func(x T) T) // applies function fn to every element of the pipe and gets a new pipe thus
-```
-```go
-Filter(fn func(x T) bool) // only leaves the element in a pipe if fn for this element is true
-```
-```go
-Sort(less func(x, y T) bool) // sotrs the array in parallel, 
-// you may use pipe.Less function for constraints.Ordered types
-```
-```go
-Do() []T // executes all the pipe and returns the resulting slice
-```
-```go
-Count() []T // executes all the pipe and returns the result length. If Take was used, it does not evaluate anything
-```
-```go
-Reduce(func(x, y T) T) T // executes all the pipe and returns the resulting value
-```
-```go
-Sum(func(x, y) T) T // is pretty similar to Reduce, but works in parallel
-```
-you about to send any function here where f(a, b) = f(b, a) and f(f(a, b), c) == f((c, b), a) == f(f(a,c), b)  
-```go
-First() T // returns the first found value in the result slice
-// Works with Func(...) like magic
-```
-there is also a function that works with `Func()` but without both `Take()` or `Gen()`: Any!  
-```go
-Any() T // returns the first found T instance (ont in order)
-```
- 
-### But what about Map and Reduce to another type?
- 
-It is possible with `prefixpipe.go`: it provides `Map(T1) T2` and `Reduce(T1, T2) T1`  
-It may look a little bit more ugly, but it is what it is for now and untill v1.0.0 for sure.  
-I am concidering to create some another Pipe implementations in future to be able to write beautiful oneline
-convertions.  
- 
-### Does it stable?
- 
-In short: not yet. But(!) for each release I do manual testing for everything I have touched since the previous release
-and also I have a nice growing set of unit-tests. So I beleve it is stable enough to use in your pet projects.  
-I will provide some more convincing quality guarantees and benchmarks with `v1.0.0` release.  
- 
-### To be done functions (the names are not settled yet):
- 
-```go
-IsAny() bool // returns true if there is at least 1 element in the result slice
-MoreThan(n int) bool // returns if there is at least n elements in the result slice
-Reverse() // reverses the underlying slice [under discussion]
-```
- 
-### Important note:
- 
-```
-pipelines initiated with Func(...) are not parallelized in some methods yet
+p := pipe.Func(func(i int) (int, bool) {
+	if i < 10 {
+		return i * i, true
+	}
+	return 0, false
+}).Take(5).Do()
+// p will be [0, 1, 4, 9, 16]
 ```
 
-
-### Quick usage review
- 
-Here are some more examples (pretty mutch the same as in the example package):  
-First of all let's make a simple slice:  
+### Example using `Filter` and `Map`:
 
 ```go
-a := make([]int, 100)
-for i := range a {
-	a[i] = i
-}
+p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).Filter(func(x int) bool { return x % 2 == 0 }).Map(func(x int) string { return strconv.Itoa(x) }).Do()
+// p will be ["2", "4", "6", "8", "10"]
 ```
 
-Let's wobble it a little bit:  
+### Example using `Map` and `Reduce` :
+
 ```go
-pipe.Slice(a).
-	Map(func(x int) int { return x * x }).
-	Map(func(x int) int { return x + 1 }).
-	Filter(func(x int) bool { return x > 100 }).
-	Filter(func(x int) bool { return x < 1000 }).
-	Do()
+p := pipe.Slice([]int{1, 2, 3, 4, 5}).Map(func(x int) int { return x * x }).Reduce(func(x, y int) string { return strconv.Itoa(x) + "-" + strconv.Itoa(y) })
+// p will be "1-4-9-16-25"
 ```
- 
-Here are some fun facts: 
-* it's executed in *4 threads* by default. (I am still hesitating about it, so the value may still change [most likley to 1]) 
-* if there is less than *5k* items in your slice, it will be executed in a single thread anyway. 
- 
-Do I have some more tricks? Shure!  
+
+### Example of `Map` and `Reduce` with the underlying array type change:
+
 ```go
-pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-	Filter(func(x float32) bool { return x > 0.5 }).
+p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9})
+strP := pipe.Map(p, func(x int) string { return strconv.Itoa(x) })
+result := pipe.Reduce(strP, func(x, y string) int { return len(x) + len(y) }).Do()
+// result will be 45
 ```
-This one generates an infinite random sequence greater than 0.5  
-Use `Gen(n)` to generate exactly **n** items and filter them after,  
-Or just `Take(n)` exactly **n** items evaluating them while you can (until the biggest `int` is sent to a function).  
- 
-Let's assemble it all in one:  
+
+### Example using `Sort`:
+
 ```go
-pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
-}).
-	Filter(func(x float32) bool { return x > 0.5 }).
-	// Take 65000 values, don't stop generate before get all of them
-	Take(65000).
-	// There is no Sum() yet but no worries
-	Reduce(func(x, y float32) float32 { return x + y})
-```
-Did you notice the `Reduce`?  
-Here is what reduce does:  
-Let's say there is **zero** element for type **T** where any `f(zero, T) = T`  
-No we can add this **zero** at the beginning of the pipe and apply our function to the first two elements: `p[0]`[**zero**] and `p[1]`  
-Result we will put into `p[0]` and move the whole pipe to the left by 1   
-Due to what we've said before about **zero** `p[0] = p[1]` now   
-Now we are doing the same operation for `p[0]` and `p[1]` while we have `p[1]`   
-Eventually `p[0]` will be the result.  
- 
-### Anything else?  
-You can  sort faster than the wind using all power of your core2duo:  
-```go
-pipe.Func(func(i int) (float32, bool) {
+p := pipe.Func(func(i int) (float32, bool) {
 	return float32(i) * 0.9, true
 }).
 	Map(func(x float32) float32 { return x * x }).
 	Gen(100500).
 	Sort(pipe.Less[float32]).
-	// This is how you can sort in parallel (it's rly faster!)
 	Parallel(12).
 	Do()
+// p will contain the elements of p sorted in ascending order
 ```
-Under the hood there is a parallel implementation of a pretty standard QSort, 
-buy you may find mergesort implementation in `internal/algo/parallel/mergesort`, fork and use it if you would like. 
-In time it may become a configurable parameter, but it looks like n*n memory consumption is pretty bad for mergesort. 
- 
-### Contribution
- 
-For now I will accept any sane tests.  
-Feel free to use any frameworks you may like.  
-Any bugfixes are also welcome.  
-I am going to do some refactor and maybe some decisions will be changed, so for now 
-please communicate with the owner to find out if the feature you whant to implement is to be merged.  
- 
-### What's next?  
- 
-I hope to provide some roadmap of the project soon.   
-Also I am going to craft some unit-tests and may be set up github pipelines eventually.   
-Feel free to fork, inspire and use! I will try to supply all version tags by some manual testing and quality
-control at least.   
+
+### Example of infine sequence generation:
+
+Here is an example of generating an infinite sequence of random `float32` values greater than `0.5`:
+
+```go
+p := pipe.Func(func(i int) (float32, bool) {
+	rnd := rand.New(rand.NewSource(42))
+	rnd.Seed(int64(i))
+	return rnd.Float32(), true
+}).
+	Filter(func(x float32) bool { return x > 0.5 })
+```
+
+To generate a specific number of values, you can use the `Take` method:
+
+```go
+p = p.Take(65000)
+```
+
+To accumulate the elements of the `Pipe`, you can use the `Reduce` method:
+
+```go
+sum := p.Sum(pipe.Sum[float32])
+//also you can: sum := p.Reduce(func(x, y float32) float32 { return x + y})
+// sum will be the sum of the first 65000 random float32 values greater than 0.5
+```
+
+### Example using `Range` (not implemented yet) and `Map`:
+
+```go
+p := pipe.Range(10, 20, 2).Map(func(x int) int { return x * x }).Do()
+// p will be [100, 144, 196, 256, 324]
+```
+
+### Example using `Repeat` (not implemented yet) and `Map`:
+
+```go
+p := pipe.Repeat("hello", 5).Map(func(s string) int { return len(s) }).Do()
+// p will be [5, 5, 5, 5, 5]
+```
+
+### Example using `Cycle` (not implemented yet) and `Filter`:
+
+```go
+p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x int) bool { return x % 2 == 0 }).Take(4).Do()
+// p will be [2, 2, 2, 2]
+```
+
+
+## Contributions
+
+I am currently accepting any well-written tests. You are welcome to use any frameworks you prefer. Bug fixes are also welcome. I plan to do some refactoring in the future, so please communicate with the owner before implementing any new features to ensure that they will be accepted.
+
+## What's next?
+
+I hope to provide some roadmap of the project soon.
+Also I am going to craft some unit-tests and may be set up github pipelines eventually.
+Feel free to fork, inspire and use! I will try to supply all version tags by some manual testing and quality control at least.
+
+## Supported functions list
+
+- `Slice([]T) *Pipe`: creates a `Pipe` of a given type `T` from a slice.
+- `Func(func(i int) (T, bool)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`). This function can be used to generate elements on demand, rather than creating a slice beforehand.
+- `Take(n int) *Pipe`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. This function can be used to limit the number of elements generated by the function.
+- `Gen(n int) *Pipe`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it. This function can be used to generate a predetermined number of elements using the function.
+- `Parallel(n int) *Pipe`: sets the number of goroutines to be executed on (4 by default). This function can be used to specify the level of parallelism in the pipeline.
+- `Map(fn func(x T) T) *Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data. This function can be used to apply a transformation to each element in the `Pipe`.
+- `Filter(fn func(x T) bool) *Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate. This function can be used to select a subset of elements from the `Pipe`.
+- `Reduce(fn func(x, y T) T) T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction. This function can be used to combine the elements of the `Pipe` into a single value.
+- `Sum(sum func(x, y) T) T`: makes parallel reduce with associative function `sum`.
+- `Do() []T`: executes the `Pipe` and returns the resulting slice of data.
+- `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty. This function can be used to retrieve the first element of the `Pipe` without executing the entire pipeline.
+- `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise. This function can be used to check if any element in the `Pipe` satisfies a given condition.
+- `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
+- `Sort(less func(x, y T) bool) *Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function
+- TBD: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise. This function can be used to check if the `Pipe` is empty.
+- TBD: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise.
+- TBD: `Reverse() *Pipe`: reverses the underlying slice.
