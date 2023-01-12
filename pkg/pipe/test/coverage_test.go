@@ -96,77 +96,144 @@ func TestScice(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		require.Equal(t, c.testCase(), c.expected())
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.expected(), c.testCase())
+		})
 	}
 }
 
 func TestFunc(t *testing.T) {
 	cases := []struct {
 		name     string
-		testCase *pipe.Pipe[int]
+		testCase func() *pipe.Pipe[int]
 		expected func() []int
 	}{
 		{
 			name: "simple gen",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
-			}).Gen(10),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
+				}).Gen(10)
+			},
 			expected: wrap([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
 		},
 		{
 			name: "large gen",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return largeSlice()[i], true
-			}).Gen(len(largeSlice())),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return largeSlice()[i], true
+				}).Gen(len(largeSlice()))
+			},
 			expected: wrap(largeSlice()),
 		},
 		{
 			name: "empty gen",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return 0, false
-			}).Gen(0),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return 0, false
+				}).Gen(0)
+			},
 			expected: wrap([]int{}),
 		},
 		{
 			name: "single element gen",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return 1, true
-			}).Gen(1),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return 1, true
+				}).Gen(1)
+			},
 			expected: wrap([]int{1}),
 		},
 
 		{
 			name: "simple take",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
-			}).Take(10),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
+				}).Take(10)
+			},
 			expected: wrap([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
 		},
 		{
 			name: "large take",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return largeSlice()[i], true
-			}).Take(len(largeSlice())),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return largeSlice()[i], true
+				}).Take(len(largeSlice()))
+			},
 			expected: wrap(largeSlice()),
 		},
 		{
 			name: "empty take",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return 0, false
-			}).Take(0),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return 0, false
+				}).Take(0)
+			},
 			expected: wrap([]int{}),
 		},
 		{
 			name: "single element take",
-			testCase: pipe.Func(func(i int) (int, bool) {
-				return 1, true
-			}).Take(1),
+			testCase: func() *pipe.Pipe[int] {
+				return pipe.Func(func(i int) (int, bool) {
+					return 1, true
+				}).Take(1)
+			},
 			expected: wrap([]int{1}),
 		},
 	}
 
 	for _, c := range cases {
-		require.Equal(t, c.testCase.Do(), c.expected())
-		require.Equal(t, c.testCase.Parallel(12).Do(), c.expected())
+		t.Run(c.name, func(t *testing.T) {
+			p := c.testCase()
+			require.Equal(t, c.expected(), p.Do())
+		})
+		t.Run(c.name+" parallel 12", func(t *testing.T) {
+			p := c.testCase()
+			require.Equal(t, c.expected(), p.Do())
+		})
+	}
+}
+
+func TestMap(t *testing.T) {
+	cases := []struct {
+		name     string
+		pipe     func() *pipe.Pipe[int]
+		expected func() []int
+	}{
+		{
+			name: "slice small",
+			pipe: func() *pipe.Pipe[int] {
+				return pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).
+					Map(func(x int) int { return x * 2 })
+			},
+			expected: wrap([]int{2, 4, 6, 8, 10, 12, 14, 16, 18, 20}),
+		},
+		{
+			name: "slice large",
+			pipe: func() *pipe.Pipe[int] {
+				return pipe.Slice(largeSlice()).
+					Map(func(x int) int { return x * 2 })
+			},
+			expected: func() []int {
+				b := make([]int, len(largeSlice()))
+				ls := largeSlice()
+				for i := range ls {
+					b[i] = ls[i] * 2
+				}
+				return b
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			p := c.pipe
+			require.Equal(t, c.expected(), p().Do())
+		})
+		t.Run(c.name+" parallel 12", func(t *testing.T) {
+			p := c.pipe
+			require.Equal(t, c.expected(), p().Do())
+		})
 	}
 }
