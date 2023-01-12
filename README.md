@@ -209,18 +209,23 @@ p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x int) bool { return x % 2 == 0 }).T
 
 Yes it finally is stable since v0.9.0! All listed functionality is fully covered by unit-tests (`pkg/pipe/test/coverage_test.go`). Functionality marked as TBD
 will be implemented as it described in the README and supplied covered by unit-tests to be delivered stable. 
+
 If there will be any method signature changes, the major version will be incremented. 
 
 ## Contributions
 
 I will accept any pr's with the functionality marked as TBD. 
+
 Also I will accept any sane unit-tests. 
+
 Bugfixes. 
+
 You are welcome to create any issues. 
 
 ## What's next?
 
 I hope to provide some roadmap of the project soon. 
+
 Feel free to fork, inspire and use! 
 
 ## Supported functions list
