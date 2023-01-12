@@ -104,11 +104,10 @@ res := pipe.Slice(a).
 ### Example using `Func` and `Take`:
 
 ```go
-p := pipe.Func(func(i int) (int, bool) {
+p := pipe.Func(func(i int) (v int, b bool) {
 	if i < 10 {
 		return i * i, true
-	}
-	return 0, false
+	}; return
 }).Take(5).Do()
 // p will be [0, 1, 4, 9, 16]
 ```
@@ -118,20 +117,32 @@ p := pipe.Func(func(i int) (int, bool) {
 ```go
 p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).
 	Filter(func(x int) bool { return x % 2 == 0 }).
-	Map(func(x int) string { return strconv.Itoa(x) }).
+	Map(func(x int) int { return len(strconv.Itoa(x)) }).
 	Do()
-// p will be ["2", "4", "6", "8", "10"]
+// p will be [1, 1, 1, 1, 2]
 ```
 
 ### Example using `Map` and `Reduce` :
 
 ```go
-p := pipe.Slice([]int{1, 2, 3, 4, 5}).
-	Map(func(x int) int { return x * x }).
-	Reduce(func(x, y int) string { 
-		return strconv.Itoa(x) + "-" + strconv.Itoa(y) 
-	})
+p := pipe.Reduce(
+	pipe.Slice([]int{1, 2, 3, 4, 5}).
+		Map(func(x int) int { return x * x }),
+	func(x, y int) string { 
+		return strconv.Itoa(x) + "-" + strconv.Itoa(y)
+	},
+)
 // p will be "1-4-9-16-25"
+```
+
+```go
+p := pipe.Slice([]stirng{"Hello", "darkness", "my", "old", "friend"}).
+	Map(strings.Title).
+	Reduce(func(x, y string) string { 
+		return x + " " + y
+	})
+)
+// p will be "Hello Darkness My Old Friend"
 ```
 
 ### Example of `Map` and `Reduce` with the underlying array type change:
@@ -162,8 +173,8 @@ p := pipe.Func(func(i int) (float32, bool) {
 Here is an example of generating an infinite sequence of random `float32` values greater than `0.5`:
 
 ```go
+rnd := rand.New(rand.NewSource(42))
 p := pipe.Func(func(i int) (float32, bool) {
-	rnd := rand.New(rand.NewSource(42))
 	rnd.Seed(int64(i))
 	return rnd.Float32(), true
 }).
@@ -176,7 +187,7 @@ To generate a specific number of values, you can use the `Take` method:
 p = p.Take(65000)
 ```
 
-To accumulate the elements of the `Pipe`, you can use the `Reduce` method:
+To accumulate the elements of the `Pipe`, you can use the `Reduce` or `Sum` method:
 
 ```go
 sum := p.Sum(pipe.Sum[float32])
@@ -194,8 +205,8 @@ p := pipe.Range(10, 20, 2).Map(func(x int) int { return x * x }).Do()
 ### Example using `Repeat` (not implemented yet) and `Map`:
 
 ```go
-p := pipe.Repeat("hello", 5).Map(func(s string) int { return len(s) }).Do()
-// p will be [5, 5, 5, 5, 5]
+p := pipe.Repeat("hello", 5).Map(strings.ToUpper).Do()
+// p will be ["HELLO", "HELLO", "HELLO", "HELLO", "HELLO"]
 ```
 
 ### Example using `Cycle` (not implemented yet) and `Filter`:
