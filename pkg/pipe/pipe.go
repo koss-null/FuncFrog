@@ -220,6 +220,11 @@ func (p *Pipe[T]) Sum(sum func(T, T) T) *T {
 	}
 }
 
+func (p *Pipe[T]) Copy() *Pipe[T] {
+	// TBD
+	return p
+}
+
 // First returns the first element of the pipe
 func (p *Pipe[T]) First() *T {
 	// FIXME: to be removed when the ussue with too big resStorage will be solved
