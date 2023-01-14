@@ -6,7 +6,7 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-// filters.go is a collection of useful generic filter functions to use in Filter().
+// The list of filter functions to use in Filter().
 
 // NotNull filters out values that are equal to nil.
 // It uses reflection, so if you don't store any pointers, better use NotZero.
