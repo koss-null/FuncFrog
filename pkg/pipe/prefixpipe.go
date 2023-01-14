@@ -1,10 +1,8 @@
 package pipe
 
-// PrefixPipes are more powerfull and more ugly
-// You can use all operations the same way but the result type of any operation can be arbitary
-
-func Map[SrcT, DstT any](p *Pipe[SrcT], fn func(x SrcT) DstT) *Pipe[DstT] {
-	return &Pipe[DstT]{
+// Map applies function on a Pipe of type SrcT and returns a Pipe of type DstT.
+func Map[SrcT, DstT any](p Pipe[SrcT], fn func(x SrcT) DstT) Pipe[DstT] {
+	return Pipe[DstT]{
 		fn: func() func(i int) (*DstT, bool) {
 			return func(i int) (*DstT, bool) {
 				if obj, skipped := p.fn()(i); !skipped {
@@ -20,15 +18,21 @@ func Map[SrcT, DstT any](p *Pipe[SrcT], fn func(x SrcT) DstT) *Pipe[DstT] {
 	}
 }
 
-func Reduce[SrcT any, DstT any](p *Pipe[SrcT], fn func(DstT, SrcT) DstT, initVal DstT) DstT {
+// Reduce applies reduce operation on Pipe of type SrcT an returns result of type DstT.
+// initVal is an optional parameter to initialize a value that should be used on the first step of reduce.
+func Reduce[SrcT any, DstT any](p Pipe[SrcT], fn func(DstT, SrcT) DstT, initVal ...DstT) DstT {
+	var init DstT
+	if len(initVal) > 0 {
+		init = initVal[0]
+	}
 	data := p.Do()
 	switch len(data) {
 	case 0:
-		return initVal
+		return init
 	case 1:
-		return fn(initVal, data[0])
+		return fn(init, data[0])
 	default:
-		res := fn(initVal, data[0])
+		res := fn(init, data[0])
 		for i := range data[1:] {
 			res = fn(res, data[i])
 		}

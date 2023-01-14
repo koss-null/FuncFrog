@@ -105,135 +105,133 @@ func TestScice(t *testing.T) {
 func TestFunc(t *testing.T) {
 	cases := []struct {
 		name     string
-		testCase func() *pipe.Pipe[int]
+		testCase pipe.Pipe[int]
 		expected func() []int
 	}{
 		{
 			name: "simple gen",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
-				}).Gen(10)
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
+			}).Gen(10),
 			expected: wrap([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
 		},
 		{
 			name: "large gen",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return largeSlice()[i], true
-				}).Gen(len(largeSlice()))
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return largeSlice()[i], true
+			}).Gen(len(largeSlice())),
 			expected: wrap(largeSlice()),
 		},
 		{
 			name: "empty gen",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return 0, false
-				}).Gen(0)
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return 0, false
+			}).Gen(0),
 			expected: wrap([]int{}),
 		},
 		{
 			name: "single element gen",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return 1, true
-				}).Gen(1)
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return 1, true
+			}).Gen(1),
 			expected: wrap([]int{1}),
 		},
 
 		{
 			name: "simple take",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
-				}).Take(10)
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}[i], true
+			}).Take(10),
 			expected: wrap([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
 		},
 		{
 			name: "large take",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return largeSlice()[i], true
-				}).Take(len(largeSlice()))
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return largeSlice()[i], true
+			}).Take(len(largeSlice())),
 			expected: wrap(largeSlice()),
 		},
 		{
 			name: "empty take",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return 0, false
-				}).Take(0)
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return 0, false
+			}).Take(0),
 			expected: wrap([]int{}),
 		},
 		{
 			name: "single element take",
-			testCase: func() *pipe.Pipe[int] {
-				return pipe.Func(func(i int) (int, bool) {
-					return 1, true
-				}).Take(1)
-			},
+			testCase: pipe.Func(func(i int) (int, bool) {
+				return 1, true
+			}).Take(1),
 			expected: wrap([]int{1}),
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			p := c.testCase()
-			require.Equal(t, c.expected(), p.Do())
+			require.Equal(t, c.expected(), c.testCase.Do())
 		})
 		t.Run(c.name+" parallel 12", func(t *testing.T) {
-			p := c.testCase()
-			require.Equal(t, c.expected(), p.Do())
+			require.Equal(t, c.expected(), c.testCase.Do())
 		})
 	}
 }
 
 func TestMap(t *testing.T) {
 	cases := []struct {
-		name     string
-		pipe     func() *pipe.Pipe[int]
-		expected func() []int
+		name  string
+		input pipe.Pipe[int]
+		f     func(int) int
+		want  []int
 	}{
 		{
-			name: "slice small",
-			pipe: func() *pipe.Pipe[int] {
-				return pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).
-					Map(func(x int) int { return x * 2 })
-			},
-			expected: wrap([]int{2, 4, 6, 8, 10, 12, 14, 16, 18, 20}),
+			name:  "map double",
+			input: pipe.Slice([]int{1, 2, 3}),
+			f:     func(i int) int { return i * 2 },
+			want:  []int{2, 4, 6},
 		},
 		{
-			name: "slice large",
-			pipe: func() *pipe.Pipe[int] {
-				return pipe.Slice(largeSlice()).
-					Map(func(x int) int { return x * 2 })
-			},
-			expected: func() []int {
+			name:  "map empty",
+			input: pipe.Slice([]int{}),
+			f:     func(i int) int { return i },
+			want:  []int{},
+		},
+		{
+			name:  "map single element",
+			input: pipe.Slice([]int{1}),
+			f:     func(i int) int { return i },
+			want:  []int{1},
+		},
+		{
+			name:  "map max elements",
+			input: pipe.Slice(make([]int, 1<<20)),
+			f:     func(i int) int { return i },
+			want:  make([]int, 1<<20),
+		},
+
+		{
+			name:  "map many diffeerent elements",
+			input: pipe.Slice(largeSlice()),
+			f:     func(x int) int { return x * 2 },
+			want: func() []int {
 				b := make([]int, len(largeSlice()))
 				ls := largeSlice()
 				for i := range ls {
 					b[i] = ls[i] * 2
 				}
 				return b
-			},
+			}(),
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			p := c.pipe
-			require.Equal(t, c.expected(), p().Do())
+			res := c.input.Map(c.f).Do()
+			require.Equal(t, c.want, res)
 		})
 		t.Run(c.name+" parallel 12", func(t *testing.T) {
-			p := c.pipe
-			require.Equal(t, c.expected(), p().Do())
+			res := c.input.Map(c.f).Do()
+			require.Equal(t, c.want, res)
 		})
 	}
 }
