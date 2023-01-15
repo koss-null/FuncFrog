@@ -20,18 +20,13 @@ const (
 	panicLimitExceededMsg = "the limit is exceeded, but the result is not calculated"
 )
 
-type ev[T any] struct {
-	obj     *T
-	skipped bool
-}
-
 // Pipe implements the pipe on any slice.
 // Pipe may be initialized with `Slice`, `Func`, `Cycle` or `Range`.
 type Pipe[T any] struct {
 	fn       func() func(int) (*T, bool)
 	len      *int
 	valLim   *int
-	parallel int
+	parallel *int
 	prlSet   *bool
 }
 
@@ -51,7 +46,7 @@ func Slice[T any](dt []T) Pipe[T] {
 		},
 		len:      pointer.To(len(dtCp)),
 		valLim:   pointer.To(0),
-		parallel: defaultParallelWrks,
+		parallel: pointer.To(defaultParallelWrks),
 		prlSet:   pointer.To(false),
 	}
 }
@@ -70,7 +65,7 @@ func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 		},
 		len:      pointer.To(-1),
 		valLim:   pointer.To(0),
-		parallel: defaultParallelWrks,
+		parallel: pointer.To(defaultParallelWrks),
 		prlSet:   pointer.To(false),
 	}
 }
@@ -132,7 +127,7 @@ func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
 						if len(data) == 0 {
 							return
 						}
-						sorted = qsort.Sort(data, less, p.parallel)
+						sorted = qsort.Sort(data, less, *p.parallel)
 					})
 				}
 				if i >= len(sorted) {
@@ -184,7 +179,7 @@ func (p Pipe[T]) Sum(sum func(T, T) T) *T {
 		}
 
 		var (
-			step        = divUp(totalLen, p.parallel)
+			step        = divUp(totalLen, *p.parallel)
 			totalResLen = divUp(totalLen, step)
 			totalRes    = make([]*T, totalResLen)
 
@@ -227,8 +222,8 @@ func (p Pipe[T]) First() *T {
 	}
 	var (
 		limit   = p.limit()
-		step    = max(divUp(limit, p.parallel), 1)
-		tickets = genTickets(p.parallel)
+		step    = max(divUp(limit, *p.parallel), 1)
+		tickets = genTickets(*p.parallel)
 		pfn     = p.fn()
 
 		// this allocation may take a lot of memory on MaxInt length
@@ -305,9 +300,9 @@ func (p Pipe[T]) Any() *T {
 	var (
 		res = make(chan *T, 1)
 		// if p.len is not set, we need tickets to control the amount of goroutines
-		tickets = genTickets(p.parallel)
+		tickets = genTickets(*p.parallel)
 		limit   = p.limit()
-		step    = max(divUp(limit, p.parallel), 1)
+		step    = max(divUp(limit, *p.parallel), 1)
 		pfn     = p.fn()
 
 		wg    sync.WaitGroup
@@ -388,7 +383,7 @@ func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
 		return p
 	}
 
-	p.parallel = int(n)
+	*p.parallel = int(n)
 	*p.prlSet = true
 	return p
 }
@@ -425,37 +420,37 @@ func (p Pipe[T]) doToLimit() []T {
 	return res
 }
 
+type ev[T any] struct {
+	obj     *T
+	skipped bool
+}
+
 // do is the main result evaluation pipeline
 func (p Pipe[T]) do(needResult bool) ([]T, int) {
 	if !p.lenIsFinite() {
 		return []T{}, 0
 	}
 
-	if *p.valLim != 0 {
+	if p.limitSet() {
 		res := p.doToLimit()
 		return res, len(res)
 	}
 
 	var (
+		eval    []ev[T]
+		step    = divUp(p.limit(), *p.parallel)
+		pfn     = p.fn()
+		wg      sync.WaitGroup
 		skipCnt atomic.Int64
-		res     []T
-		evals   []ev[T]
 	)
 	if needResult {
-		res = make([]T, 0, *p.len)
-		evals = make([]ev[T], *p.len)
+		eval = make([]ev[T], p.limit())
 	}
-
-	var (
-		step = divUp(*p.len, p.parallel)
-		pfn  = p.fn()
-		wg   sync.WaitGroup
-	)
-	for i := 0; i < *p.len; i += step {
+	for i := 0; i < p.limit(); i += step {
 		wg.Add(1)
 		go func(lf, rg int) {
-			if rg > *p.len {
-				rg = *p.len
+			if rg > p.limit() {
+				rg = p.limit()
 			}
 			for i := lf; i < rg; i++ {
 				obj, skipped := pfn(i)
@@ -463,7 +458,7 @@ func (p Pipe[T]) do(needResult bool) ([]T, int) {
 					skipCnt.Add(1)
 				}
 				if needResult {
-					evals[i] = ev[T]{obj, skipped}
+					eval[i] = ev[T]{obj, skipped}
 				}
 			}
 			wg.Done()
@@ -471,15 +466,13 @@ func (p Pipe[T]) do(needResult bool) ([]T, int) {
 	}
 	wg.Wait()
 
-	if needResult {
-		for _, ev := range evals {
-			if !ev.skipped {
-				res = append(res, *ev.obj)
-			}
+	var res []T
+	for i := range eval {
+		if !eval[i].skipped {
+			res = append(res, *eval[i].obj)
 		}
 	}
-
-	return res, *p.len - int(skipCnt.Load())
+	return res, p.limit() - int(skipCnt.Load())
 }
 
 // limit returns the upper border limit as the pipe evaluation limit.

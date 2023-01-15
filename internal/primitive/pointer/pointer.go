@@ -1,10 +1,10 @@
 package pointer
 
-func To[T comparable](x T) *T {
+func To[T any](x T) *T {
 	return &x
 }
 
-func From[T comparable](x *T) (res T) {
+func From[T any](x *T) (res T) {
 	if x == nil {
 		return
 	}

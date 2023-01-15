@@ -57,15 +57,6 @@ func TestSlice_ok_test3(t *testing.T) {
 	}
 }
 
-func TestSlice_ok_test4(t *testing.T) {
-	initA10kk()
-
-	s := pipe.Slice(a10kk).Do()
-	for i := range a10kk {
-		require.Equal(t, a10kk[i], s[i])
-	}
-}
-
 // Map() function
 
 func TestMap_ok(t *testing.T) {

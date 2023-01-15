@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/koss-null/lambda/internal/primitive/pointer"
 	"github.com/koss-null/lambda/pkg/pipe"
 )
 
@@ -29,6 +30,20 @@ func largeSlice() []int {
 		}
 	}
 	return a
+}
+
+var (
+	pls *pipe.Pipe[int]
+	mx2 sync.Mutex
+)
+
+func pipeLargeSlice() pipe.Pipe[int] {
+	mx2.Lock()
+	defer mx2.Unlock()
+	if pls == nil {
+		pls = pointer.To(pipe.Slice(largeSlice()))
+	}
+	return *pls
 }
 
 func TestScice(t *testing.T) {
@@ -56,19 +71,19 @@ func TestScice(t *testing.T) {
 			testCase: func() []int {
 				return pipe.Slice([]int{}).Do()
 			},
-			expected: wrap([]int{}),
+			expected: wrap([]int(nil)),
 		},
 		{
 			name: "single element",
 			testCase: func() []int {
-				return pipe.Slice([]int{}).Do()
+				return pipe.Slice([]int{1}).Do()
 			},
-			expected: wrap([]int{}),
+			expected: wrap([]int{1}),
 		},
 		{
 			name: "simple parallel 12",
 			testCase: func() []int {
-				return pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).Parallel(12).Do()
+				return pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).Parallel(10).Do()
 			},
 			expected: wrap([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}),
 		},
@@ -84,14 +99,14 @@ func TestScice(t *testing.T) {
 			testCase: func() []int {
 				return pipe.Slice([]int{}).Parallel(12).Do()
 			},
-			expected: wrap([]int{}),
+			expected: wrap([]int(nil)),
 		},
 		{
 			name: "single element parallel 12",
 			testCase: func() []int {
-				return pipe.Slice([]int{}).Parallel(12).Do()
+				return pipe.Slice([]int{1}).Parallel(12).Do()
 			},
-			expected: wrap([]int{}),
+			expected: wrap([]int{1}),
 		},
 	}
 

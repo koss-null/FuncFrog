@@ -20,7 +20,7 @@ func readTestData() ([]int, error) {
 	if len(testSlice) != 0 {
 		return testSlice, nil
 	}
-	raw, err := os.ReadFile("../../.test_data/test1.txt")
+	raw, err := os.ReadFile("../../../.test_data/test1.txt")
 	if err != nil {
 		return nil, err
 	}
