@@ -61,16 +61,18 @@ The `Pipe` type is an interface that represents a lazy, potentially infinite seq
 The following functions can be used to create a new `Pipe`:
 - :frog: `Slice([]T) *Pipe`: creates a `Pipe` of a given type `T` from a slice.
 - :frog: `Func(func(i int) (T, bool)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`).
-- :seedling: TBD: `Cycle(data []T) *Pipe`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely.
+- :frog: `Fn(func(i int) (T)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`; to be able to skip values use `Func`.
+- :frog: `Cycle(data []T) *Pipe`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely.
 - :seedling: TBD: `Range(start, end, step T) *Pipe`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`.
 - :frog: `Take(n int) *Pipe`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned.
 - :frog: `Gen(n int) *Pipe`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it.
+- :seedling: TBD: `Until(fn func(T) bool)`: if it's a `Func`-made `Pipe`, it evaluates one-by-one until fn return false.
 
 The following functions can be used to transform and filter the data in the `Pipe`:
 - :frog: `Map(fn func(x T) T) *Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data.
 - :frog: `Filter(fn func(x T) bool) *Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate.
 - :frog: `Reduce(fn func(x, y T) T) T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction.
-- :frog: `Sum(sum func(x, y) T) T`: makes parallel reduce with associative function `sum`.
+- :frog: `Sum(plus func(x, y) T) T`: makes parallel reduce with associative function `plus`.
 - :frog: `Sort(less func(x, y T) bool) *Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
 
 The following functions can be used to retrieve a single element or perform a boolean check on the `Pipe` without executing the entire pipeline:

@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/profile"
 
 	"github.com/koss-null/lambda/pkg/pipe"
+	"github.com/koss-null/lambda/pkg/pipies"
 )
 
 // User is an example struct
@@ -51,12 +52,12 @@ func main() {
 		rnd.Seed(int64(i))
 		return rnd.Float32(), true
 	}).
+		Gen(100).
 		// the line below is not working since x is float32 now
 		// Filter(func(x int) bool { return x < 1000 }).
 		// We need to provide another function:
 		Filter(func(x float32) bool { return x > 0.5 }).
 		// Generate 100 values as an initial pipeline
-		Gen(100).
 		Do()
 
 	fmt.Println("2: creating pipe from a function")
@@ -77,9 +78,9 @@ func main() {
 		rnd.Seed(int64(i))
 		return rnd.Float32(), true
 	}).
+		Take(100).
 		Filter(func(x float32) bool { return x > 0.5 }).
 		// Take 100 values, don't stop generate before get all of them
-		Take(100).
 		Do()
 
 	fmt.Println("2.1: creating pipe from a function but using Take(n) to gen exactly n values")
@@ -94,57 +95,15 @@ func main() {
 		Do()
 		`)
 	fmt.Println(res21)
-
-	// walues can be achieved from a function, but it have no sence if there is no Take() or Gen()
-	res22 := pipe.Func(func(i int) (float32, bool) {
-		rnd := rand.New(rand.NewSource(42))
-		rnd.Seed(int64(i))
-		return rnd.Float32(), true
-	}).
-		Filter(func(x float32) bool { return x > 0.5 }).
-		// if there is no Take and no Gen, the len of result slice is 0
-		Do()
-
-	fmt.Println("2.2: if there is no Take and no Gen, the len of result slice is 0")
-	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-		rnd := rand.New(rand.NewSource(42))
-		rnd.Seed(int64(i))
-		return rnd.Float32(), true
-	}).
-		Filter(func(x float32) bool { return x > 0.5 }).
-		Do()
-		`)
-	fmt.Println(res22)
-
-	res23 := pipe.Func(func(i int) (float32, bool) {
-		rnd := rand.New(rand.NewSource(42))
-		rnd.Seed(int64(i))
-		return rnd.Float32(), true
-	}).
-		// This one is not working since x is float32 now
-		// Filter(func(x int) bool { return x < 1000 }).
-		Filter(func(x float32) bool { return x > 0.5 }).
-		// if there is no Take and no Gen, the Count of result is -1
-		Count()
-	fmt.Println("2.3: count is -1 if there is Func() but no Gen or Take provided")
-	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
-		rnd := rand.New(rand.NewSource(42))
-		rnd.Seed(int64(i))
-		return rnd.Float32(), true
-	}).
-		Filter(func(x float32) bool { return x > 0.5 }).
-		Count()
-		`)
-	fmt.Println(res23)
-
 	// you can just count values:
+
 	res3 := pipe.Func(func(i int) (float32, bool) {
 		rnd := rand.New(rand.NewSource(42))
 		rnd.Seed(int64(i))
 		return rnd.Float32(), true
 	}).
-		Filter(func(x float32) bool { return x > 0.6 }).
 		Gen(100).
+		Filter(func(x float32) bool { return x > 0.6 }).
 		Count()
 	fmt.Println("3: counting Gen(100) items values")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
@@ -164,8 +123,8 @@ func main() {
 		rnd.Seed(int64(i))
 		return rnd.Float32(), true
 	}).
-		Filter(func(x float32) bool { return x > 0.6 }).
 		Take(100).
+		Filter(func(x float32) bool { return x > 0.6 }).
 		Count()
 	fmt.Println("result3.1: trying to count values with Take(n int) will return n")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
@@ -202,9 +161,9 @@ func main() {
 	res4 := pipe.Func(func(i int) (float32, bool) {
 		return float32(i) * 0.9, true
 	}).
+		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
 		Filter(func(x float32) bool { return x > 5000.6 }).
-		Gen(1_000_000).
 		Parallel(12).
 		Count()
 	fmt.Println("4 (using pipe): (parallel 12)", res4, "; eval took ", time.Since(start))
@@ -215,9 +174,9 @@ func main() {
 	res41 := pipe.Func(func(i int) (float32, bool) {
 		return float32(i) * 0.9, true
 	}).
+		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
 		Filter(func(x float32) bool { return x > 5000.6 }).
-		Gen(1_000_000).
 		Parallel(1).
 		Count()
 	fmt.Println("4.1: (parallel 1)", res41, "; eval took ", time.Since(start))
@@ -228,9 +187,9 @@ func main() {
 	res42 := pipe.Func(func(i int) (float32, bool) {
 		return float32(i) * 0.9, true
 	}).
+		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
 		Filter(func(x float32) bool { return x > 5000.6 }).
-		Gen(1_000_000).
 		Count()
 	fmt.Println("4.2: (parallel 4): ", res42, "; eval took ", time.Since(start))
 	runtime.GC()
@@ -240,9 +199,9 @@ func main() {
 	res43 := pipe.Func(func(i int) (float32, bool) {
 		return float32(i) * 0.9, true
 	}).
+		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
 		Filter(func(x float32) bool { return x > 5000.6 }).
-		Gen(1_000_000).
 		Parallel(150).
 		Count()
 	fmt.Println("4.3: many goroutines are OK (parallel 150)", res43, "; eval took ", time.Since(start))
@@ -254,9 +213,9 @@ func main() {
 	res44 := pipe.Func(func(i int) (float32, bool) {
 		return float32(i) * 0.9, true
 	}).
+		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
 		Filter(func(x float32) bool { return x > 5000.6 }).
-		Gen(1_000_000).
 		Parallel(65000).
 		Count()
 	fmt.Println("result44: but too many is not great (parallel 100500 > 256)", res44, "; eval took ", time.Since(start))
@@ -282,11 +241,11 @@ func main() {
 	res6 := pipe.Func(func(i int) (float32, bool) {
 		return float32(i) * 0.9, true
 	}).
-		Map(func(x float32) float32 { return x * x }).
 		Gen(10000).
+		Map(func(x float32) float32 { return x * x }).
 		// This is how you can sort in parallel (it's rly faster!)
 		Parallel(12).
-		Sort(pipe.Less[float32]).
+		Sort(pipies.Less[float32]).
 		Do()
 	fmt.Println("6: Soring in parallel! (first, middle and last item) ", res6[0], res6[len(res6)/2], res6[len(res6)-1])
 
@@ -296,7 +255,7 @@ func main() {
 		Gen(10000).
 		// This is how you can sort in parallel (it's rly faster!)
 		Parallel(12).
-		Sum(pipe.Sum[int])
+		Sum(pipies.Sum[int])
 	fmt.Println("7: Sum (all nums from 0 to 10^5-1):", int64(*res7))
 	sm := 0
 	for i := 0; i < 10000; i++ {

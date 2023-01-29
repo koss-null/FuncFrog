@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
+	"github.com/koss-null/lambda/internal/piper"
 	"github.com/koss-null/lambda/internal/primitive/pointer"
 
 	"go.uber.org/atomic"
@@ -17,7 +18,7 @@ const (
 )
 
 const (
-	panicLimitExceededMsg = "the limit is exceeded, but the result is not calculated"
+	panicLimitExceededMsg = "the limit have been exceeded, but the result is not calculated"
 )
 
 // Pipe implements the pipe on any slice.
@@ -31,8 +32,8 @@ type Pipe[T any] struct {
 }
 
 // Slice creates a Pipe from a slice
-func Slice[T any](dt []T) Pipe[T] {
-	return Pipe[T]{
+func Slice[T any](dt []T) Piper[T] {
+	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			dtCp := make([]T, len(dt))
 			copy(dtCp, dt)
@@ -53,9 +54,10 @@ func Slice[T any](dt []T) Pipe[T] {
 // Func creates a lazy sequence d[i] = fn(i).
 // fn is a function, that returns an object(T) and does it exist(bool).
 // Initiating the pipe from a func you have to set either the output value
-// amount using Get(n int) or the amount of generated values Gen(n int).
-func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
-	return Pipe[T]{
+// amount using Get(n int) or the amount of generated values Gen(n int), or set
+// the limit predicate Until(func(x T) bool).
+func Func[T any](fn func(i int) (T, bool)) PiperNI[T] {
+	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
 				obj, exist := fn(i)
@@ -69,10 +71,49 @@ func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 	}
 }
 
+// Fu creates a lazy sequence d[i] = fn(i).
+// fn is a shortened version of Func where the second argument is true by default
+// Initiating the pipe from a func you have to set either the output value
+// amount using Get(n int) or the amount of generated values Gen(n int), or set
+// the limit predicate Until(func(x T) bool).
+func Fn[T any](fn func(i int) T) PiperNI[T] {
+	return Func(func(i int) (T, bool) {
+		obj := fn(i)
+		return obj, true
+	})
+}
+
+// Cycle creates new pipe that cycles through the elements of the provided slice.
+// Initiating the pipe from a func you have to set either the output value
+// amount using Get(n int) or the amount of generated values Gen(n int), or set
+// the limit predicate Until(func(x T) bool).
+func Cycle[T any](a []T) PiperNI[T] {
+	return Fn(func(i int) T {
+		return a[i%len(a)]
+	})
+}
+
+// Range creates a slice [start, finish) with a provided step.
+// Pipe initialized with Range can be considered as the one madi with Slice(range() []T).
+func Range[T constraints.Integer | constraints.Float](start, finish, step T) Piper[T] {
+	return &Pipe[T]{
+		fn: func() func(int) (*T, bool) {
+			return func(i int) (*T, bool) {
+				val := start + T(i)*step
+				return &val, val < finish
+			}
+		},
+		len:      pointer.To(int((finish - start) / step)),
+		valLim:   pointer.To(0),
+		parallel: pointer.To(defaultParallelWrks),
+		prlSet:   pointer.To(false),
+	}
+}
+
 // Map applies given function to each element of the underlying slice
 // returns the slice where each element is n[i] = f(p[i]).
-func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
-	return Pipe[T]{
+func (p *Pipe[T]) Map(fn func(T) T) Piper[T] {
+	return &Pipe[T]{
 		fn: func() func(i int) (*T, bool) {
 			return func(i int) (*T, bool) {
 				if obj, skipped := p.fn()(i); !skipped {
@@ -90,8 +131,8 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 }
 
 // Filter leaves only items with true predicate fn.
-func (p Pipe[T]) Filter(fn func(T) bool) Pipe[T] {
-	return Pipe[T]{
+func (p *Pipe[T]) Filter(fn func(T) bool) Piper[T] {
+	return &Pipe[T]{
 		fn: func() func(i int) (*T, bool) {
 			return func(i int) (*T, bool) {
 				if obj, skipped := p.fn()(i); !skipped {
@@ -111,13 +152,13 @@ func (p Pipe[T]) Filter(fn func(T) bool) Pipe[T] {
 }
 
 // Sort sorts the underlying slice on a current step of a pipeline.
-func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
+func (p *Pipe[T]) Sort(less func(T, T) bool) Piper[T] {
 	var (
 		once   sync.Once
 		sorted []T
 	)
 
-	return Pipe[T]{
+	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
 				if sorted == nil {
@@ -143,7 +184,7 @@ func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
 }
 
 // Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...]))).
-func (p Pipe[T]) Reduce(fn func(T, T) T) *T {
+func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
 	data := p.Do()
 	switch len(data) {
 	case 0:
@@ -160,7 +201,7 @@ func (p Pipe[T]) Reduce(fn func(T, T) T) *T {
 }
 
 // Sum returns the sum of all elements. It is similar to Reduce but is able to work in parallel.
-func (p Pipe[T]) Sum(sum func(T, T) T) *T {
+func (p *Pipe[T]) Sum(plus func(T, T) T) *T {
 	data := p.Do()
 	switch len(data) {
 	case 0:
@@ -168,53 +209,13 @@ func (p Pipe[T]) Sum(sum func(T, T) T) *T {
 	case 1:
 		return &data[0]
 	default:
-		if !p.lenIsFinite() {
-			return nil
-		}
-
-		totalLen := *p.len
-		if totalLen == -1 {
-			totalLen = *p.valLim
-		}
-
-		var (
-			step        = divUp(totalLen, *p.parallel)
-			totalResLen = divUp(totalLen, step)
-			totalRes    = make([]*T, totalResLen)
-
-			stepCnt int64
-			wg      sync.WaitGroup
-		)
-		wg.Add(totalResLen)
-
-		for lf := 0; lf < totalLen; lf += step {
-			rs := 0
-			for i := lf; i < min(lf+step, totalLen); i++ {
-				rs += i
-			}
-			// totalRes = append(totalRes, zero)
-			go func(data []T, stepCnt int64) {
-				for i := 1; i < len(data); i++ {
-					data[0] = sum(data[0], data[i])
-				}
-				totalRes[stepCnt] = &data[0]
-				wg.Done()
-			}(data[lf:min(lf+step, totalLen)], stepCnt)
-			stepCnt++
-		}
-		wg.Wait()
-
-		res := *totalRes[0]
-		// no NPE since switch checks above
-		for i := 1; i < len(totalRes); i++ {
-			res = sum(res, *(totalRes[i]))
-		}
-		return &res
+		// lenIsFinite check was made in Do already
+		return piper.Sum(plus, data, *p.parallel)
 	}
 }
 
 // First returns the first element of the pipe.
-func (p Pipe[T]) First() *T {
+func (p *Pipe[T]) First() *T {
 	// FIXME: to be removed when the ussue with too big resStorage will be solved
 	if !p.lenIsFinite() {
 		return nil
@@ -295,7 +296,7 @@ func (p Pipe[T]) First() *T {
 }
 
 // Any returns a pointer to a random element in the pipe or nil if none left.
-func (p Pipe[T]) Any() *T {
+func (p *Pipe[T]) Any() *T {
 	var (
 		res = make(chan *T, 1)
 		// if p.len is not set, we need tickets to control the amount of goroutines
@@ -336,8 +337,8 @@ func (p Pipe[T]) Any() *T {
 
 				// accounting int owerflow case with max(rg, 0)
 				rg = min(max(rg, 0), limit)
-				for i := lf; i < rg && !done; i++ {
-					obj, skipped := pfn(i)
+				for j := lf; j < rg && !done; j++ {
+					obj, skipped := pfn(j)
 					if !skipped {
 						setObj(obj)
 						return
@@ -357,7 +358,7 @@ func (p Pipe[T]) Any() *T {
 
 // Take is used to set the amount of values expected to be in result slice.
 // It's applied only the first Gen() or Take() function in the pipe.
-func (p Pipe[T]) Take(n int) Pipe[T] {
+func (p *Pipe[T]) Take(n int) Piper[T] {
 	if n < 0 || p.lenIsFinite() {
 		return p
 	}
@@ -367,7 +368,7 @@ func (p Pipe[T]) Take(n int) Pipe[T] {
 
 // Gen set the amount of values to generate as initial array.
 // It's applied only the first Gen() or Take() function in the pipe.
-func (p Pipe[T]) Gen(n int) Pipe[T] {
+func (p *Pipe[T]) Gen(n int) Piper[T] {
 	if n < 0 || p.lenIsFinite() {
 		return p
 	}
@@ -377,7 +378,7 @@ func (p Pipe[T]) Gen(n int) Pipe[T] {
 
 // Parallel set n - the amount of goroutines to run on.
 // Only the first Parallel() in a pipe chain is applied.
-func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
+func (p *Pipe[T]) Parallel(n uint16) Piper[T] {
 	if n < 1 {
 		return p
 	}
@@ -388,13 +389,13 @@ func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
 }
 
 // Do evaluates all the pipeline and returns the result slice.
-func (p Pipe[T]) Do() []T {
+func (p *Pipe[T]) Do() []T {
 	res, _ := p.do(true)
 	return res
 }
 
 // Count evaluates all the pipeline and returns the amount of items.
-func (p Pipe[T]) Count() int {
+func (p *Pipe[T]) Count() int {
 	if *p.valLim != 0 {
 		return *p.valLim
 	}
@@ -403,7 +404,7 @@ func (p Pipe[T]) Count() int {
 }
 
 // doToLimit internal executor for Take
-func (p Pipe[T]) doToLimit() []T {
+func (p *Pipe[T]) doToLimit() []T {
 	pfn := p.fn()
 	res := make([]T, 0, *p.valLim)
 	for i := 0; len(res) < *p.valLim; i++ {
@@ -425,7 +426,7 @@ type ev[T any] struct {
 }
 
 // do is the main result evaluation pipeline
-func (p Pipe[T]) do(needResult bool) ([]T, int) {
+func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	if !p.lenIsFinite() {
 		return nil, 0
 	}
@@ -475,7 +476,7 @@ func (p Pipe[T]) do(needResult bool) ([]T, int) {
 }
 
 // limit returns the upper border limit as the pipe evaluation limit.
-func (p Pipe[T]) limit() int {
+func (p *Pipe[T]) limit() int {
 	switch {
 	case p.lenSet():
 		return *p.len
@@ -486,15 +487,15 @@ func (p Pipe[T]) limit() int {
 	}
 }
 
-func (p Pipe[T]) lenSet() bool {
+func (p *Pipe[T]) lenSet() bool {
 	return *p.len != -1
 }
 
-func (p Pipe[T]) limitSet() bool {
+func (p *Pipe[T]) limitSet() bool {
 	return *p.valLim != 0
 }
 
-func (p Pipe[T]) lenIsFinite() bool {
+func (p *Pipe[T]) lenIsFinite() bool {
 	return p.lenSet() || p.limitSet()
 }
 

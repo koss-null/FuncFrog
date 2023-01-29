@@ -1,4 +1,4 @@
-package pipe
+package pipies
 
 import cns "golang.org/x/exp/constraints"
 

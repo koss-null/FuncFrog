@@ -1,26 +1,27 @@
 package pipe
 
 // Map applies function on a Pipe of type SrcT and returns a Pipe of type DstT.
-func Map[SrcT, DstT any](p Pipe[SrcT], fn func(x SrcT) DstT) Pipe[DstT] {
-	return Pipe[DstT]{
+func Map[SrcT, DstT any](p Piper[SrcT], fn func(x SrcT) DstT) Piper[DstT] {
+	derivedPipe := p.(*Pipe[SrcT])
+	return &Pipe[DstT]{
 		fn: func() func(i int) (*DstT, bool) {
 			return func(i int) (*DstT, bool) {
-				if obj, skipped := p.fn()(i); !skipped {
+				if obj, skipped := derivedPipe.fn()(i); !skipped {
 					dst := fn(*obj)
 					return &dst, false
 				}
 				return nil, true
 			}
 		},
-		len:      p.len,
-		valLim:   p.valLim,
-		parallel: p.parallel,
+		len:      derivedPipe.len,
+		valLim:   derivedPipe.valLim,
+		parallel: derivedPipe.parallel,
 	}
 }
 
 // Reduce applies reduce operation on Pipe of type SrcT an returns result of type DstT.
 // initVal is an optional parameter to initialize a value that should be used on the first step of reduce.
-func Reduce[SrcT any, DstT any](p Pipe[SrcT], fn func(DstT, SrcT) DstT, initVal ...DstT) DstT {
+func Reduce[SrcT any, DstT any](p Piper[SrcT], fn func(DstT, SrcT) DstT, initVal ...DstT) DstT {
 	var init DstT
 	if len(initVal) > 0 {
 		init = initVal[0]
