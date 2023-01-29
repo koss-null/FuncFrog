@@ -32,11 +32,10 @@ type Pipe[T any] struct {
 
 // Slice creates a Pipe from a slice
 func Slice[T any](dt []T) Pipe[T] {
-	dtCp := make([]T, len(dt))
-	copy(dtCp, dt)
-
 	return Pipe[T]{
 		fn: func() func(int) (*T, bool) {
+			dtCp := make([]T, len(dt))
+			copy(dtCp, dt)
 			return func(i int) (*T, bool) {
 				if i >= len(dtCp) {
 					return nil, true
@@ -44,7 +43,7 @@ func Slice[T any](dt []T) Pipe[T] {
 				return &dtCp[i], false
 			}
 		},
-		len:      pointer.To(len(dtCp)),
+		len:      pointer.To(len(dt)),
 		valLim:   pointer.To(0),
 		parallel: pointer.To(defaultParallelWrks),
 		prlSet:   pointer.To(false),
@@ -428,7 +427,7 @@ type ev[T any] struct {
 // do is the main result evaluation pipeline
 func (p Pipe[T]) do(needResult bool) ([]T, int) {
 	if !p.lenIsFinite() {
-		return []T{}, 0
+		return nil, 0
 	}
 
 	if p.limitSet() {

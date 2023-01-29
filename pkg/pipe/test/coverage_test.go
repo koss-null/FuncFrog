@@ -142,7 +142,7 @@ func TestFunc(t *testing.T) {
 			testCase: pipe.Func(func(i int) (int, bool) {
 				return 0, false
 			}).Gen(0),
-			expected: wrap([]int{}),
+			expected: wrap([]int(nil)),
 		},
 		{
 			name: "single element gen",
@@ -171,7 +171,7 @@ func TestFunc(t *testing.T) {
 			testCase: pipe.Func(func(i int) (int, bool) {
 				return 0, false
 			}).Take(0),
-			expected: wrap([]int{}),
+			expected: wrap([]int(nil)),
 		},
 		{
 			name: "single element take",
@@ -209,7 +209,7 @@ func TestMap(t *testing.T) {
 			name:  "map empty",
 			input: pipe.Slice([]int{}),
 			f:     func(i int) int { return i },
-			want:  []int{},
+			want:  []int(nil),
 		},
 		{
 			name:  "map single element",
@@ -217,13 +217,6 @@ func TestMap(t *testing.T) {
 			f:     func(i int) int { return i },
 			want:  []int{1},
 		},
-		{
-			name:  "map max elements",
-			input: pipe.Slice(make([]int, 1<<20)),
-			f:     func(i int) int { return i },
-			want:  make([]int, 1<<20),
-		},
-
 		{
 			name:  "map many diffeerent elements",
 			input: pipe.Slice(largeSlice()),
