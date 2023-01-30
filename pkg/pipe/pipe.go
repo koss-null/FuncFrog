@@ -56,7 +56,7 @@ func Slice[T any](dt []T) Piper[T] {
 // Initiating the pipe from a func you have to set either the output value
 // amount using Get(n int) or the amount of generated values Gen(n int), or set
 // the limit predicate Until(func(x T) bool).
-func Func[T any](fn func(i int) (T, bool)) PiperNI[T] {
+func Func[T any](fn func(i int) (T, bool)) PiperNoLen[T] {
 	return &Pipe[T]{
 		fn: func() func(int) (*T, bool) {
 			return func(i int) (*T, bool) {
@@ -76,7 +76,7 @@ func Func[T any](fn func(i int) (T, bool)) PiperNI[T] {
 // Initiating the pipe from a func you have to set either the output value
 // amount using Get(n int) or the amount of generated values Gen(n int), or set
 // the limit predicate Until(func(x T) bool).
-func Fn[T any](fn func(i int) T) PiperNI[T] {
+func Fn[T any](fn func(i int) T) PiperNoLen[T] {
 	return Func(func(i int) (T, bool) {
 		obj := fn(i)
 		return obj, true
@@ -87,7 +87,7 @@ func Fn[T any](fn func(i int) T) PiperNI[T] {
 // Initiating the pipe from a func you have to set either the output value
 // amount using Get(n int) or the amount of generated values Gen(n int), or set
 // the limit predicate Until(func(x T) bool).
-func Cycle[T any](a []T) PiperNI[T] {
+func Cycle[T any](a []T) PiperNoLen[T] {
 	return Fn(func(i int) T {
 		return a[i%len(a)]
 	})
