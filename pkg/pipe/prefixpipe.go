@@ -1,22 +1,35 @@
 package pipe
 
+import "github.com/koss-null/lambda/internal/internalpipe"
+
+type entrailsPipe[T any] interface {
+	Entrails() *internalpipe.Pipe[T]
+}
+
+type anyPipe[T any] interface {
+	Pipe[T] | PipeNL[T]
+}
+
 // Map applies function on a Pipe of type SrcT and returns a Pipe of type DstT.
-func Map[SrcT, DstT any](p Piper[SrcT], fn func(x SrcT) DstT) Piper[DstT] {
-	derivedPipe := p.(*Pipe[SrcT])
-	return &Pipe[DstT]{
-		fn: func() func(i int) (*DstT, bool) {
+func Map[SrcT, DstT any, PipeT anyPipe[DstT]](
+	p entrailsPipe[SrcT],
+	fn func(x SrcT) DstT,
+) Piper[DstT] {
+	pp := p.Entrails()
+	return &PipeT{internalpipe.Pipe[DstT]{
+		Fn: func() func(i int) (*DstT, bool) {
 			return func(i int) (*DstT, bool) {
-				if obj, skipped := derivedPipe.fn()(i); !skipped {
+				if obj, skipped := pp.Fn()(i); !skipped {
 					dst := fn(*obj)
 					return &dst, false
 				}
 				return nil, true
 			}
 		},
-		len:      derivedPipe.len,
-		valLim:   derivedPipe.valLim,
-		parallel: derivedPipe.parallel,
-	}
+		Len:           pp.Len,
+		ValLim:        pp.ValLim,
+		GoroutinesCnt: pp.GoroutinesCnt,
+	}}
 }
 
 // Reduce applies reduce operation on Pipe of type SrcT an returns result of type DstT.

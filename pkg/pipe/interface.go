@@ -15,10 +15,6 @@ type PiperNoLen[T any] interface {
 	filterer[T, PiperNoLen[T]]
 }
 
-type anyPipe[T any] interface {
-	Piper[T] | PiperNoLen[T]
-}
-
 type configger[T, PiperT any] interface {
 	Parallel(uint16) PiperT
 }
@@ -42,7 +38,7 @@ type mapper[T, PiperT any] interface {
 	Map(func(T) T) PiperT
 }
 
-type filterer[T any, PiperT anyPipe[T]] interface {
+type filterer[T, PiperT any] interface {
 	Filter(func(T) bool) PiperT
 }
 
