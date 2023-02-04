@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	defaultParallelWrks = 1
-	firstCheckInterval  = 345
+	firstCheckInterval = 345
 )
 
 const (
