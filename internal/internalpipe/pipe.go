@@ -7,8 +7,7 @@ import (
 
 	"golang.org/x/exp/constraints"
 
-	"github.com/koss-null/lambda/algo/parallel/qsort"
-	"github.com/koss-null/lambda/piper"
+	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
 )
 
 const (
@@ -127,7 +126,7 @@ func (p Pipe[T]) Sum(plus func(T, T) T) *T {
 		return &data[0]
 	default:
 		// lenIsFinite check was made in Do already
-		return piper.Sum(plus, data, *p.GoroutinesCnt)
+		return Sum(plus, data, *p.GoroutinesCnt)
 	}
 }
 

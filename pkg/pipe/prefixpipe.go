@@ -3,6 +3,7 @@ package pipe
 import "github.com/koss-null/lambda/internal/internalpipe"
 
 type entrailsPipe[T any] interface {
+	Piper[T]
 	Entrails() *internalpipe.Pipe[T]
 }
 
@@ -11,12 +12,12 @@ type anyPipe[T any] interface {
 }
 
 // Map applies function on a Pipe of type SrcT and returns a Pipe of type DstT.
-func Map[SrcT, DstT any, PipeT anyPipe[DstT]](
-	p entrailsPipe[SrcT],
+func Map[SrcT, DstT any](
+	p Piper[SrcT],
 	fn func(x SrcT) DstT,
 ) Piper[DstT] {
-	pp := p.Entrails()
-	return &PipeT{internalpipe.Pipe[DstT]{
+	pp := p.(entrailsPipe[SrcT]).Entrails()
+	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
 		Fn: func() func(i int) (*DstT, bool) {
 			return func(i int) (*DstT, bool) {
 				if obj, skipped := pp.Fn()(i); !skipped {
