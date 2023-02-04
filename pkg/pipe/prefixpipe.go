@@ -29,7 +29,6 @@ func Map[SrcT, DstT any](
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
 		GoroutinesCnt: pp.GoroutinesCnt,
-		PrlSet:        pp.PrlSet,
 	}}
 }
 
@@ -52,7 +51,6 @@ func MapNL[SrcT, DstT any](
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
 		GoroutinesCnt: pp.GoroutinesCnt,
-		PrlSet:        pp.PrlSet,
 	}}
 }
 

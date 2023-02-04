@@ -24,7 +24,6 @@ type Pipe[T any] struct {
 	Len           *int
 	ValLim        *int
 	GoroutinesCnt *int
-	PrlSet        *bool
 }
 
 // Map applies given function to each element of the underlying slice
@@ -33,7 +32,8 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 	return Pipe[T]{
 		Fn: func() func(i int) (*T, bool) {
 			return func(i int) (*T, bool) {
-				if obj, skipped := p.Fn()(i); !skipped {
+				pfn := p.Fn()
+				if obj, skipped := pfn(i); !skipped {
 					*obj = fn(*obj)
 					return obj, false
 				}
@@ -43,7 +43,6 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 		Len:           p.Len,
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
-		PrlSet:        p.PrlSet,
 	}
 }
 
@@ -64,7 +63,6 @@ func (p Pipe[T]) Filter(fn func(T) bool) Pipe[T] {
 		Len:           p.Len,
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
-		PrlSet:        p.PrlSet,
 	}
 }
 
@@ -96,7 +94,6 @@ func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
 		Len:           p.Len,
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
-		PrlSet:        p.PrlSet,
 	}
 }
 
@@ -229,7 +226,7 @@ func (p Pipe[T]) Any() *T {
 		resMx sync.Mutex
 		done  bool
 	)
-	if !*p.PrlSet && !p.lenSet() {
+	if !p.lenSet() {
 		step = 1 << 15
 	}
 
@@ -284,14 +281,13 @@ func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
 	}
 
 	p.GoroutinesCnt = pointer.To(int(n))
-	p.PrlSet = pointer.To(true)
 	return p
 }
 
 // Take is used to set the amount of values expected to be in result slice.
 // It's applied only the first Gen() or Take() function in the pipe.
 func (p Pipe[T]) Take(n int) Pipe[T] {
-	if n < 0 || p.lenIsFinite() {
+	if n < 0 {
 		return p
 	}
 	p.ValLim = &n
@@ -301,7 +297,7 @@ func (p Pipe[T]) Take(n int) Pipe[T] {
 // Gen set the amount of values to generate as initial array.
 // It's applied only the first Gen() or Take() function in the pipe.
 func (p Pipe[T]) Gen(n int) Pipe[T] {
-	if n < 0 || p.lenIsFinite() {
+	if n < 0 {
 		return p
 	}
 	p.Len = &n
@@ -347,10 +343,6 @@ type ev[T any] struct {
 
 // do is the main result evaluation pipeline
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
-	if !p.lenIsFinite() {
-		return nil, 0
-	}
-
 	if p.limitSet() {
 		res := p.doToLimit()
 		return res, len(res)
@@ -358,29 +350,33 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 
 	var (
 		eval    []ev[T]
+		limit   = p.limit()
 		step    = divUp(p.limit(), *p.GoroutinesCnt)
-		pfn     = p.Fn()
+		fn      = p.Fn()
 		wg      sync.WaitGroup
 		skipCnt atomic.Int64
 	)
 	if needResult {
-		eval = make([]ev[T], p.limit())
+		eval = make([]ev[T], limit)
 	}
-	for i := 0; i < p.limit(); i += step {
-		wg.Add(1)
+	wg.Add(divUp(limit, step))
+	tickets := genTickets(*p.GoroutinesCnt)
+	for i := 0; i < limit; i += step {
+		<-tickets
 		go func(lf, rg int) {
-			if rg > p.limit() {
-				rg = p.limit()
-			}
-			for i := lf; i < rg; i++ {
-				obj, skipped := pfn(i)
+			var sCnt int64
+			rg = min(rg, limit)
+			for j := lf; j < rg; j++ {
+				obj, skipped := fn(j)
 				if skipped {
-					skipCnt.Add(1)
+					sCnt++
 				}
 				if needResult {
-					eval[i] = ev[T]{obj, skipped}
+					eval[j] = ev[T]{obj, skipped}
 				}
 			}
+			skipCnt.Add(sCnt)
+			tickets <- struct{}{}
 			wg.Done()
 		}(i, i+step)
 	}
@@ -415,10 +411,6 @@ func (p *Pipe[T]) limitSet() bool {
 	return *p.ValLim != 0
 }
 
-func (p *Pipe[T]) lenIsFinite() bool {
-	return p.lenSet() || p.limitSet()
-}
-
 func min[T constraints.Ordered](a, b T) T {
 	if a > b {
 		return b
@@ -438,7 +430,7 @@ func divUp(a, b int) int {
 }
 
 func genTickets(n int) chan struct{} {
-	tickets := make(chan struct{}, n)
+	tickets := make(chan struct{}, n+1)
 	n = max(n, 1)
 	for i := 0; i < n; i++ {
 		tickets <- struct{}{}

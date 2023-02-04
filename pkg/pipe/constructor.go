@@ -25,7 +25,6 @@ func Slice[T any](dt []T) Piper[T] {
 		Len:           pointer.To(len(dt)),
 		ValLim:        pointer.To(0),
 		GoroutinesCnt: pointer.To(defaultParallelWrks),
-		PrlSet:        pointer.To(false),
 	}}
 }
 
@@ -45,7 +44,6 @@ func Func[T any](fn func(i int) (T, bool)) PiperNoLen[T] {
 		Len:           pointer.To(-1),
 		ValLim:        pointer.To(0),
 		GoroutinesCnt: pointer.To(defaultParallelWrks),
-		PrlSet:        pointer.To(false),
 	}}
 }
 
@@ -84,6 +82,5 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 		Len:           pointer.To(int((finish - start) / step)),
 		ValLim:        pointer.To(0),
 		GoroutinesCnt: pointer.To(defaultParallelWrks),
-		PrlSet:        pointer.To(false),
 	}}
 }

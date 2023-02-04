@@ -66,7 +66,7 @@ func TestMap_ok(t *testing.T) {
 	initA10kk()
 
 	s := pipe.Slice(a10kk).
-		Parallel(12).
+		Parallel(4).
 		Map(func(x float64) float64 { return x * x * x }).
 		Map(math.Sqrt).
 		Do()
