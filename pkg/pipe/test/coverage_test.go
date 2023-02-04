@@ -16,8 +16,10 @@ func wrap[T any](x T) func() T {
 	}
 }
 
-var a []int
-var mx1 sync.Mutex
+var (
+	a   []int
+	mx1 sync.Mutex
+)
 
 func largeSlice() []int {
 	mx1.Lock()

@@ -133,83 +133,86 @@ func (p Pipe[T]) Sum(plus func(T, T) T) *T {
 
 // First returns the first element of the pipe.
 func (p Pipe[T]) First() *T {
-	// FIXME: to be removed when the ussue with too big resStorage will be solved
-	if !p.lenIsFinite() {
-		return nil
-	}
 	var (
 		limit   = p.limit()
 		step    = max(divUp(limit, *p.GoroutinesCnt), 1)
 		tickets = genTickets(*p.GoroutinesCnt)
 		pfn     = p.Fn()
 
-		// this allocation may take a lot of memory on MaxInt length
-		resStorage = make([]*T, divUp(limit, step))
-		// it's a hack to be able to check zero step element was found fast
-		res0 = make(chan *T, 1)
-		// this res is calculated if there was no res found on the first step
-		resNot0 = make(chan *T)
+		resStorage = struct {
+			val *T
+			pos int
+		}{nil, math.MaxInt}
+		resStorageMx sync.Mutex
+		res          = make(chan *T, 1)
 
-		wg      sync.WaitGroup
-		stepCnt int
+		wg sync.WaitGroup
+
+		stepCnt  int
+		zeroStep int
 	)
 
+	updStorage := func(val *T, pos int) {
+		resStorageMx.Lock()
+		if pos < resStorage.pos {
+			resStorage.pos = pos
+			resStorage.val = val
+		}
+		resStorageMx.Unlock()
+	}
+
 	go func() {
+		var done bool
 		// i >= 0 is for an int owerflow case
-		for i := 0; i >= 0 && i < limit; i += step {
+		for i := 0; i >= 0 && i < limit && !done; i += step {
 			wg.Add(1)
 			<-tickets
-			// an owerflow is possible here since we rounded strep up
-			next := i + step
-			if next < 0 {
-				next = math.MaxInt - 1
-			}
 			go func(lf, rg, stepCnt int) {
 				defer func() {
-					wg.Done()
 					tickets <- struct{}{}
+					wg.Done()
 				}()
 
 				rg = max(rg, limit)
 				for i := lf; i < rg; i++ {
 					obj, skipped := pfn(i)
 					if !skipped {
-						if stepCnt == 0 {
-							res0 <- obj
+						if stepCnt == zeroStep {
+							res <- obj
+							done = true
+							return
 						}
-						resStorage[stepCnt] = obj
+						updStorage(obj, stepCnt)
 						return
 					}
 
-					if stepCnt != 0 && i%firstCheckInterval == 0 {
-						// check if there is any result from the left
-						if resStorage[stepCnt-1] != nil {
-							return
-						}
+					if resStorage.pos < stepCnt {
+						done = true
+						return
 					}
 				}
-			}(i, next, stepCnt)
+				// no lock needed since it's changed only in one goroutine
+				if stepCnt == zeroStep {
+					zeroStep++
+					if resStorage.pos == zeroStep {
+						res <- resStorage.val
+						done = true
+						return
+					}
+				}
+			}(i, i+step, stepCnt)
 			stepCnt++
 		}
-
-		go func() {
-			wg.Wait()
-			for i := range resStorage {
-				if resStorage[i] != nil {
-					resNot0 <- resStorage[i]
-					return
-				}
-			}
-			resNot0 <- nil
-		}()
 	}()
 
-	select {
-	case r := <-res0:
-		return r
-	case r := <-resNot0:
-		return r
-	}
+	go func() {
+		wg.Wait()
+		resStorageMx.Lock()
+		defer resStorageMx.Unlock()
+		res <- resStorage.val
+	}()
+
+	return <-res
 }
 
 // Any returns a pointer to a random element in the pipe or nil if none left.
