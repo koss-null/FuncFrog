@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/koss-null/lambda/internal/primitive/pointer"
 	"github.com/koss-null/lambda/pkg/pipe"
 )
 
@@ -35,17 +34,17 @@ func largeSlice() []int {
 }
 
 var (
-	pls *pipe.Pipe[int]
+	pls pipe.Piper[int]
 	mx2 sync.Mutex
 )
 
-func pipeLargeSlice() pipe.Pipe[int] {
+func pipeLargeSlice() pipe.Piper[int] {
 	mx2.Lock()
 	defer mx2.Unlock()
 	if pls == nil {
-		pls = pointer.To(pipe.Slice(largeSlice()))
+		pls = pipe.Slice(largeSlice())
 	}
-	return *pls
+	return pls
 }
 
 func TestScice(t *testing.T) {
@@ -122,7 +121,7 @@ func TestScice(t *testing.T) {
 func TestFunc(t *testing.T) {
 	cases := []struct {
 		name     string
-		testCase pipe.Pipe[int]
+		testCase pipe.Piper[int]
 		expected func() []int
 	}{
 		{
@@ -197,7 +196,7 @@ func TestFunc(t *testing.T) {
 func TestMap(t *testing.T) {
 	cases := []struct {
 		name  string
-		input pipe.Pipe[int]
+		input pipe.Piper[int]
 		f     func(int) int
 		want  []int
 	}{

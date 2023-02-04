@@ -11,10 +11,13 @@ import (
 
 	"github.com/koss-null/lambda/internal/primitive/pointer"
 	"github.com/koss-null/lambda/pkg/pipe"
+	"github.com/koss-null/lambda/pkg/pipies"
 )
 
-var once sync.Once
-var a10kk []float64
+var (
+	once  sync.Once
+	a10kk []float64
+)
 
 func initA10kk() {
 	once.Do(func() {
@@ -150,7 +153,7 @@ func TestSum_ok_slice(t *testing.T) {
 
 	s := pipe.Slice(a10kk).
 		Filter(func(x float64) bool { return x > 100_000 }).
-		Sum(pipe.Sum[float64])
+		Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
 	require.Equal(t, float64(49994994950000), *s)
 }
@@ -159,7 +162,7 @@ func TestSum_ok_func_gen(t *testing.T) {
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Gen(10_000_000).
-		Sum(pipe.Sum[float64])
+		Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
 	require.Equal(t, float64(49994994950000), *s)
 }
@@ -168,7 +171,7 @@ func TestSum_ok_func_take(t *testing.T) {
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Take(10_000_000).
-		Sum(pipe.Sum[float64])
+		Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
 	require.Equal(t, float64(51000005000000), *s)
 }
@@ -185,11 +188,11 @@ func TestFilter_NotNull_ok(t *testing.T) {
 
 	s := pipe.Map(
 		pipe.Func(genFunc).
-			Filter(pipe.NotNull[*float64]).
+			Filter(pipies.NotNull[*float64]).
 			Take(10_000),
 		func(x *float64) float64 { return *x },
 	).
-		Sum(pipe.Sum[float64])
+		Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
 	require.Equal(t, float64(55555556), *s)
 }
@@ -204,7 +207,7 @@ func TestSort_ok_parallel1(t *testing.T) {
 	}).
 		Parallel(1).
 		Take(100_000).
-		Sort(pipe.Less[float32]).
+		Sort(pipies.Less[float32]).
 		Do()
 
 	require.NotNil(t, s)
@@ -221,7 +224,7 @@ func TestSort_ok_parallel_default(t *testing.T) {
 		return rnd.Float32(), true
 	}).
 		Take(100_000).
-		Sort(pipe.Less[float32]).
+		Sort(pipies.Less[float32]).
 		Do()
 
 	require.NotNil(t, s)
@@ -240,7 +243,7 @@ func TestSort_ok_parallel_slice(t *testing.T) {
 	}
 
 	s := pipe.Slice(a).
-		Sort(pipe.Less[int]).
+		Sort(pipies.Less[int]).
 		Do()
 
 	require.NotNil(t, s)
@@ -258,7 +261,7 @@ func TestSort_ok_parallel12(t *testing.T) {
 	}).
 		Parallel(12).
 		Take(100_000).
-		Sort(pipe.Less[float32]).
+		Sort(pipies.Less[float32]).
 		Do()
 
 	require.NotNil(t, s)
@@ -275,7 +278,7 @@ func TestSort_ok_parallel_large(t *testing.T) {
 	}).
 		Parallel(12).
 		Take(10_000_000).
-		Sort(pipe.Less[float32]).
+		Sort(pipies.Less[float32]).
 		Do()
 
 	require.NotNil(t, s)

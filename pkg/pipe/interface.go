@@ -15,6 +15,7 @@ type PiperNoLen[T any] interface {
 	filterer[T, PiperNoLen[T]]
 	configger[T, PiperNoLen[T]]
 	firster[T]
+	anier[T]
 }
 
 type configger[T, PiperT any] interface {
