@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
+	"github.com/koss-null/lambda/internal/primitive/pointer"
 )
 
 const (
@@ -279,8 +280,8 @@ func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
 		return p
 	}
 
-	*p.GoroutinesCnt = int(n)
-	*p.PrlSet = true
+	p.GoroutinesCnt = pointer.To(int(n))
+	p.PrlSet = pointer.To(true)
 	return p
 }
 

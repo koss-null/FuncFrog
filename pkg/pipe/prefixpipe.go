@@ -2,8 +2,7 @@ package pipe
 
 import "github.com/koss-null/lambda/internal/internalpipe"
 
-type entrailsPipe[T any] interface {
-	Piper[T]
+type entrails[T any] interface {
 	Entrails() *internalpipe.Pipe[T]
 }
 
@@ -11,12 +10,12 @@ type anyPipe[T any] interface {
 	Pipe[T] | PipeNL[T]
 }
 
-// Map applies function on a Pipe of type SrcT and returns a Pipe of type DstT.
+// Map applies function on a Piper of type SrcT and returns a Pipe of type DstT.
 func Map[SrcT, DstT any](
 	p Piper[SrcT],
 	fn func(x SrcT) DstT,
 ) Piper[DstT] {
-	pp := p.(entrailsPipe[SrcT]).Entrails()
+	pp := p.(entrails[SrcT]).Entrails()
 	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
 		Fn: func() func(i int) (*DstT, bool) {
 			return func(i int) (*DstT, bool) {
@@ -30,6 +29,30 @@ func Map[SrcT, DstT any](
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
 		GoroutinesCnt: pp.GoroutinesCnt,
+		PrlSet:        pp.PrlSet,
+	}}
+}
+
+// MapNL applies function on a PiperNL of type SrcT and returns a PiperNoLen of type DstT.
+func MapNL[SrcT, DstT any](
+	p PiperNoLen[SrcT],
+	fn func(x SrcT) DstT,
+) PiperNoLen[DstT] {
+	pp := p.(entrails[SrcT]).Entrails()
+	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
+		Fn: func() func(i int) (*DstT, bool) {
+			return func(i int) (*DstT, bool) {
+				if obj, skipped := pp.Fn()(i); !skipped {
+					dst := fn(*obj)
+					return &dst, false
+				}
+				return nil, true
+			}
+		},
+		Len:           pp.Len,
+		ValLim:        pp.ValLim,
+		GoroutinesCnt: pp.GoroutinesCnt,
+		PrlSet:        pp.PrlSet,
 	}}
 }
 
