@@ -24,35 +24,33 @@ func Sum[T any](plus func(T, T) T, data []T, gortCnt int) *T {
 	}
 
 	var (
-		lim         = len(data)
-		step        = divUp(lim, gortCnt)
-		totalPieces = divUp(lim, step)
-		totalRes    = make([]*T, totalPieces)
+		lim  = len(data)
+		step = divUp(lim, gortCnt)
 
-		stepCnt int
-		wg      sync.WaitGroup
+		res   T
+		resMx sync.Mutex
+		wg    sync.WaitGroup
 	)
 
-	wg.Add(totalPieces)
+	sum := func(x T) {
+		resMx.Lock()
+		res = plus(res, x)
+		resMx.Unlock()
+	}
+	wg.Add(divUp(lim, step))
 	tickets := genTickets(gortCnt)
 	for lf := 0; lf < lim; lf += step {
 		<-tickets
-		go func(data []T, stepCnt int) {
+		go func(data []T) {
 			for i := 1; i < len(data); i++ {
 				data[0] = plus(data[0], data[i])
 			}
-			totalRes[stepCnt] = &data[0]
+			sum(data[0])
 			tickets <- struct{}{}
 			wg.Done()
-		}(data[lf:min(lf+step, lim)], stepCnt)
-		stepCnt++
+		}(data[lf:min(lf+step, lim)])
 	}
 	wg.Wait()
 
-	res := *totalRes[0]
-	// no NPE since switch checks above
-	for i := 1; i < len(totalRes); i++ {
-		res = plus(res, *(totalRes[i]))
-	}
 	return &res
 }
