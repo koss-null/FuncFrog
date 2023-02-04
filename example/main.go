@@ -284,12 +284,20 @@ func main() {
 	fmt.Println("8.1: reduced super name is:", res81)
 
 	res9 := pipe.Slice(a).Map(func(x int) int { return x*x - 2 }).Parallel(100).First()
-	fmt.Println("9: ", *res9)
+	fmt.Println("9: return first from slice", *res9)
 
 	res91 := pipe.Fn(func(i int) int { return i }).
 		Map(func(x int) int { return (x+2)*(x+2) - 2 }).
 		Filter(func(x int) bool { return x > 100500 }).
 		Parallel(100).
 		First()
-	fmt.Println("91: ", *res91)
+	fmt.Println("91: return first from function without size", *res91)
+
+	res92 := pipe.Fn(func(i int) int { return i }).
+		Map(func(x int) int { return (x+2)*(x+2) - 2 }).
+		Filter(func(x int) bool { return false }).
+		Parallel(100).
+		Gen(100500).
+		First()
+	fmt.Println("92: First returns nil if nothing found", res92)
 }
