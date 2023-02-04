@@ -161,11 +161,11 @@ func (p Pipe[T]) First() *T {
 		resStorageMx.Unlock()
 	}
 
+	wg.Add(divUp(limit, step))
 	go func() {
 		var done bool
 		// i >= 0 is for an int owerflow case
 		for i := 0; i >= 0 && i < limit && !done; i += step {
-			wg.Add(1)
 			<-tickets
 			go func(lf, rg, stepCnt int) {
 				defer func() {

@@ -13,6 +13,8 @@ type PiperNoLen[T any] interface {
 	genner[Piper[T]]
 	mapper[T, PiperNoLen[T]]
 	filterer[T, PiperNoLen[T]]
+	configger[T, PiperNoLen[T]]
+	firster[T]
 }
 
 type configger[T, PiperT any] interface {
