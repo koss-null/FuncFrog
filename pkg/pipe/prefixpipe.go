@@ -17,14 +17,12 @@ func Map[SrcT, DstT any](
 ) Piper[DstT] {
 	pp := p.(entrails[SrcT]).Entrails()
 	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func() func(i int) (*DstT, bool) {
-			return func(i int) (*DstT, bool) {
-				if obj, skipped := pp.Fn()(i); !skipped {
-					dst := fn(*obj)
-					return &dst, false
-				}
-				return nil, true
+		Fn: func(i int) (*DstT, bool) {
+			if obj, skipped := pp.Fn(i); !skipped {
+				dst := fn(*obj)
+				return &dst, false
 			}
+			return nil, true
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
@@ -39,14 +37,12 @@ func MapNL[SrcT, DstT any](
 ) PiperNoLen[DstT] {
 	pp := p.(entrails[SrcT]).Entrails()
 	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func() func(i int) (*DstT, bool) {
-			return func(i int) (*DstT, bool) {
-				if obj, skipped := pp.Fn()(i); !skipped {
-					dst := fn(*obj)
-					return &dst, false
-				}
-				return nil, true
+		Fn: func(i int) (*DstT, bool) {
+			if obj, skipped := pp.Fn(i); !skipped {
+				dst := fn(*obj)
+				return &dst, false
 			}
+			return nil, true
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,

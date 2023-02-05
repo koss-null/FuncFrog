@@ -11,16 +11,14 @@ const defaultParallelWrks = 1
 
 // Slice creates a Pipe from a slice
 func Slice[T any](dt []T) Piper[T] {
+	dtCp := make([]T, len(dt))
+	copy(dtCp, dt)
 	return &Pipe[T]{internalpipe.Pipe[T]{
-		Fn: func() func(int) (*T, bool) {
-			dtCp := make([]T, len(dt))
-			copy(dtCp, dt)
-			return func(i int) (*T, bool) {
-				if i >= len(dtCp) {
-					return nil, true
-				}
-				return &dtCp[i], false
+		Fn: func(i int) (*T, bool) {
+			if i >= len(dtCp) {
+				return nil, true
 			}
+			return &dtCp[i], false
 		},
 		Len:           pointer.To(len(dt)),
 		ValLim:        pointer.To(0),
@@ -35,11 +33,9 @@ func Slice[T any](dt []T) Piper[T] {
 // the limit predicate Until(func(x T) bool).
 func Func[T any](fn func(i int) (T, bool)) PiperNoLen[T] {
 	return &PipeNL[T]{internalpipe.Pipe[T]{
-		Fn: func() func(int) (*T, bool) {
-			return func(i int) (*T, bool) {
-				obj, exist := fn(i)
-				return &obj, !exist
-			}
+		Fn: func(i int) (*T, bool) {
+			obj, exist := fn(i)
+			return &obj, !exist
 		},
 		Len:           pointer.To(-1),
 		ValLim:        pointer.To(0),
@@ -73,11 +69,9 @@ func Cycle[T any](a []T) PiperNoLen[T] {
 // Pipe initialized with Range can be considered as the one madi with Slice(range() []T).
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Piper[T] {
 	return &Pipe[T]{internalpipe.Pipe[T]{
-		Fn: func() func(int) (*T, bool) {
-			return func(i int) (*T, bool) {
-				val := start + T(i)*step
-				return &val, val < finish
-			}
+		Fn: func(i int) (*T, bool) {
+			val := start + T(i)*step
+			return &val, val < finish
 		},
 		Len:           pointer.To(int((finish - start) / step)),
 		ValLim:        pointer.To(0),

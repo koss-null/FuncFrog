@@ -20,7 +20,7 @@ const (
 )
 
 type Pipe[T any] struct {
-	Fn            func() func(int) (*T, bool)
+	Fn            func(int) (*T, bool)
 	Len           *int
 	ValLim        *int
 	GoroutinesCnt *int
@@ -30,15 +30,12 @@ type Pipe[T any] struct {
 // returns the slice where each element is n[i] = f(p[i]).
 func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 	return Pipe[T]{
-		Fn: func() func(i int) (*T, bool) {
-			return func(i int) (*T, bool) {
-				pfn := p.Fn()
-				if obj, skipped := pfn(i); !skipped {
-					*obj = fn(*obj)
-					return obj, false
-				}
-				return nil, true
+		Fn: func(i int) (*T, bool) {
+			if obj, skipped := p.Fn(i); !skipped {
+				*obj = fn(*obj)
+				return obj, false
 			}
+			return nil, true
 		},
 		Len:           p.Len,
 		ValLim:        p.ValLim,
@@ -49,16 +46,14 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 // Filter leaves only items with true predicate fn.
 func (p Pipe[T]) Filter(fn func(T) bool) Pipe[T] {
 	return Pipe[T]{
-		Fn: func() func(i int) (*T, bool) {
-			return func(i int) (*T, bool) {
-				if obj, skipped := p.Fn()(i); !skipped {
-					if !fn(*obj) {
-						return nil, true
-					}
-					return obj, false
+		Fn: func(i int) (*T, bool) {
+			if obj, skipped := p.Fn(i); !skipped {
+				if !fn(*obj) {
+					return nil, true
 				}
-				return nil, true
+				return obj, false
 			}
+			return nil, true
 		},
 		Len:           p.Len,
 		ValLim:        p.ValLim,
@@ -74,22 +69,20 @@ func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
 	)
 
 	return Pipe[T]{
-		Fn: func() func(int) (*T, bool) {
-			return func(i int) (*T, bool) {
-				if sorted == nil {
-					once.Do(func() {
-						data := p.Do()
-						if len(data) == 0 {
-							return
-						}
-						sorted = qsort.Sort(data, less, *p.GoroutinesCnt)
-					})
-				}
-				if i >= len(sorted) {
-					return nil, true
-				}
-				return &sorted[i], false
+		Fn: func(i int) (*T, bool) {
+			if sorted == nil {
+				once.Do(func() {
+					data := p.Do()
+					if len(data) == 0 {
+						return
+					}
+					sorted = qsort.Sort(data, less, *p.GoroutinesCnt)
+				})
 			}
+			if i >= len(sorted) {
+				return nil, true
+			}
+			return &sorted[i], false
 		},
 		Len:           p.Len,
 		ValLim:        p.ValLim,
@@ -134,7 +127,6 @@ func (p Pipe[T]) First() *T {
 		limit   = p.limit()
 		step    = max(divUp(limit, *p.GoroutinesCnt), 1)
 		tickets = genTickets(*p.GoroutinesCnt)
-		pfn     = p.Fn()
 
 		resStorage = struct {
 			val *T
@@ -171,8 +163,8 @@ func (p Pipe[T]) First() *T {
 				}()
 
 				rg = max(rg, limit)
-				for i := lf; i < rg; i++ {
-					obj, skipped := pfn(i)
+				for j := lf; j < rg; j++ {
+					obj, skipped := p.Fn(j)
 					if !skipped {
 						if stepCnt == zeroStep {
 							res <- obj
@@ -220,7 +212,6 @@ func (p Pipe[T]) Any() *T {
 		tickets = genTickets(*p.GoroutinesCnt)
 		limit   = p.limit()
 		step    = max(divUp(limit, *p.GoroutinesCnt), 1)
-		pfn     = p.Fn()
 
 		wg    sync.WaitGroup
 		resMx sync.Mutex
@@ -255,7 +246,7 @@ func (p Pipe[T]) Any() *T {
 				// accounting int owerflow case with max(rg, 0)
 				rg = min(max(rg, 0), limit)
 				for j := lf; j < rg && !done; j++ {
-					obj, skipped := pfn(j)
+					obj, skipped := p.Fn(j)
 					if !skipped {
 						setObj(obj)
 						return
@@ -321,10 +312,9 @@ func (p Pipe[T]) Count() int {
 
 // doToLimit executor for Take
 func (p *Pipe[T]) doToLimit() []T {
-	pfn := p.Fn()
 	res := make([]T, 0, *p.ValLim)
 	for i := 0; len(res) < *p.ValLim; i++ {
-		obj, skipped := pfn(i)
+		obj, skipped := p.Fn(i)
 		if !skipped {
 			res = append(res, *obj)
 		}
@@ -352,7 +342,6 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		eval    []ev[T]
 		limit   = p.limit()
 		step    = divUp(p.limit(), *p.GoroutinesCnt)
-		fn      = p.Fn()
 		wg      sync.WaitGroup
 		skipCnt atomic.Int64
 	)
@@ -361,13 +350,16 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	}
 	wg.Add(divUp(limit, step))
 	tickets := genTickets(*p.GoroutinesCnt)
-	for i := 0; i < limit; i += step {
+	for i := 0; i > -1 && i < limit; i += step {
 		<-tickets
 		go func(lf, rg int) {
-			var sCnt int64
+			if rg < 0 {
+				rg = limit
+			}
 			rg = min(rg, limit)
+			var sCnt int64
 			for j := lf; j < rg; j++ {
-				obj, skipped := fn(j)
+				obj, skipped := p.Fn(j)
 				if skipped {
 					sCnt++
 				}
@@ -382,13 +374,13 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	}
 	wg.Wait()
 
-	var res []T
+	res := make([]T, 0, limit-int(skipCnt.Load()))
 	for i := range eval {
 		if !eval[i].skipped {
 			res = append(res, *eval[i].obj)
 		}
 	}
-	return res, p.limit() - int(skipCnt.Load())
+	return res, limit - int(skipCnt.Load())
 }
 
 // limit returns the upper border limit as the pipe evaluation limit.
@@ -430,7 +422,7 @@ func divUp(a, b int) int {
 }
 
 func genTickets(n int) chan struct{} {
-	tickets := make(chan struct{}, n+1)
+	tickets := make(chan struct{}, n)
 	n = max(n, 1)
 	for i := 0; i < n; i++ {
 		tickets <- struct{}{}
