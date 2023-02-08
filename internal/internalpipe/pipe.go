@@ -8,7 +8,6 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
-	"github.com/koss-null/lambda/internal/primitive/pointer"
 )
 
 const (
@@ -21,9 +20,9 @@ const (
 
 type Pipe[T any] struct {
 	Fn            func(int) (*T, bool)
-	Len           *int
-	ValLim        *int
-	GoroutinesCnt *int
+	Len           int
+	ValLim        int
+	GoroutinesCnt int
 }
 
 // Map applies given function to each element of the underlying slice
@@ -76,7 +75,7 @@ func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
 					if len(data) == 0 {
 						return
 					}
-					sorted = qsort.Sort(data, less, *p.GoroutinesCnt)
+					sorted = qsort.Sort(data, less, p.GoroutinesCnt)
 				})
 			}
 			if i >= len(sorted) {
@@ -117,7 +116,7 @@ func (p Pipe[T]) Sum(plus func(T, T) T) *T {
 		return &data[0]
 	default:
 		// lenIsFinite check was made in Do already
-		return Sum(plus, data, *p.GoroutinesCnt)
+		return Sum(plus, data, p.GoroutinesCnt)
 	}
 }
 
@@ -125,8 +124,8 @@ func (p Pipe[T]) Sum(plus func(T, T) T) *T {
 func (p Pipe[T]) First() *T {
 	var (
 		limit   = p.limit()
-		step    = max(divUp(limit, *p.GoroutinesCnt), 1)
-		tickets = genTickets(*p.GoroutinesCnt)
+		step    = max(divUp(limit, p.GoroutinesCnt), 1)
+		tickets = genTickets(p.GoroutinesCnt)
 
 		resStorage = struct {
 			val *T
@@ -209,9 +208,9 @@ func (p Pipe[T]) Any() *T {
 	var (
 		res = make(chan *T, 1)
 		// if p.len is not set, we need tickets to control the amount of goroutines
-		tickets = genTickets(*p.GoroutinesCnt)
+		tickets = genTickets(p.GoroutinesCnt)
 		limit   = p.limit()
-		step    = max(divUp(limit, *p.GoroutinesCnt), 1)
+		step    = max(divUp(limit, p.GoroutinesCnt), 1)
 
 		wg    sync.WaitGroup
 		resMx sync.Mutex
@@ -271,7 +270,7 @@ func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
 		return p
 	}
 
-	p.GoroutinesCnt = pointer.To(int(n))
+	p.GoroutinesCnt = int(n)
 	return p
 }
 
@@ -281,7 +280,7 @@ func (p Pipe[T]) Take(n int) Pipe[T] {
 	if n < 0 {
 		return p
 	}
-	p.ValLim = &n
+	p.ValLim = n
 	return p
 }
 
@@ -291,7 +290,7 @@ func (p Pipe[T]) Gen(n int) Pipe[T] {
 	if n < 0 {
 		return p
 	}
-	p.Len = &n
+	p.Len = n
 	return p
 }
 
@@ -303,8 +302,8 @@ func (p Pipe[T]) Do() []T {
 
 // Count evaluates all the pipeline and returns the amount of items.
 func (p Pipe[T]) Count() int {
-	if *p.ValLim != 0 {
-		return *p.ValLim
+	if p.limitSet() {
+		return p.ValLim
 	}
 	_, cnt := p.do(false)
 	return cnt
@@ -312,8 +311,12 @@ func (p Pipe[T]) Count() int {
 
 // doToLimit executor for Take
 func (p *Pipe[T]) doToLimit() []T {
-	res := make([]T, 0, *p.ValLim)
-	for i := 0; len(res) < *p.ValLim; i++ {
+	if p.ValLim == 0 {
+		return []T{}
+	}
+
+	res := make([]T, 0, p.ValLim)
+	for i := 0; len(res) < p.ValLim; i++ {
 		obj, skipped := p.Fn(i)
 		if !skipped {
 			res = append(res, *obj)
@@ -341,17 +344,17 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	var (
 		eval    []ev[T]
 		limit   = p.limit()
-		step    = divUp(p.limit(), *p.GoroutinesCnt)
+		step    = max(divUp(limit, p.GoroutinesCnt), 1)
 		wg      sync.WaitGroup
 		skipCnt atomic.Int64
 	)
-	if needResult {
+	if needResult && limit > 0 {
 		eval = make([]ev[T], limit)
 	}
-	wg.Add(divUp(limit, step))
-	tickets := genTickets(*p.GoroutinesCnt)
+	tickets := genTickets(p.GoroutinesCnt)
 	for i := 0; i > -1 && i < limit; i += step {
 		<-tickets
+		wg.Add(1)
 		go func(lf, rg int) {
 			if rg < 0 {
 				rg = limit
@@ -387,20 +390,20 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 func (p *Pipe[T]) limit() int {
 	switch {
 	case p.lenSet():
-		return *p.Len
+		return p.Len
 	case p.limitSet():
-		return *p.ValLim
+		return p.ValLim
 	default:
 		return math.MaxInt - 1
 	}
 }
 
 func (p *Pipe[T]) lenSet() bool {
-	return *p.Len != -1
+	return p.Len != -1
 }
 
 func (p *Pipe[T]) limitSet() bool {
-	return *p.ValLim != 0
+	return p.ValLim != -1
 }
 
 func min[T constraints.Ordered](a, b T) T {

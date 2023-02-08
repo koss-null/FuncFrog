@@ -4,7 +4,6 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/koss-null/lambda/internal/internalpipe"
-	"github.com/koss-null/lambda/internal/primitive/pointer"
 )
 
 const defaultParallelWrks = 1
@@ -20,9 +19,9 @@ func Slice[T any](dt []T) Piper[T] {
 			}
 			return &dtCp[i], false
 		},
-		Len:           pointer.To(len(dt)),
-		ValLim:        pointer.To(0),
-		GoroutinesCnt: pointer.To(defaultParallelWrks),
+		Len:           len(dt),
+		ValLim:        -1,
+		GoroutinesCnt: defaultParallelWrks,
 	}}
 }
 
@@ -37,9 +36,9 @@ func Func[T any](fn func(i int) (T, bool)) PiperNoLen[T] {
 			obj, exist := fn(i)
 			return &obj, !exist
 		},
-		Len:           pointer.To(-1),
-		ValLim:        pointer.To(0),
-		GoroutinesCnt: pointer.To(defaultParallelWrks),
+		Len:           -1,
+		ValLim:        -1,
+		GoroutinesCnt: defaultParallelWrks,
 	}}
 }
 
@@ -68,13 +67,23 @@ func Cycle[T any](a []T) PiperNoLen[T] {
 // Range creates a slice [start, finish) with a provided step.
 // Pipe initialized with Range can be considered as the one madi with Slice(range() []T).
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Piper[T] {
+	if start+step >= finish {
+		return &Pipe[T]{internalpipe.Pipe[T]{
+			Fn: func(int) (*T, bool) {
+				return nil, true
+			},
+			Len:           0,
+			ValLim:        -1,
+			GoroutinesCnt: defaultParallelWrks,
+		}}
+	}
 	return &Pipe[T]{internalpipe.Pipe[T]{
 		Fn: func(i int) (*T, bool) {
 			val := start + T(i)*step
 			return &val, val < finish
 		},
-		Len:           pointer.To(int((finish - start) / step)),
-		ValLim:        pointer.To(0),
-		GoroutinesCnt: pointer.To(defaultParallelWrks),
+		Len:           int((finish - start) / step),
+		ValLim:        -1,
+		GoroutinesCnt: defaultParallelWrks,
 	}}
 }
