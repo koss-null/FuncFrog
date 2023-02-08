@@ -155,7 +155,22 @@ func TestSum_ok_slice(t *testing.T) {
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
-	require.Equal(t, float64(49994994950000), *s)
+
+	var sum float64 = 49994994950000
+	require.Equal(t, sum, *s)
+}
+
+func TestSum_ok_slice_parallel(t *testing.T) {
+	initA10kk()
+
+	s := pipe.Slice(a10kk).
+		Filter(func(x float64) bool { return x > 100_000 }).
+		Parallel(4).
+		Sum(pipies.Sum[float64])
+	require.NotNil(t, s)
+
+	var sum float64 = 49994994950000
+	require.Equal(t, sum, *s)
 }
 
 func TestSum_ok_func_gen(t *testing.T) {
@@ -181,7 +196,7 @@ func TestSum_ok_func_take(t *testing.T) {
 func TestFilter_NotNull_ok(t *testing.T) {
 	genFunc := func(i int) (*float64, bool) {
 		if i%10 == 0 {
-			return nil, true
+			return nil, false
 		}
 		return pointer.To(float64(i)), true
 	}

@@ -4,8 +4,8 @@ import "sync"
 
 func sumSingleThread[T any](plus func(T, T) T, data []T) *T {
 	res := data[0]
-	for i := range data {
-		res = plus(res, data[i])
+	for i := range data[1:] {
+		res = plus(res, data[i+1])
 	}
 	return &res
 }

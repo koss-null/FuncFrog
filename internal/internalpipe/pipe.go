@@ -149,11 +149,13 @@ func (p Pipe[T]) First() *T {
 		resStorageMx.Unlock()
 	}
 
-	wg.Add(divUp(limit, step))
+	// this wait is to make wg.Wait() wait if for loop have not start yet
+	wg.Add(1)
 	go func() {
 		var done bool
 		// i >= 0 is for an int owerflow case
 		for i := 0; i >= 0 && i < limit && !done; i += step {
+			wg.Add(1)
 			<-tickets
 			go func(lf, rg, stepCnt int) {
 				defer func() {
@@ -191,6 +193,7 @@ func (p Pipe[T]) First() *T {
 			}(i, i+step, stepCnt)
 			stepCnt++
 		}
+		wg.Done()
 	}()
 
 	go func() {
