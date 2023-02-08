@@ -31,8 +31,8 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 	return Pipe[T]{
 		Fn: func(i int) (*T, bool) {
 			if obj, skipped := p.Fn(i); !skipped {
-				*obj = fn(*obj)
-				return obj, false
+				res := fn(*obj)
+				return &res, false
 			}
 			return nil, true
 		},

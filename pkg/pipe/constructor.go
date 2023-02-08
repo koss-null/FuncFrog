@@ -19,7 +19,7 @@ func Slice[T any](dt []T) Piper[T] {
 			}
 			return &dtCp[i], false
 		},
-		Len:           len(dt),
+		Len:           len(dtCp),
 		ValLim:        -1,
 		GoroutinesCnt: defaultParallelWrks,
 	}}

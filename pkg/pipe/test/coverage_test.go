@@ -211,31 +211,31 @@ func TestMap(t *testing.T) {
 			f:     func(i int) int { return i * 2 },
 			want:  []int{2, 4, 6},
 		},
-		// {
-		// 	name:  "map empty",
-		// 	input: pipe.Slice([]int{}),
-		// 	f:     func(i int) int { return i },
-		// 	want:  []int{},
-		// },
-		// {
-		// 	name:  "map single element",
-		// 	input: pipe.Slice([]int{1}),
-		// 	f:     func(i int) int { return i },
-		// 	want:  []int{1},
-		// },
-		// {
-		// 	name:  "map many diffeerent elements",
-		// 	input: pipe.Slice(largeSlice()),
-		// 	f:     func(x int) int { return x * 2 },
-		// 	want: func() []int {
-		// 		b := make([]int, len(largeSlice()))
-		// 		ls := largeSlice()
-		// 		for i := range ls {
-		// 			b[i] = ls[i] * 2
-		// 		}
-		// 		return b
-		// 	}(),
-		// },
+		{
+			name:  "map empty",
+			input: pipe.Slice([]int{}),
+			f:     func(i int) int { return i },
+			want:  []int{},
+		},
+		{
+			name:  "map single element",
+			input: pipe.Slice([]int{1}),
+			f:     func(i int) int { return i },
+			want:  []int{1},
+		},
+		{
+			name:  "map many diffeerent elements",
+			input: pipe.Slice(largeSlice()),
+			f:     func(x int) int { return x * 2 },
+			want: func() []int {
+				b := make([]int, len(largeSlice()))
+				ls := largeSlice()
+				for i := range ls {
+					b[i] = ls[i] * 2
+				}
+				return b
+			}(),
+		},
 	}
 
 	for _, c := range cases {
