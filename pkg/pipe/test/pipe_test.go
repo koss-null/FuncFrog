@@ -118,6 +118,7 @@ func TestAny_ok_slice(t *testing.T) {
 		Filter(func(x float64) bool { return x > 100_000 }).
 		Any()
 	require.NotNil(t, s)
+	require.True(t, pointer.From(s) > 100_000.0)
 }
 
 func TestAny_ok_func(t *testing.T) {

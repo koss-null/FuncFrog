@@ -11,6 +11,10 @@ import (
 // NotNull filters out values that are equal to nil.
 // It uses reflection, so if you don't store any pointers, better use NotZero.
 func NotNull[T any](x T) bool {
+	return !reflect.ValueOf(x).IsNil()
+}
+
+func IsNull[T any](x T) bool {
 	return reflect.ValueOf(x).IsNil()
 }
 
