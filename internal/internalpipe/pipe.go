@@ -122,148 +122,12 @@ func (p Pipe[T]) Sum(plus func(T, T) T) *T {
 
 // First returns the first element of the pipe.
 func (p Pipe[T]) First() *T {
-	var (
-		limit   = p.limit()
-		step    = max(divUp(limit, p.GoroutinesCnt), 1)
-		tickets = genTickets(p.GoroutinesCnt)
-
-		resStorage = struct {
-			val *T
-			pos int
-		}{nil, math.MaxInt}
-		resStorageMx sync.Mutex
-		res          = make(chan *T, 1)
-
-		wg sync.WaitGroup
-
-		stepCnt  int
-		zeroStep int
-	)
-
-	updStorage := func(val *T, pos int) {
-		resStorageMx.Lock()
-		if pos < resStorage.pos {
-			resStorage.pos = pos
-			resStorage.val = val
-		}
-		resStorageMx.Unlock()
-	}
-
-	// this wait is to make wg.Wait() wait if for loop have not start yet
-	wg.Add(1)
-	go func() {
-		var done bool
-		// i >= 0 is for an int owerflow case
-		for i := 0; i >= 0 && i < limit && !done; i += step {
-			wg.Add(1)
-			<-tickets
-			go func(lf, rg, stepCnt int) {
-				defer func() {
-					tickets <- struct{}{}
-					wg.Done()
-				}()
-
-				rg = max(rg, limit)
-				for j := lf; j < rg; j++ {
-					obj, skipped := p.Fn(j)
-					if !skipped {
-						if stepCnt == zeroStep {
-							res <- obj
-							done = true
-							return
-						}
-						updStorage(obj, stepCnt)
-						return
-					}
-
-					if resStorage.pos < stepCnt {
-						done = true
-						return
-					}
-				}
-				// no lock needed since it's changed only in one goroutine
-				if stepCnt == zeroStep {
-					zeroStep++
-					if resStorage.pos == zeroStep {
-						res <- resStorage.val
-						done = true
-						return
-					}
-				}
-			}(i, i+step, stepCnt)
-			stepCnt++
-		}
-		wg.Done()
-	}()
-
-	go func() {
-		wg.Wait()
-		resStorageMx.Lock()
-		defer resStorageMx.Unlock()
-		res <- resStorage.val
-	}()
-
-	return <-res
+	return First(p.limit(), p.GoroutinesCnt, p.Fn)
 }
 
 // Any returns a pointer to a random element in the pipe or nil if none left.
 func (p Pipe[T]) Any() *T {
-	var (
-		res = make(chan *T, 1)
-		// if p.len is not set, we need tickets to control the amount of goroutines
-		tickets = genTickets(p.GoroutinesCnt)
-		limit   = p.limit()
-		step    = max(divUp(limit, p.GoroutinesCnt), 1)
-
-		wg    sync.WaitGroup
-		resMx sync.Mutex
-		done  bool
-	)
-	if !p.lenSet() {
-		step = 1 << 15
-	}
-
-	setObj := func(obj *T) {
-		resMx.Lock()
-		defer resMx.Unlock()
-
-		if done {
-			return
-		}
-		res <- obj
-		done = true
-	}
-
-	go func() {
-		// i >= 0 is for an int owerflow case
-		for i := 0; i >= 0 && i < limit; i += step {
-			wg.Add(1)
-			<-tickets
-			go func(lf, rg int) {
-				defer func() {
-					wg.Done()
-					tickets <- struct{}{}
-				}()
-
-				// accounting int owerflow case with max(rg, 0)
-				rg = min(max(rg, 0), limit)
-				for j := lf; j < rg && !done; j++ {
-					obj, skipped := p.Fn(j)
-					if !skipped {
-						setObj(obj)
-						return
-					}
-				}
-			}(i, i+step)
-		}
-
-		go func() {
-			wg.Wait()
-			setObj(nil)
-		}()
-	}()
-
-	return <-res
+	return Any(p.lenSet(), p.limit(), p.GoroutinesCnt, p.Fn)
 }
 
 // Parallel set n - the amount of goroutines to run on.
@@ -272,7 +136,6 @@ func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
 	if n < 1 {
 		return p
 	}
-
 	p.GoroutinesCnt = int(n)
 	return p
 }
