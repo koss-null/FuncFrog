@@ -2,55 +2,70 @@ package internalpipe
 
 import "sync"
 
-func sumSingleThread[T any](plus func(T, T) T, data []T) *T {
-	res := data[0]
-	for i := range data[1:] {
-		res = plus(res, data[i+1])
+func sumSingleThread[T any](length int, plus AccumFn[T], fn GeneratorFn[T]) *T {
+	var zero T
+	res := &zero
+
+	var obj *T
+	var skipped bool
+	i := 0
+	for ; i < length; i++ {
+		obj, skipped = fn(i)
+		if !skipped {
+			res = obj
+			i++
+			break
+		}
 	}
-	return &res
+
+	for ; i < length; i++ {
+		obj, skipped = fn(i)
+		if !skipped {
+			res = plus(res, obj)
+		}
+	}
+	return res
 }
 
-func Sum[T any](plus func(T, T) T, data []T, gortCnt int) *T {
-	switch len(data) {
-	case 0:
-		return nil
-	case 1:
-		d := data[0]
-		return &d
-	}
-
+func Sum[T any](gortCnt int, length int, plus AccumFn[T], fn GeneratorFn[T]) *T {
 	if gortCnt == 1 {
-		return sumSingleThread(plus, data)
+		return sumSingleThread(length, plus, fn)
 	}
 
 	var (
-		lim  = len(data)
-		step = divUp(lim, gortCnt)
+		step = divUp(length, gortCnt)
 
-		res   T
+		zero  T
 		resMx sync.Mutex
 		wg    sync.WaitGroup
 	)
 
-	sum := func(x T) {
+	res := &zero
+	sum := func(x *T) {
 		resMx.Lock()
 		res = plus(res, x)
 		resMx.Unlock()
 	}
-	wg.Add(divUp(lim, step))
+
 	tickets := genTickets(gortCnt)
-	for lf := 0; lf < lim; lf += step {
+	for lf := 0; lf < length; lf += step {
+		wg.Add(1)
 		<-tickets
-		go func(data []T) {
-			for i := 1; i < len(data); i++ {
-				data[0] = plus(data[0], data[i])
+		var localRes T
+		go func(lf, rg int, res *T) {
+			var obj *T
+			var skipped bool
+			for i := lf; i < rg; i++ {
+				if obj, skipped = fn(i); !skipped {
+					res = plus(res, obj)
+				}
 			}
-			sum(data[0])
-			tickets <- struct{}{}
+			sum(res)
 			wg.Done()
-		}(data[lf:min(lf+step, lim)])
+			tickets <- struct{}{}
+		}(lf, min(lf+step, length), &localRes)
 	}
 	wg.Wait()
 
-	return &res
+	return res
 }

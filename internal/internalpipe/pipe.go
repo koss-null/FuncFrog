@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
+	"github.com/koss-null/lambda/internal/primitive/pointer"
 )
 
 const (
@@ -18,8 +19,10 @@ const (
 	panicLimitExceededMsg = "the limit have been exceeded, but the result is not calculated"
 )
 
+type GeneratorFn[T any] func(int) (*T, bool)
+
 type Pipe[T any] struct {
-	Fn            func(int) (*T, bool)
+	Fn            GeneratorFn[T]
 	Len           int
 	ValLim        int
 	GoroutinesCnt int
@@ -62,10 +65,8 @@ func (p Pipe[T]) Filter(fn func(T) bool) Pipe[T] {
 
 // Sort sorts the underlying slice on a current step of a pipeline.
 func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
-	var (
-		once   sync.Once
-		sorted []T
-	)
+	var once sync.Once
+	var sorted []T
 
 	return Pipe[T]{
 		Fn: func(i int) (*T, bool) {
@@ -90,7 +91,7 @@ func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
 }
 
 // Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...]))).
-func (p Pipe[T]) Reduce(fn func(T, T) T) *T {
+func (p Pipe[T]) Reduce(fn AccumFn[T]) *T {
 	data := p.Do()
 	switch len(data) {
 	case 0:
@@ -100,24 +101,15 @@ func (p Pipe[T]) Reduce(fn func(T, T) T) *T {
 	default:
 		res := data[0]
 		for _, val := range data[1:] {
-			res = fn(res, val)
+			res = pointer.From(fn(&res, &val))
 		}
 		return &res
 	}
 }
 
 // Sum returns the sum of all elements. It is similar to Reduce but is able to work in parallel.
-func (p Pipe[T]) Sum(plus func(T, T) T) *T {
-	data := p.Do()
-	switch len(data) {
-	case 0:
-		return nil
-	case 1:
-		return &data[0]
-	default:
-		// lenIsFinite check was made in Do already
-		return Sum(plus, data, p.GoroutinesCnt)
-	}
+func (p Pipe[T]) Sum(plus AccumFn[T]) *T {
+	return Sum(p.GoroutinesCnt, p.limit(), plus, p.Fn)
 }
 
 // First returns the first element of the pipe.
