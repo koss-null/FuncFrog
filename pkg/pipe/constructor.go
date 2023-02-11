@@ -53,6 +53,16 @@ func Fn[T any](fn func(i int) T) PiperNoLen[T] {
 	})
 }
 
+// FuncP is the same as Func but allows to return pointers to the values.
+func FuncP[T any](fn func(i int) (*T, bool)) PiperNoLen[T] {
+	return &PipeNL[T]{internalpipe.Pipe[T]{
+		Fn:            fn,
+		Len:           -1,
+		ValLim:        -1,
+		GoroutinesCnt: defaultParallelWrks,
+	}}
+}
+
 // Cycle creates new pipe that cycles through the elements of the provided slice.
 // Initiating the pipe from a func you have to set either the output value
 // amount using Get(n int) or the amount of generated values Gen(n int), or set
