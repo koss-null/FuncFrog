@@ -46,8 +46,8 @@ You can then use the `pipe` package to create a pipeline of operations on a slic
 res := pipe.Slice(a).
     Map(func(x int) int { return x * x }).
     Map(func(x int) int { return x + 1 }).
-    Filter(func(x int) bool { return x > 100 }).
-    Filter(func(x int) bool { return x < 1000 }).
+    Filter(func(x *int) bool { return *x > 100 }).
+    Filter(func(x *int) bool { return *x < 1000 }).
     Parallel(12).
     Do()
 ```
