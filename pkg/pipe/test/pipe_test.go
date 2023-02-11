@@ -83,7 +83,7 @@ func TestFirst_ok_slice(t *testing.T) {
 	initA10kk()
 
 	s := pipe.Slice(a10kk).
-		Filter(func(x float64) bool { return x > 100_000 }).
+		Filter(func(x *float64) bool { return *x > 100_000 }).
 		First()
 	require.NotNil(t, s)
 	require.Equal(t, float64(100_001), *s)
@@ -91,7 +91,7 @@ func TestFirst_ok_slice(t *testing.T) {
 
 func TestFirst_ok_func(t *testing.T) {
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
-		Filter(func(x float64) bool { return x > 100_000 }).
+		Filter(func(x *float64) bool { return *x > 100_000 }).
 		Take(200_000).
 		First()
 	require.NotNil(t, s)
@@ -102,7 +102,7 @@ func TestFirst_ok_func_bigint_nogen_notake(t *testing.T) {
 	initA10kk()
 
 	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
-		Filter(func(x float64) bool { return x > 100_000 }).
+		Filter(func(x *float64) bool { return *x > 100_000 }).
 		Take(math.MaxInt64).
 		First()
 	require.NotNil(t, s)
@@ -114,7 +114,8 @@ func TestFirst_ok_func_bigint_nogen_notake(t *testing.T) {
 func TestFilter_NotNull_ok(t *testing.T) {
 	genFunc := func(i int) (*float64, bool) {
 		if i%10 == 0 {
-			return nil, false
+			var empty *float64
+			return empty, true
 		}
 		return pointer.To(float64(i)), true
 	}
@@ -123,11 +124,18 @@ func TestFilter_NotNull_ok(t *testing.T) {
 		pipe.Func(genFunc).
 			Filter(pipies.NotNull[*float64]).
 			Take(10_000),
-		func(x *float64) float64 { return *x },
+		func(x *float64) float64 { return pointer.From(x) },
 	).
 		Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
-	require.Equal(t, float64(55555556), *s)
+
+	sm := 0
+	for i := 1; i < 10000; i++ {
+		if i%10 != 0 {
+			sm += i
+		}
+	}
+	require.Equal(t, float64(sm), s)
 }
 
 // Sort() function
@@ -226,7 +234,7 @@ func TestReduce(t *testing.T) {
 		return i, true
 	}).
 		Gen(6000).
-		Reduce(func(a, b int) int { return a + b })
+		Reduce(func(a, b *int) int { return *a + *b })
 
 	expected := 0
 	for i := 1; i < 6000; i++ {
@@ -240,11 +248,11 @@ func TestSum(t *testing.T) {
 		return i, true
 	}).
 		Gen(6000).
-		Sum(func(a, b int) int { return a + b })
+		Sum(func(a, b *int) int { return *a + *b })
 
 	expected := 0
 	for i := 1; i < 6000; i++ {
 		expected += i
 	}
-	require.Equal(t, expected, *res)
+	require.Equal(t, expected, res)
 }

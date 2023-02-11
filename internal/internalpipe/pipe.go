@@ -8,7 +8,6 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
-	"github.com/koss-null/lambda/internal/primitive/pointer"
 )
 
 const (
@@ -46,11 +45,11 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 }
 
 // Filter leaves only items with true predicate fn.
-func (p Pipe[T]) Filter(fn func(T) bool) Pipe[T] {
+func (p Pipe[T]) Filter(fn func(*T) bool) Pipe[T] {
 	return Pipe[T]{
 		Fn: func(i int) (*T, bool) {
 			if obj, skipped := p.Fn(i); !skipped {
-				if !fn(*obj) {
+				if !fn(obj) {
 					return nil, true
 				}
 				return obj, false
@@ -64,7 +63,7 @@ func (p Pipe[T]) Filter(fn func(T) bool) Pipe[T] {
 }
 
 // Sort sorts the underlying slice on a current step of a pipeline.
-func (p Pipe[T]) Sort(less func(T, T) bool) Pipe[T] {
+func (p Pipe[T]) Sort(less func(*T, *T) bool) Pipe[T] {
 	var once sync.Once
 	var sorted []T
 
@@ -101,14 +100,14 @@ func (p Pipe[T]) Reduce(fn AccumFn[T]) *T {
 	default:
 		res := data[0]
 		for _, val := range data[1:] {
-			res = pointer.From(fn(&res, &val))
+			res = fn(&res, &val)
 		}
 		return &res
 	}
 }
 
 // Sum returns the sum of all elements. It is similar to Reduce but is able to work in parallel.
-func (p Pipe[T]) Sum(plus AccumFn[T]) *T {
+func (p Pipe[T]) Sum(plus AccumFn[T]) T {
 	return Sum(p.GoroutinesCnt, p.limit(), plus, p.Fn)
 }
 

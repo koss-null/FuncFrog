@@ -17,23 +17,24 @@ func (p *Pipe[T]) Map(fn func(T) T) Piper[T] {
 }
 
 // Filter leaves only items with true predicate fn.
-func (p *Pipe[T]) Filter(fn func(T) bool) Piper[T] {
+func (p *Pipe[T]) Filter(fn Predicate[T]) Piper[T] {
 	return &Pipe[T]{p.internal.Filter(fn)}
 }
 
 // Sort sorts the underlying slice on a current step of a pipeline.
-func (p *Pipe[T]) Sort(less func(T, T) bool) Piper[T] {
+func (p *Pipe[T]) Sort(less Comparator[T]) Piper[T] {
 	return &Pipe[T]{p.internal.Sort(less)}
 }
 
 // Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...]))).
-func (p *Pipe[T]) Reduce(fn func(T, T) T) *T {
-	return p.internal.Reduce(fn)
+// It is recommended to use reducers from the default reducer if possible to decrease memory allocations.
+func (p *Pipe[T]) Reduce(fn Accum[T]) *T {
+	return p.internal.Reduce(internalpipe.AccumFn[T](fn))
 }
 
 // Sum returns the sum of all elements. It is similar to Reduce but is able to work in parallel.
-func (p *Pipe[T]) Sum(plus func(T, T) T) *T {
-	return p.internal.Sum(plus)
+func (p *Pipe[T]) Sum(plus Accum[T]) T {
+	return p.internal.Sum(internalpipe.AccumFn[T](plus))
 }
 
 // First returns the first element of the pipe.

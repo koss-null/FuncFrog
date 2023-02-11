@@ -32,8 +32,8 @@ func main() {
 	res1 := pipe.Slice(a).
 		Map(func(x int) int { return x * x }).
 		Map(func(x int) int { return x + 1 }).
-		Filter(func(x int) bool { return x > 100 }).
-		Filter(func(x int) bool { return x < 1000 }).
+		Filter(func(x *int) bool { return *x > 100 }).
+		Filter(func(x *int) bool { return *x < 1000 }).
 		Do()
 
 	fmt.Println("1: simple pipeline result")
@@ -56,7 +56,7 @@ func main() {
 		// the line below is not working since x is float32 now
 		// Filter(func(x int) bool { return x < 1000 }).
 		// We need to provide another function:
-		Filter(func(x float32) bool { return x > 0.5 }).
+		Filter(func(x *float32) bool { return *x > 0.5 }).
 		// Generate 100 values as an initial pipeline
 		Do()
 
@@ -79,7 +79,7 @@ func main() {
 		return rnd.Float32(), true
 	}).
 		Take(100).
-		Filter(func(x float32) bool { return x > 0.5 }).
+		Filter(func(x *float32) bool { return *x > 0.5 }).
 		// Take 100 values, don't stop generate before get all of them
 		Do()
 
@@ -103,7 +103,7 @@ func main() {
 		return rnd.Float32(), true
 	}).
 		Gen(100).
-		Filter(func(x float32) bool { return x > 0.6 }).
+		Filter(func(x *float32) bool { return *x > 0.6 }).
 		Count()
 	fmt.Println("3: counting Gen(100) items values")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
@@ -124,7 +124,7 @@ func main() {
 		return rnd.Float32(), true
 	}).
 		Take(100).
-		Filter(func(x float32) bool { return x > 0.6 }).
+		Filter(func(x *float32) bool { return *x > 0.6 }).
 		Count()
 	fmt.Println("result3.1: trying to count values with Take(n int) will return n")
 	fmt.Println(`pipe.Func(func(i int) (float32, bool) {
@@ -163,7 +163,7 @@ func main() {
 	}).
 		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
-		Filter(func(x float32) bool { return x > 5000.6 }).
+		Filter(func(x *float32) bool { return *x > 5000.6 }).
 		Parallel(12).
 		Count()
 	fmt.Println("4 (using pipe): (parallel 12)", res4, "; eval took ", time.Since(start))
@@ -176,7 +176,7 @@ func main() {
 	}).
 		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
-		Filter(func(x float32) bool { return x > 5000.6 }).
+		Filter(func(x *float32) bool { return *x > 5000.6 }).
 		Parallel(1).
 		Count()
 	fmt.Println("4.1: (parallel 1)", res41, "; eval took ", time.Since(start))
@@ -189,7 +189,7 @@ func main() {
 	}).
 		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
-		Filter(func(x float32) bool { return x > 5000.6 }).
+		Filter(func(x *float32) bool { return *x > 5000.6 }).
 		Count()
 	fmt.Println("4.2: (parallel 4): ", res42, "; eval took ", time.Since(start))
 	runtime.GC()
@@ -201,7 +201,7 @@ func main() {
 	}).
 		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
-		Filter(func(x float32) bool { return x > 5000.6 }).
+		Filter(func(x *float32) bool { return *x > 5000.6 }).
 		Parallel(150).
 		Count()
 	fmt.Println("4.3: many goroutines are OK (parallel 150)", res43, "; eval took ", time.Since(start))
@@ -215,7 +215,7 @@ func main() {
 	}).
 		Gen(1_000_000).
 		Map(func(x float32) float32 { return x * x }).
-		Filter(func(x float32) bool { return x > 5000.6 }).
+		Filter(func(x *float32) bool { return *x > 5000.6 }).
 		Parallel(65000).
 		Count()
 	fmt.Println("result44: but too many is not great (parallel 100500 > 256)", res44, "; eval took ", time.Since(start))
@@ -256,7 +256,7 @@ func main() {
 		// This is how you can sort in parallel (it's rly faster!)
 		Parallel(12).
 		Sum(pipies.Sum[int])
-	fmt.Println("7: Sum (all nums from 0 to 10^5-1):", int64(*res7))
+	fmt.Println("7: Sum (all nums from 0 to 10^5-1):", int64(res7))
 	sm := 0
 	for i := 0; i < 10000; i++ {
 		sm += i
@@ -267,7 +267,7 @@ func main() {
 		return i, true
 	}).
 		Gen(10000).
-		Reduce(func(a, b int) int { return a + b })
+		Reduce(func(a, b *int) int { return *a + *b })
 	fmt.Println("8: Sum with reduce", *res8)
 
 	res81 := pipe.Reduce(
@@ -275,9 +275,9 @@ func main() {
 			return User{"Slim", fmt.Sprintf("Shady %d", i), i % 45, nil}, true
 		}).
 			Gen(6000).
-			Filter(func(x User) bool { return x.Age > 43 }),
-		func(superName string, u User) string {
-			return superName + u.LastName + " "
+			Filter(func(x *User) bool { return x.Age > 43 }),
+		func(superName *string, u *User) string {
+			return *superName + u.LastName + " "
 		},
 		"My name is: ",
 	)
@@ -288,14 +288,14 @@ func main() {
 
 	res91 := pipe.Fn(func(i int) int { return i }).
 		Map(func(x int) int { return (x+2)*(x+2) - 2 }).
-		Filter(func(x int) bool { return x > 100500 }).
+		Filter(func(x *int) bool { return *x > 100500 }).
 		Parallel(100).
 		First()
 	fmt.Println("91: return first from function without size", *res91)
 
 	res92 := pipe.Fn(func(i int) int { return i }).
 		Map(func(x int) int { return (x+2)*(x+2) - 2 }).
-		Filter(func(x int) bool { return false }).
+		Filter(func(x *int) bool { return false }).
 		Parallel(100).
 		Gen(100500).
 		First()

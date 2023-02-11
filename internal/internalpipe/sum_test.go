@@ -14,8 +14,8 @@ func TestSumOk1thread(t *testing.T) {
 	s := Sum(
 		1,
 		len(a10kk),
-		func(x, y *float64) *float64 {
-			return pointer.To(*x + *y)
+		func(x, y *float64) float64 {
+			return *x + *y
 		},
 		func(i int) (*float64, bool) {
 			return &a10kk[i], false
@@ -23,7 +23,7 @@ func TestSumOk1thread(t *testing.T) {
 	)
 
 	require.NotNil(t, s)
-	require.True(t, *s == 49999995000000)
+	require.True(t, s == 49999995000000)
 }
 
 func TestSumOk4thread(t *testing.T) {
@@ -32,8 +32,8 @@ func TestSumOk4thread(t *testing.T) {
 	s := Sum(
 		4,
 		len(a10kk),
-		func(x, y *float64) *float64 {
-			return pointer.To(*x + *y)
+		func(x, y *float64) float64 {
+			return *x + *y
 		},
 		func(i int) (*float64, bool) {
 			return &a10kk[i], false
@@ -41,15 +41,15 @@ func TestSumOk4thread(t *testing.T) {
 	)
 
 	require.NotNil(t, s)
-	require.True(t, *s == 49999995000000)
+	require.True(t, s == 49999995000000)
 }
 
 func TestSumOk1threadEmpty(t *testing.T) {
 	s := Sum(
 		1,
 		0,
-		func(x, y *float64) *float64 {
-			return pointer.To(*x + *y)
+		func(x, y *float64) float64 {
+			return *x + *y
 		},
 		func(i int) (*float64, bool) {
 			return pointer.To(1.), false
@@ -57,15 +57,15 @@ func TestSumOk1threadEmpty(t *testing.T) {
 	)
 
 	require.NotNil(t, s)
-	require.True(t, *s == 0)
+	require.True(t, s == 0)
 }
 
 func TestSumOk4threadEmpty(t *testing.T) {
 	s := Sum(
 		4,
 		0,
-		func(x, y *float64) *float64 {
-			return pointer.To(*x + *y)
+		func(x, y *float64) float64 {
+			return *x + *y
 		},
 		func(i int) (*float64, bool) {
 			return pointer.To(1.), false
@@ -73,15 +73,15 @@ func TestSumOk4threadEmpty(t *testing.T) {
 	)
 
 	require.NotNil(t, s)
-	require.True(t, *s == 0)
+	require.True(t, s == 0)
 }
 
 func TestSumOk1threadSingle(t *testing.T) {
 	s := Sum(
 		1,
 		1,
-		func(x, y *float64) *float64 {
-			return pointer.To(*x + *y)
+		func(x, y *float64) float64 {
+			return *x + *y
 		},
 		func(i int) (*float64, bool) {
 			return pointer.To(100500.), i != 0
@@ -89,15 +89,15 @@ func TestSumOk1threadSingle(t *testing.T) {
 	)
 
 	require.NotNil(t, s)
-	require.True(t, *s == 100500.)
+	require.True(t, s == 100500.)
 }
 
 func TestSumOk4threadSingle(t *testing.T) {
 	s := Sum(
 		4,
 		1,
-		func(x, y *float64) *float64 {
-			return pointer.To(*x + *y)
+		func(x, y *float64) float64 {
+			return *x + *y
 		},
 		func(i int) (*float64, bool) {
 			return pointer.To(100500.), i != 0
@@ -105,5 +105,5 @@ func TestSumOk4threadSingle(t *testing.T) {
 	)
 
 	require.NotNil(t, s)
-	require.True(t, *s == 100500.)
+	require.True(t, s == 100500.)
 }

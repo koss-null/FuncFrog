@@ -20,7 +20,7 @@ func rnd(n int) []int {
 
 func Test_partition(t *testing.T) {
 	a := rnd(6000)
-	q := partition(a, 0, len(a)-1, func(a, b int) bool { return a < b })
+	q := partition(a, 0, len(a)-1, func(a, b *int) bool { return *a < *b })
 	for i := 0; i <= q; i++ {
 		for j := q + 1; j < len(a); j++ {
 			require.LessOrEqual(t, a[i], a[j])
@@ -33,7 +33,7 @@ func Test_sort(t *testing.T) {
 	tickets := genTickets(3)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	qsort(a, 0, len(a)-1, func(a, b int) bool { return a < b }, tickets, &wg)
+	qsort(a, 0, len(a)-1, func(a, b *int) bool { return *a < *b }, tickets, &wg)
 	wg.Wait()
 	for i := range a {
 		if i != 0 {
@@ -48,7 +48,7 @@ func Test_sort_one(t *testing.T) {
 	tickets := genTickets(3)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	qsort(a, 0, len(a)-1, func(a, b int) bool { return a < b }, tickets, &wg)
+	qsort(a, 0, len(a)-1, func(a, b *int) bool { return *a < *b }, tickets, &wg)
 	wg.Wait()
 	require.Equal(t, len(a), 1)
 }
@@ -58,7 +58,7 @@ func Test_sort_big(t *testing.T) {
 	tickets := genTickets(6)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	qsort(a, 0, len(a)-1, func(a, b int) bool { return a < b }, tickets, &wg)
+	qsort(a, 0, len(a)-1, func(a, b *int) bool { return *a < *b }, tickets, &wg)
 	wg.Wait()
 	for i := range a {
 		if i != 0 {
@@ -72,7 +72,7 @@ func Test_sort_huge(t *testing.T) {
 	tickets := genTickets(12)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	qsort(a, 0, len(a)-1, func(a, b int) bool { return a < b }, tickets, &wg)
+	qsort(a, 0, len(a)-1, func(a, b *int) bool { return *a < *b }, tickets, &wg)
 	wg.Wait()
 	for i := range a {
 		if i != 0 {

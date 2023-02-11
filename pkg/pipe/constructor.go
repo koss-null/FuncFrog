@@ -49,8 +49,7 @@ func Func[T any](fn func(i int) (T, bool)) PiperNoLen[T] {
 // the limit predicate Until(func(x T) bool).
 func Fn[T any](fn func(i int) T) PiperNoLen[T] {
 	return Func(func(i int) (T, bool) {
-		obj := fn(i)
-		return obj, true
+		return fn(i), true
 	})
 }
 

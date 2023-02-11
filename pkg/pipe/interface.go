@@ -42,19 +42,19 @@ type mapper[T, PiperT any] interface {
 }
 
 type filterer[T, PiperT any] interface {
-	Filter(func(T) bool) PiperT
+	Filter(Predicate[T]) PiperT
 }
 
 type sorter[T, PiperT any] interface {
-	Sort(func(T, T) bool) PiperT
+	Sort(Comparator[T]) PiperT
 }
 
 type reducer[T any] interface {
-	Reduce(func(T, T) T) *T
+	Reduce(Accum[T]) *T
 }
 
 type summer[T any] interface {
-	Sum(func(T, T) T) *T
+	Sum(Accum[T]) T
 }
 
 type taker[T any] interface {

@@ -17,7 +17,7 @@ func (p *PipeNL[T]) Map(fn func(T) T) PiperNoLen[T] {
 }
 
 // Filter leaves only items with true predicate fn.
-func (p *PipeNL[T]) Filter(fn func(T) bool) PiperNoLen[T] {
+func (p *PipeNL[T]) Filter(fn Predicate[T]) PiperNoLen[T] {
 	return &PipeNL[T]{p.internal.Filter(fn)}
 }
 

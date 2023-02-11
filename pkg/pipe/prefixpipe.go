@@ -52,7 +52,7 @@ func MapNL[SrcT, DstT any](
 
 // Reduce applies reduce operation on Pipe of type SrcT an returns result of type DstT.
 // initVal is an optional parameter to initialize a value that should be used on the first step of reduce.
-func Reduce[SrcT any, DstT any](p Piper[SrcT], fn func(DstT, SrcT) DstT, initVal ...DstT) DstT {
+func Reduce[SrcT any, DstT any](p Piper[SrcT], fn func(*DstT, *SrcT) DstT, initVal ...DstT) DstT {
 	var init DstT
 	if len(initVal) > 0 {
 		init = initVal[0]
@@ -62,11 +62,11 @@ func Reduce[SrcT any, DstT any](p Piper[SrcT], fn func(DstT, SrcT) DstT, initVal
 	case 0:
 		return init
 	case 1:
-		return fn(init, data[0])
+		return fn(&init, &data[0])
 	default:
-		res := fn(init, data[0])
+		res := fn(&init, &data[0])
 		for i := range data[1:] {
-			res = fn(res, data[i])
+			res = fn(&res, &data[i])
 		}
 		return res
 	}
