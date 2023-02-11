@@ -23,33 +23,36 @@ func initA10kk() {
 	})
 }
 
-func TestAnyOkNolimitSingleThread(t *testing.T) {
+func TestAnyOkNolimit1Thread(t *testing.T) {
 	initA10kk()
 
 	s := Any(false, -1, 1, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0
+		return pointer.To(a10kk[i]), a10kk[i] <= 100_000.0
 	})
 
 	require.NotNil(t, s)
-	require.True(t, pointer.From(s) > 100_000.0)
+	require.Greater(t, pointer.From(s), 100_000.0)
 }
 
 func TestAnyOkNolimit4thread(t *testing.T) {
 	initA10kk()
 
 	s := Any(false, -1, 4, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0
+		if i > len(a10kk) {
+			return nil, true
+		}
+		return pointer.To(a10kk[i]), a10kk[i] <= 100_000.0
 	})
 
 	require.NotNil(t, s)
-	require.True(t, pointer.From(s) > 100_000.0)
+	require.Greater(t, pointer.From(s), 100_000.0)
 }
 
 func TestAnyOkLimit1thread(t *testing.T) {
 	initA10kk()
 
 	s := Any(true, len(a10kk), 1, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0
+		return pointer.To(a10kk[i]), a10kk[i] <= 100_000.0
 	})
 
 	require.NotNil(t, s)
@@ -60,7 +63,7 @@ func TestAnyOkLimit4thread(t *testing.T) {
 	initA10kk()
 
 	s := Any(true, len(a10kk), 4, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0
+		return pointer.To(a10kk[i]), a10kk[i] <= 100_000.0
 	})
 
 	require.NotNil(t, s)
@@ -71,7 +74,7 @@ func TestAnyNFLimit1thread(t *testing.T) {
 	initA10kk()
 
 	s := Any(true, len(a10kk), 1, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), false
+		return pointer.To(a10kk[i]), true
 	})
 
 	require.Nil(t, s)
@@ -81,7 +84,7 @@ func TestAnyNFLimit4thread(t *testing.T) {
 	initA10kk()
 
 	s := Any(true, len(a10kk), 4, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), false
+		return pointer.To(a10kk[i]), true
 	})
 
 	require.Nil(t, s)
@@ -91,7 +94,7 @@ func TestAnyOkSingleElement1threadFinite(t *testing.T) {
 	initA10kk()
 
 	s := Any(true, len(a10kk), 1, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0
+		return pointer.To(a10kk[i]), !(a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0)
 	})
 
 	require.NotNil(t, s)
@@ -102,7 +105,7 @@ func TestAnyOkSingleElement4threadFinite(t *testing.T) {
 	initA10kk()
 
 	s := Any(true, len(a10kk), 4, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0
+		return pointer.To(a10kk[i]), !(a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0)
 	})
 
 	require.NotNil(t, s)
@@ -113,7 +116,7 @@ func TestAnyOkSingleElement1threadInfinite(t *testing.T) {
 	initA10kk()
 
 	s := Any(false, -1, 1, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0
+		return pointer.To(a10kk[i]), !(a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0)
 	})
 
 	require.NotNil(t, s)
@@ -124,7 +127,7 @@ func TestAnyOkSingleElement4threadInfinite(t *testing.T) {
 	initA10kk()
 
 	s := Any(false, -1, 4, func(i int) (*float64, bool) {
-		return pointer.To(a10kk[i]), a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0
+		return pointer.To(a10kk[i]), !(a10kk[i] > 100_000.0 && a10kk[i] < 100_002.0)
 	})
 
 	require.NotNil(t, s)
