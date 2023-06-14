@@ -16,6 +16,13 @@ func Sort[T any](data []T, less func(*T, *T) bool, threads int) []T {
 	if threads < 1 {
 		threads = 1
 	}
+	if threads == 1 {
+		sort.Slice(data, func(i, j int) bool {
+			return less(&data[i], &data[j])
+		})
+		return data
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	qsort(data, 0, len(data)-1, less, genTickets(threads), &wg)
