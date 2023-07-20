@@ -63,7 +63,7 @@ func (p *Pipe[T]) Count() int {
 	return p.internal.Count()
 }
 
-// Entrails is an out of Piper interface method to provide Map[T1 -> T2].
+// Entrails is an out-of-Piper interface method to provide Map[T1 -> T2].
 func (p *Pipe[T]) Entrails() *internalpipe.Pipe[T] {
 	return &p.internal
 }
