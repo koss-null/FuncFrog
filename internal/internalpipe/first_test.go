@@ -46,4 +46,10 @@ func TestFirst(t *testing.T) {
 		})
 		require.Nil(t, f)
 	})
+	t.Run("not found len 0", func(t *testing.T) {
+		f := First(0, 10, func(i int) (*int, bool) {
+			return nil, true
+		})
+		require.Nil(t, f)
+	})
 }

@@ -2,6 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Coverage](https://github.com/koss-null/lambda/blob/0.9.0/coverage_bage.png?raw=true)](coverage)
 
 ![FuncFrog icon](https://github.com/koss-null/lambda/blob/0.9.0/FuncFrogIco.jpg?raw=true)
 
