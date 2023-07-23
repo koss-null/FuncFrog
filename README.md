@@ -6,7 +6,8 @@
 
 ![FuncFrog icon](https://github.com/koss-null/lambda/blob/0.9.0/FuncFrogIco.jpg?raw=true)
 
-FuncFrog is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments). It is capable of handling large amounts of data with minimal overhead, and its parallel execution capabilities allow for even faster processing times. Additionally, the library is easy to use and has a clean, intuitive API. [Here](https://macias.info/entry/202212020000_go_streams.md) is some performance review.
+FuncFrog is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments). 
+It is capable of handling large amounts of data with minimal overhead, and its parallel execution capabilities allow for even faster processing times. Additionally, the library is easy to use and has a clean, intuitive API. [Here](https://macias.info/entry/202212020000_go_streams.md) is some performance review. 
 
 ## Table of Contents
 - [Repository Renamed](#repository-renamed)
@@ -79,15 +80,15 @@ To see some code snippets, check out the `examples/main.go` file. You can also r
 
 ## Basic information
 
-The `Piper` [or `PiperNL`] is an interface that represents a lazy-evaluated, potentially infinite sequence of data. The `Piper` interface provides a set of methods that can be used to transform, filter, collect and analize data in the sequence.
-Every pipe can be splitted at every moment just by equating it to a variable. There are different interfaces for pipes
+The `Piper` (or `PiperNL` for pipes with undetermined lengths) is an interface that represents a *lazy-evaluated*, potentially infinite *sequence of data*. The `Piper` interface provides a set of methods that can be used to transform, filter, collect and analize data in the sequence. 
+Every pipe can be conveniently copied at every moment just by equating it to a variable. There are different interfaces for pipes
 with known and unknown length. Some methods lead from `PiperNL` to `Piper` interface making wider method range
-available.
+available. 
 
 ## Supported functions list
 
 The following functions can be used to create a new `Pipe` (this is how I call the inner representation of a sequence of
-elements and a sequence operations on them):
+elements and a sequence operations on them): 
 - :frog: `Slice([]T) Piper`: creates a `Pipe` of a given type `T` from a slice, *the length is known*.
 - :frog: `Func(func(i int) (T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns an element wich is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
 - :frog: `Fn(func(i int) (T)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`; to be able to skip values use `Func`.
@@ -163,6 +164,7 @@ p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).
 
 ### Example using `Map` and `Reduce` :
 
+In this example Reduce is used in it's prefix form to be able to convert ints to string. 
 ```go
 p := pipe.Reduce(
 	pipe.Slice([]int{1, 2, 3, 4, 5}).
@@ -174,6 +176,7 @@ p := pipe.Reduce(
 // p will be "1-4-9-16-25"
 ```
 
+In this example Reduce is used as usual in it's postfix form.
 ```go
 p := pipe.Slice([]stirng{"Hello", "darkness", "my", "old", "friend"}).
 	Map(strings.Title).
@@ -200,27 +203,31 @@ p := pipe.Func(func(i int) (float32, bool) {
 	return float32(i) * 0.9, true
 }).
 	Map(func(x float32) float32 { return x * x }).
-	Gen(100500).
-	Sort(pipe.Less[float32]).
+	Gen(100500). // Sort is only availavle on pipes with known length
+	Sort(pipe.Less[float32]). // pipe.Less(x, y *T) bool is available to all comparables
 	Parallel(12).
 	Do()
-// p will contain the elements of p sorted in ascending order
+// p will contain the elements sorted in ascending order
 ```
 
 ### Example of infine sequence generation:
 
-Here is an example of generating an infinite sequence of random `float32` values greater than `0.5`:
+Here is an example of generating an infinite sequence of Fibonacci greater than 1000: 
 
 ```go
-rnd := rand.New(rand.NewSource(42))
-p := pipe.Func(func(i int) (float32, bool) {
-	rnd.Seed(int64(i))
-	return rnd.Float32(), true
+prev := 0
+p := pipe.Func(func(i int) (int, bool) {
+	return i, true
 }).
-	Filter(func(x *float32) bool { return *x > 0.5 })
+    Map(func(x int) int {
+        prev = x+prev
+        return prev
+    }).
+	Filter(func(x *int) bool { return *x > 1000 })
 ```
+But be careful if you are going to do it in parallel, you never know in with order Map funcs will be called. 
 
-To generate a specific number of values, you can use the `Take` method:
+To generate a specific number of values, you can use the `Take` method: 
 
 ```go
 p = p.Take(65000)
@@ -234,7 +241,7 @@ sum := p.Sum(pipe.Sum[float32])
 // sum will be the sum of the first 65000 random float32 values greater than 0.5
 ```
 
-### Example using `Range` (not implemented yet) and `Map`:
+### Example using `Range` and `Map`:
 
 ```go
 p := pipe.Range(10, 20, 2).Map(func(x int) int { return x * x }).Do()
@@ -248,7 +255,7 @@ p := pipe.Repeat("hello", 5).Map(strings.ToUpper).Do()
 // p will be ["HELLO", "HELLO", "HELLO", "HELLO", "HELLO"]
 ```
 
-### Example using `Cycle` (not implemented yet) and `Filter`:
+### Example using `Cycle` and `Filter`:
 
 ```go
 p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x *int) bool { return *x % 2 == 0 }).Take(4).Do()
@@ -257,8 +264,8 @@ p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x *int) bool { return *x % 2 == 0 })
 
 ## Is this package stable?
 
-Yes it finally is stable since v1.0.0! All listed functionality is fully covered by unit-tests (`pkg/pipe/test/coverage_test.go`). Functionality marked as TBD
-will be implemented as it described in the README and supplied covered by unit-tests to be delivered stable. 
+Yes it finally is stable since v1.0.0! All listed functionality is fully covered by unit-tests.
+Functionality marked as TBD will be implemented as it described in the README and covered by unit-tests to be delivered stable. 
 
 If there will be any method signature changes, the major version will be incremented. 
 
@@ -270,7 +277,7 @@ Also I will accept any sane unit-tests.
 
 Bugfixes. 
 
-You are welcome to create any issues. 
+You are welcome to create any issues and connect to me via email. 
 
 ## What's next?
 
