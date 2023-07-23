@@ -8,6 +8,26 @@
 
 FuncFrog is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments). It is capable of handling large amounts of data with minimal overhead, and its parallel execution capabilities allow for even faster processing times. Additionally, the library is easy to use and has a clean, intuitive API. [Here](https://macias.info/entry/202212020000_go_streams.md) is some performance review.
 
+## Table of Contents
+- [Repository Renamed](#repository-renamed)
+- [Getting Started](#getting-started)
+- [Basic information](#basic-information)
+- [Supported functions list](#supported-functions-list)
+- [Examples](#examples)
+  - [Basic example](#basic-example)
+  - [Example using `Func` and `Take`](#example-using-func-and-take)
+  - [Example using `Filter` and `Map`](#example-using-filter-and-map)
+  - [Example using `Map` and `Reduce`](#example-using-map-and-reduce-)
+  - [Example of `Map` and `Reduce` with the underlying array type change](#example-of-map-and-reduce-with-the-underlying-array-type-change)
+  - [Example using `Sort`](#example-using-sort)
+  - [Example of infine sequence generation](#example-of-infine-sequence-generation)
+  - [Example using `Range` (not implemented yet) and `Map`](#example-using-range-not-implemented-yet-and-map)
+  - [Example using `Repeat` (not implemented yet) and `Map`](#example-using-repeat-not-implemented-yet-and-map)
+  - [Example using `Cycle` (not implemented yet) and `Filter`](#example-using-cycle-not-implemented-yet-and-filter)
+- [Is this package stable?](#is-this-package-stable)
+- [Contributions](#contributions)
+- [What's next?](#whats-next)
+
 # Repository Renamed
 
 This repository has been renamed from github.com/koss-null/lambda to github.com/koss-null/funcfrog.
