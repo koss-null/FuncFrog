@@ -78,3 +78,17 @@ func Test_PredicateBuilders(t *testing.T) {
 		require.False(t, ltf5(pointer.To(5.01)))
 	})
 }
+
+func Test_Comparator(t *testing.T) {
+	require.True(t, Less(pointer.To(4), pointer.To(5)))
+	require.False(t, Less(pointer.To(5), pointer.To(5)))
+	require.False(t, Less(pointer.To(6), pointer.To(5)))
+	require.True(t, Less(pointer.To(4.999), pointer.To(5.0)))
+	require.False(t, Less(pointer.To(float64(int(5))), pointer.To(5.0)))
+	require.False(t, Less(pointer.To(5.01), pointer.To(5.0)))
+}
+
+func Test_Accum(t *testing.T) {
+	require.Equal(t, Sum(pointer.To(10), pointer.To(20)), 30)
+	require.Equal(t, Sum(pointer.To(10.1), pointer.To(20.1)), 30.2)
+}
