@@ -27,7 +27,7 @@ func Test_divUp(t *testing.T) {
 	require.Equal(t, divUp(121, 1), 121)
 	require.Equal(t, divUp(121, 2), 61)
 	require.Equal(t, divUp(5, 5), 1)
-	require.Equal(t, divUp(5, 4), 1)
+	require.Equal(t, divUp(5, 4), 2)
 	require.Equal(t, divUp(5, 100000000), 1)
 	require.Equal(t, divUp(1, 1345), 1)
 }
