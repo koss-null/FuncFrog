@@ -1,8 +1,6 @@
-
 name: Go test
 
-on:
-  push:
+on: [push]
 
 jobs:
   test:
@@ -39,10 +37,3 @@ jobs:
           ignore-pattern: |
             \.pb\.go$
             \_string\.go$
-
-    - name: Generate coverage tree map
-      run: |
-        go run github.com/nikolaydubina/go-cover-treemap@latest \
-            -coverprofile ${{ steps.coverage.outputs.gocov-agg-pathname }} \
-            -only-folders=true >/tmp/treemap.svg
-
