@@ -1,6 +1,8 @@
+
 name: Go test
 
-on: [push]
+on:
+  push:
 
 jobs:
   test:
@@ -18,28 +20,29 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 10
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.19
-    - uses: gwatts/go-coverage-action@v1
-      id: coverage
-      with:
-        coverage-threshold: 90
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 10
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - uses: gwatts/go-coverage-action@v1
+        id: coverage
+        with:
+          coverage-threshold: 90
 
-        # collect coverage for all packages beyond the one under test
-        cover-pkg: ./...
+          # collect coverage for all packages beyond the one under test
+          cover-pkg: ./...
 
-        # Ignore code-generated files when calculating coverage totals
-        ignore-pattern: |
-          \.pb\.go$
-          \_string\.go$
+          # Ignore code-generated files when calculating coverage totals
+          ignore-pattern: |
+            \.pb\.go$
+            \_string\.go$
 
-    name: Generate coverage tree map
-    run: |
-    	go run github.com/nikolaydubina/go-cover-treemap@latest \
-          -coverprofile ${{ steps.coverage.outputs.gocov-agg-pathname }} \
-          -only-folders=true >/tmp/treemap.svg
+    - name: Generate coverage tree map
+      run: |
+        go run github.com/nikolaydubina/go-cover-treemap@latest \
+            -coverprofile ${{ steps.coverage.outputs.gocov-agg-pathname }} \
+            -only-folders=true >/tmp/treemap.svg
+
