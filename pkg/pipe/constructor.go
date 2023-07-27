@@ -6,47 +6,30 @@ import (
 	"github.com/koss-null/lambda/internal/internalpipe"
 )
 
-const defaultParallelWrks = 1
-
 // Slice creates a Pipe from a slice
 func Slice[T any](dt []T) Piper[T] {
-	dtCp := make([]T, len(dt))
-	copy(dtCp, dt)
-	return &Pipe[T]{internalpipe.Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			if i >= len(dtCp) {
-				return nil, true
-			}
-			return &dtCp[i], false
-		},
-		Len:           len(dtCp),
-		ValLim:        -1,
-		GoroutinesCnt: defaultParallelWrks,
-	}}
+	return &Pipe[T]{internalpipe.Slice(dt)}
 }
 
-// Func creates a lazy sequence d[i] = fn(i).
-// fn is a function, that returns an object(T) and does it exist(bool).
-// Initiating the pipe from a func you have to set either the output value
-// amount using Get(n int) or the amount of generated values Gen(n int), or set
-// the limit predicate Until(func(x T) bool).
+// Func creates a lazy sequence by applying the provided function 'fn'
+// to each index 'i', placing the resulting object into the sequence at index 'i'.
+//
+// The 'fn' function must return an object of type T, along with a boolean indicating
+// if it exists.
+//
+// Use the 'Take' or 'Gen' functions to set the number of output values to generate,
+// or use the 'Until' function to enforce a limit based on a predicate function.
 func Func[T any](fn func(i int) (T, bool)) PiperNoLen[T] {
-	return &PipeNL[T]{internalpipe.Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			obj, exist := fn(i)
-			return &obj, !exist
-		},
-		Len:           -1,
-		ValLim:        -1,
-		GoroutinesCnt: defaultParallelWrks,
-	}}
+	return &PipeNL[T]{internalpipe.Func(fn)}
 }
 
-// Fu creates a lazy sequence d[i] = fn(i).
-// fn is a shortened version of Func where the second argument is true by default
-// Initiating the pipe from a func you have to set either the output value
-// amount using Get(n int) or the amount of generated values Gen(n int), or set
-// the limit predicate Until(func(x T) bool).
+// Fu creates a lazy sequence by applying the provided function 'fn' to each index 'i',
+// and setting the result to the sequence at index 'i'.
+//
+// 'fn' is a shortened version of the 'Func' function, where the second argument is true by default.
+//
+// Use the 'Take' or 'Gen' functions to set the number of output values to generate,
+// or use the 'Until' function to enforce a limit based on a predicate function.
 func Fn[T any](fn func(i int) T) PiperNoLen[T] {
 	return Func(func(i int) (T, bool) {
 		return fn(i), true
@@ -54,45 +37,32 @@ func Fn[T any](fn func(i int) T) PiperNoLen[T] {
 }
 
 // FuncP is the same as Func but allows to return pointers to the values.
+// It creates a lazy sequence by applying the provided function 'fn' to each index 'i', and
+// setting the result to the sequence at index 'i' as a pointer to the object of type 'T'.
+//
+// 'fn' should return a pointer to an object of type 'T', along with a boolean indicating
+// whether the object exists.
+//
+// Use the 'Take' or 'Gen' functions to set the number of output values to generate,
+// or use the 'Until' function to enforce a limit based on a predicate function.
 func FuncP[T any](fn func(i int) (*T, bool)) PiperNoLen[T] {
-	return &PipeNL[T]{internalpipe.Pipe[T]{
-		Fn:            fn,
-		Len:           -1,
-		ValLim:        -1,
-		GoroutinesCnt: defaultParallelWrks,
-	}}
+	return &PipeNL[T]{internalpipe.FuncP(fn)}
 }
 
-// Cycle creates new pipe that cycles through the elements of the provided slice.
-// Initiating the pipe from a func you have to set either the output value
-// amount using Get(n int) or the amount of generated values Gen(n int), or set
-// the limit predicate Until(func(x T) bool).
+// Cycle creates a lazy sequence that cycles through the elements of the provided slice 'a'.
+// To use the resulting sequence, the 'Cycle' function returns a 'PiperNoLen' object.
+//
+// Use the 'Take' or 'Gen' functions to set the number of output values to generate,
+// or use the 'Until' function to enforce a limit based on a predicate function.
 func Cycle[T any](a []T) PiperNoLen[T] {
 	return Fn(func(i int) T {
 		return a[i%len(a)]
 	})
 }
 
-// Range creates a slice [start, finish) with a provided step.
-// Pipe initialized with Range can be considered as the one madi with Slice(range() []T).
+// Range creates a lazy sequence of type 'T', which consists of values
+// starting from 'start', incrementing by 'step' and stopping just before 'finish', i.e. [start..finish).
+// The type 'T' can be either an integer or a float.
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Piper[T] {
-	if start+step >= finish {
-		return &Pipe[T]{internalpipe.Pipe[T]{
-			Fn: func(int) (*T, bool) {
-				return nil, true
-			},
-			Len:           0,
-			ValLim:        -1,
-			GoroutinesCnt: defaultParallelWrks,
-		}}
-	}
-	return &Pipe[T]{internalpipe.Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			val := start + T(i)*step
-			return &val, val < finish
-		},
-		Len:           int((finish - start) / step),
-		ValLim:        -1,
-		GoroutinesCnt: defaultParallelWrks,
-	}}
+	return &Pipe[T]{internalpipe.Range(start, finish, step)}
 }

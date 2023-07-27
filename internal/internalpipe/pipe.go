@@ -11,10 +11,6 @@ import (
 )
 
 const (
-	firstCheckInterval = 345
-)
-
-const (
 	panicLimitExceededMsg = "the limit have been exceeded, but the result is not calculated"
 )
 
