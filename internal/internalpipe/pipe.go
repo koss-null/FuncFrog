@@ -21,11 +21,6 @@ type Pipe[T any] struct {
 	GoroutinesCnt int
 }
 
-// First returns the first element of the pipe.
-func (p Pipe[T]) First() *T {
-	return First(p.limit(), p.GoroutinesCnt, p.Fn)
-}
-
 // Any returns a pointer to a random element in the pipe or nil if none left.
 func (p Pipe[T]) Any() *T {
 	return Any(p.lenSet(), p.limit(), p.GoroutinesCnt, p.Fn)

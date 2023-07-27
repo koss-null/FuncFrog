@@ -17,14 +17,16 @@ func firstSingleThread[T any](limit int, fn func(i int) (*T, bool)) *T {
 	return nil
 }
 
-func First[T any](limit int, grtCnt int, fn func(i int) (*T, bool)) *T {
-	if grtCnt == 1 {
-		return firstSingleThread(limit, fn)
+// First returns the first element of the pipe.
+func (p Pipe[T]) First() *T {
+	limit := p.limit()
+	if p.GoroutinesCnt == 1 {
+		return firstSingleThread(limit, p.Fn)
 	}
 
 	var (
-		step    = max(divUp(limit, grtCnt), 1)
-		tickets = genTickets(grtCnt)
+		step    = max(divUp(limit, p.GoroutinesCnt), 1)
+		tickets = genTickets(p.GoroutinesCnt)
 
 		resStorage = struct {
 			val *T
@@ -48,7 +50,7 @@ func First[T any](limit int, grtCnt int, fn func(i int) (*T, bool)) *T {
 		resStorageMx.Unlock()
 	}
 
-	// this wait is to make wg.Wait() wait if for loop have not start yet
+	// this wg.Add is to make wg.Wait() wait if for loops that have not start yet
 	wg.Add(1)
 	go func() {
 		var done bool
@@ -64,7 +66,7 @@ func First[T any](limit int, grtCnt int, fn func(i int) (*T, bool)) *T {
 
 				rg = max(rg, limit)
 				for j := lf; j < rg; j++ {
-					obj, skipped := fn(j)
+					obj, skipped := p.Fn(j)
 					if !skipped {
 						if stepCnt == zeroStep {
 							res <- obj
