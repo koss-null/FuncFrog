@@ -63,12 +63,6 @@ func (p Pipe[T]) Count() int {
 	return cnt
 }
 
-// Do evaluates all the pipeline and returns the result slice.
-func (p Pipe[T]) Do() []T {
-	res, _ := p.do(true)
-	return res
-}
-
 // limit returns the upper border limit as the pipe evaluation limit.
 func (p *Pipe[T]) limit() int {
 	switch {

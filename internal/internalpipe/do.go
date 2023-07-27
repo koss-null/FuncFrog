@@ -11,6 +11,16 @@ type ev[T any] struct {
 	obj     *T
 }
 
+// Do evaluates all the pipeline and returns the result slice.
+func (p Pipe[T]) Do() []T {
+	if p.limitSet() {
+		res := p.doToLimit()
+		return res
+	}
+	res, _ := p.do(true)
+	return res
+}
+
 // doToLimit executor for Take
 func (p *Pipe[T]) doToLimit() []T {
 	if p.ValLim == 0 {
@@ -33,11 +43,6 @@ func (p *Pipe[T]) doToLimit() []T {
 
 // do runs the result evaluation.
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
-	if p.limitSet() {
-		res := p.doToLimit()
-		return res, len(res)
-	}
-
 	var (
 		eval    []ev[T]
 		limit   = p.limit()
