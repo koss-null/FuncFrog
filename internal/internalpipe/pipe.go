@@ -6,8 +6,6 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/exp/constraints"
-
-	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
 )
 
 const (
@@ -21,90 +19,6 @@ type Pipe[T any] struct {
 	Len           int
 	ValLim        int
 	GoroutinesCnt int
-}
-
-// Map applies given function to each element of the underlying slice
-// returns the slice where each element is n[i] = f(p[i]).
-func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
-	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			if obj, skipped := p.Fn(i); !skipped {
-				res := fn(*obj)
-				return &res, false
-			}
-			return nil, true
-		},
-		Len:           p.Len,
-		ValLim:        p.ValLim,
-		GoroutinesCnt: p.GoroutinesCnt,
-	}
-}
-
-// Filter leaves only items with true predicate fn.
-func (p Pipe[T]) Filter(fn func(*T) bool) Pipe[T] {
-	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			if obj, skipped := p.Fn(i); !skipped {
-				if !fn(obj) {
-					return nil, true
-				}
-				return obj, false
-			}
-			return nil, true
-		},
-		Len:           p.Len,
-		ValLim:        p.ValLim,
-		GoroutinesCnt: p.GoroutinesCnt,
-	}
-}
-
-// Sort sorts the underlying slice on a current step of a pipeline.
-func (p Pipe[T]) Sort(less func(*T, *T) bool) Pipe[T] {
-	var once sync.Once
-	var sorted []T
-
-	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			if sorted == nil {
-				once.Do(func() {
-					data := p.Do()
-					if len(data) == 0 {
-						return
-					}
-					sorted = qsort.Sort(data, less, p.GoroutinesCnt)
-				})
-			}
-			if i >= len(sorted) {
-				return nil, true
-			}
-			return &sorted[i], false
-		},
-		Len:           p.Len,
-		ValLim:        p.ValLim,
-		GoroutinesCnt: p.GoroutinesCnt,
-	}
-}
-
-// Reduce applies the result of a function to each element one-by-one: f(p[n], f(p[n-1], f(p[n-2, ...]))).
-func (p Pipe[T]) Reduce(fn AccumFn[T]) *T {
-	data := p.Do()
-	switch len(data) {
-	case 0:
-		return nil
-	case 1:
-		return &data[0]
-	default:
-		res := data[0]
-		for _, val := range data[1:] {
-			res = fn(&res, &val)
-		}
-		return &res
-	}
-}
-
-// Sum returns the sum of all elements. It is similar to Reduce but is able to work in parallel.
-func (p Pipe[T]) Sum(plus AccumFn[T]) T {
-	return Sum(p.GoroutinesCnt, p.limit(), plus, p.Fn)
 }
 
 // First returns the first element of the pipe.

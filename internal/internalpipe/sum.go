@@ -25,13 +25,15 @@ func sumSingleThread[T any](length int, plus AccumFn[T], fn GeneratorFn[T]) T {
 	return res
 }
 
-func Sum[T any](gortCnt int, length int, plus AccumFn[T], fn GeneratorFn[T]) T {
-	if gortCnt == 1 {
-		return sumSingleThread(length, plus, fn)
+// Sum returns the sum of all elements. It is similar to Reduce but is able to work in parallel.
+func (p Pipe[T]) Sum(plus AccumFn[T]) T {
+	length := p.limit()
+	if p.GoroutinesCnt == 1 {
+		return sumSingleThread(length, plus, p.Fn)
 	}
 
 	var (
-		step = divUp(length, gortCnt)
+		step = divUp(length, p.GoroutinesCnt)
 
 		res   T
 		resMx sync.Mutex
@@ -44,7 +46,7 @@ func Sum[T any](gortCnt int, length int, plus AccumFn[T], fn GeneratorFn[T]) T {
 		resMx.Unlock()
 	}
 
-	tickets := genTickets(gortCnt)
+	tickets := genTickets(p.GoroutinesCnt)
 	for lf := 0; lf < length; lf += step {
 		wg.Add(1)
 		<-tickets
@@ -53,7 +55,7 @@ func Sum[T any](gortCnt int, length int, plus AccumFn[T], fn GeneratorFn[T]) T {
 			var obj *T
 			var skipped bool
 			for i := lf; i < rg; i++ {
-				if obj, skipped = fn(i); !skipped {
+				if obj, skipped = p.Fn(i); !skipped {
 					inRes = plus(&inRes, obj)
 				}
 			}
