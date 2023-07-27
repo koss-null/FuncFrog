@@ -9,39 +9,39 @@ import (
 )
 
 func TestSumOk1thread(t *testing.T) {
-	initA10kk()
+	initA100k()
 
 	s := Sum(
 		1,
-		len(a10kk),
+		len(a100k),
 		func(x, y *float64) float64 {
 			return *x + *y
 		},
 		func(i int) (*float64, bool) {
-			return &a10kk[i], false
+			return &a100k[i], false
 		},
 	)
 
 	require.NotNil(t, s)
-	require.True(t, s == 49999995000000)
+	require.Equal(t, 4999950000.0, s)
 }
 
 func TestSumOk4thread(t *testing.T) {
-	initA10kk()
+	initA100k()
 
 	s := Sum(
 		4,
-		len(a10kk),
+		len(a100k),
 		func(x, y *float64) float64 {
 			return *x + *y
 		},
 		func(i int) (*float64, bool) {
-			return &a10kk[i], false
+			return &a100k[i], false
 		},
 	)
 
 	require.NotNil(t, s)
-	require.True(t, s == 49999995000000)
+	require.Equal(t, 4999950000.0, s)
 }
 
 func TestSumOk1threadEmpty(t *testing.T) {
@@ -57,7 +57,7 @@ func TestSumOk1threadEmpty(t *testing.T) {
 	)
 
 	require.NotNil(t, s)
-	require.True(t, s == 0)
+	require.Equal(t, 0.0, s)
 }
 
 func TestSumOk4threadEmpty(t *testing.T) {

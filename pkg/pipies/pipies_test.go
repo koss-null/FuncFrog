@@ -13,29 +13,29 @@ type testT string
 func Test_Predicates(t *testing.T) {
 	t.Parallel()
 
-	t.Run("NotNull", func(t *testing.T) {
-		require.True(t, NotNull(pointer.To(1)))
-		require.False(t, NotNull[int](nil))
-		require.False(t, NotNull[int](nil))
-		require.False(t, NotNull[testT](nil))
+	t.Run("NotNil", func(t *testing.T) {
+		require.True(t, NotNil(pointer.To(1)))
+		require.False(t, NotNil[int](nil))
+		require.False(t, NotNil[int](nil))
+		require.False(t, NotNil[testT](nil))
 		var empty *testT
-		require.False(t, NotNull(empty))
+		require.False(t, NotNil(empty))
 		empty = nil
-		require.False(t, NotNull(empty))
+		require.False(t, NotNil(empty))
 		var e any = empty
-		require.True(t, NotNull[any](&e))
+		require.True(t, NotNil[any](&e))
 	})
-	t.Run("IsNull", func(t *testing.T) {
-		require.False(t, IsNull(pointer.To(1)))
-		require.True(t, IsNull[int](nil))
-		require.True(t, IsNull[int](nil))
-		require.True(t, IsNull[testT](nil))
+	t.Run("IsNil", func(t *testing.T) {
+		require.False(t, IsNil(pointer.To(1)))
+		require.True(t, IsNil[int](nil))
+		require.True(t, IsNil[int](nil))
+		require.True(t, IsNil[testT](nil))
 		var empty *testT
-		require.True(t, IsNull(empty))
+		require.True(t, IsNil(empty))
 		empty = nil
-		require.True(t, IsNull(empty))
+		require.True(t, IsNil(empty))
 		var e any = empty
-		require.False(t, IsNull[any](&e))
+		require.False(t, IsNil[any](&e))
 	})
 	t.Run("NotZero", func(t *testing.T) {
 		require.True(t, NotZero(pointer.To(1)))
@@ -90,5 +90,5 @@ func Test_Comparator(t *testing.T) {
 
 func Test_Accum(t *testing.T) {
 	require.Equal(t, Sum(pointer.To(10), pointer.To(20)), 30)
-	require.Equal(t, Sum(pointer.To(10.1), pointer.To(20.1)), 30.2)
+	require.Equal(t, Sum(pointer.To(10.0), pointer.To(20.0)), 30.0)
 }

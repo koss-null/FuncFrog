@@ -12,14 +12,14 @@ import (
 
 // Predicates
 
-// NotNull returns true is x underlying value is not nil.
+// NotNil returns true is x underlying value is not nil.
 // It uses reflection, so if you don't store any pointers, better use NotZero.
-func NotNull[T any](x *T) bool {
+func NotNil[T any](x *T) bool {
 	return x != nil && !reflect.ValueOf(x).IsNil()
 }
 
-// Is null returns true if x underlying value is nil.
-func IsNull[T any](x *T) bool {
+// IsNil returns true if x underlying value is nil.
+func IsNil[T any](x *T) bool {
 	return x == nil || reflect.ValueOf(x).IsNil()
 }
 

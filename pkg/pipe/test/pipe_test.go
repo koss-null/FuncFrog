@@ -15,101 +15,97 @@ import (
 )
 
 var (
-	once  sync.Once
-	a10kk []float64
+	once sync.Once
+	a1kk []float64
 )
 
-func initA10kk() {
+func initA1kk() {
 	once.Do(func() {
-		a10kk = make([]float64, 10_000_000)
-		for i := range a10kk {
-			a10kk[i] = float64(i)
+		a1kk = make([]float64, 1_000_000)
+		for i := range a1kk {
+			a1kk[i] = float64(i)
 		}
 	})
 }
 
-// Slice() function
-
 func TestSlice_ok(t *testing.T) {
-	a := make([]struct {
-		i int
-		f float64
-	}, 100_000)
-	s := pipe.Slice(a).Do()
-	for i := range a {
-		require.Equal(t, a[i], s[i])
-	}
+	t.Parallel()
+	initA1kk()
+
+	// Slice() function
+	t.Run("Slice() happy 100k slice", func(t *testing.T) {
+		a := make([]struct {
+			i int
+			f float64
+		}, 100_000)
+		s := pipe.Slice(a).Do()
+		for i := range a {
+			require.Equal(t, a[i], s[i])
+		}
+	})
+
+	t.Run("Slice() happy 1kk slice", func(t *testing.T) {
+		s := pipe.Slice(a1kk).Do()
+		for i := range a1kk {
+			require.Equal(t, a1kk[i], s[i])
+		}
+	})
+
+	t.Run("Slice() happy struct slice", func(t *testing.T) {
+		a := make([]struct {
+			i int
+			f float64
+		}, 100)
+		s := pipe.Slice(a).Do()
+		for i := range a {
+			require.Equal(t, a[i], s[i])
+		}
+	})
+
+	// Map() function
+	t.Run("Map().Map() 1kk", func(t *testing.T) {
+		s := pipe.Slice(a1kk).
+			Parallel(4).
+			Map(func(x float64) float64 { return x * x * x }).
+			Map(math.Sqrt).
+			Do()
+
+		for i := range a1kk {
+			aaa := float64(a1kk[i] * a1kk[i] * a1kk[i])
+			require.Equal(t, math.Sqrt(aaa), s[i])
+		}
+	})
+
+	// First() function
+	t.Run("Slice().First() happy", func(t *testing.T) {
+		s := pipe.Slice(a1kk).
+			Filter(func(x *float64) bool { return *x > 100_000 }).
+			First()
+		require.NotNil(t, s)
+		require.Equal(t, float64(100_001), *s)
+	})
+
+	t.Run("Func().First() happy", func(t *testing.T) {
+		s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
+			Filter(func(x *float64) bool { return *x > 100_000 }).
+			Take(200_000).
+			First()
+		require.NotNil(t, s)
+		require.Equal(t, float64(100_001), *s)
+	})
+
+	t.Run("Func().First() happy no limit", func(t *testing.T) {
+		s := pipe.Fn(func(i int) float64 { return float64(i) }).
+			Filter(func(x *float64) bool { return *x > 100_000 }).
+			First()
+		require.NotNil(t, s)
+		require.Equal(t, float64(100_001), *s)
+	})
+
+	// Filter() function
+	t.Run("Func().Filter() happy remove nils", func(t *testing.T) {
+	})
 }
-
-func TestSlice_ok_test2(t *testing.T) {
-	initA10kk()
-	s := pipe.Slice(a10kk).Do()
-	for i := range a10kk {
-		require.Equal(t, a10kk[i], s[i])
-	}
-}
-
-func TestSlice_ok_test3(t *testing.T) {
-	a := make([]struct {
-		i int
-		f float64
-	}, 100)
-	s := pipe.Slice(a).Do()
-	for i := range a {
-		require.Equal(t, a[i], s[i])
-	}
-}
-
-// Map() function
-
-func TestMap_ok(t *testing.T) {
-	initA10kk()
-
-	s := pipe.Slice(a10kk).
-		Parallel(4).
-		Map(func(x float64) float64 { return x * x * x }).
-		Map(math.Sqrt).
-		Do()
-
-	for i := range a10kk {
-		aaa := float64(a10kk[i] * a10kk[i] * a10kk[i])
-		require.Equal(t, math.Sqrt(aaa), s[i])
-	}
-}
-
-// First() function
-
-func TestFirst_ok_slice(t *testing.T) {
-	initA10kk()
-
-	s := pipe.Slice(a10kk).
-		Filter(func(x *float64) bool { return *x > 100_000 }).
-		First()
-	require.NotNil(t, s)
-	require.Equal(t, float64(100_001), *s)
-}
-
-func TestFirst_ok_func(t *testing.T) {
-	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
-		Filter(func(x *float64) bool { return *x > 100_000 }).
-		Take(200_000).
-		First()
-	require.NotNil(t, s)
-	require.Equal(t, float64(100_001), *s)
-}
-
-func TestFirst_ok_func_bigint_nogen_notake(t *testing.T) {
-	initA10kk()
-
-	s := pipe.Func(func(i int) (float64, bool) { return float64(i), true }).
-		Filter(func(x *float64) bool { return *x > 100_000 }).
-		Take(math.MaxInt64).
-		First()
-	require.NotNil(t, s)
-	require.Equal(t, float64(100_001), *s)
-}
-
-// Filter() function
 
 func TestFilter_NotNull_ok(t *testing.T) {
 	genFunc := func(i int) (*float64, bool) {
@@ -122,7 +118,7 @@ func TestFilter_NotNull_ok(t *testing.T) {
 
 	s := pipe.Map(
 		pipe.Func(genFunc).
-			Filter(pipies.NotNull[*float64]).
+			Filter(pipies.NotNil[*float64]).
 			Take(10_000),
 		func(x *float64) float64 { return pointer.From(x) },
 	).

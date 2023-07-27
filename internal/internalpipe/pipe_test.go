@@ -1,6 +1,7 @@
 package internalpipe
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -49,4 +50,22 @@ func Test_do(t *testing.T) {
 	for i := 0; i < 10000; i++ {
 		require.Equal(t, i, res[i])
 	}
+}
+
+func Test_limit(t *testing.T) {
+	p := Pipe[int]{
+		Len:    10000,
+		ValLim: -1,
+	}
+	require.Equal(t, 10000, p.limit())
+	p = Pipe[int]{
+		Len:    -1,
+		ValLim: 10000,
+	}
+	require.Equal(t, 10000, p.limit())
+	p = Pipe[int]{
+		Len:    -1,
+		ValLim: -1,
+	}
+	require.Equal(t, math.MaxInt-1, p.limit())
 }

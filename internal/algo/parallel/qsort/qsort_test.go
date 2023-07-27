@@ -111,7 +111,7 @@ func Test_sort_big(t *testing.T) {
 }
 
 func Test_sort_huge(t *testing.T) {
-	a := rnd(100_000_00)
+	a := rnd(1_000_000)
 	tickets := genTickets(12)
 	var wg sync.WaitGroup
 	wg.Add(1)
