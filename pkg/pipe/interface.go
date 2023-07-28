@@ -4,7 +4,7 @@ package pipe
 type Piper[T any] interface {
 	changer[T]
 	getter[T]
-	configger[T, Piper[T]]
+	paralleller[T, Piper[T]]
 }
 
 // PiperNoLen represents methods available to a Pipe type with no length determened.
@@ -13,12 +13,28 @@ type PiperNoLen[T any] interface {
 	genner[Piper[T]]
 	mapper[T, PiperNoLen[T]]
 	filterer[T, PiperNoLen[T]]
-	configger[T, PiperNoLen[T]]
+	paralleller[T, PiperNoLen[T]]
 	firster[T]
 	anier[T]
 }
 
-type configger[T, PiperT any] interface {
+// Piper interface contains all methods of a pipe with determened length.
+type PiperPSet[T any] interface {
+	changer[T]
+	getter[T]
+}
+
+// PiperNoLen represents methods available to a Pipe type with no length determened.
+type PiperNoLenPSet[T any] interface {
+	taker[PiperPSet[T]]
+	genner[PiperPSet[T]]
+	mapper[T, PiperNoLenPSet[T]]
+	filterer[T, PiperNoLenPSet[T]]
+	firster[T]
+	anier[T]
+}
+
+type paralleller[T, PiperT any] interface {
 	Parallel(uint16) PiperT
 }
 
