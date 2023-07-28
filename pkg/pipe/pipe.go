@@ -47,6 +47,14 @@ func (p *Pipe[T]) Any() *T {
 	return p.internal.Any()
 }
 
+func (p *Pipe[T]) Gen(n int) Piper[T] {
+	return &Pipe[T]{p.internal.Gen(n)}
+}
+
+func (p *Pipe[T]) Take(n int) Piper[T] {
+	return &Pipe[T]{p.internal.Take(n)}
+}
+
 // Parallel set n - the amount of goroutines to run on.
 // Only the first Parallel() in a pipe chain is applied.
 func (p *Pipe[T]) Parallel(n uint16) Piper[T] {

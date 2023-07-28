@@ -15,19 +15,22 @@ func anySingleThread[T any](lenSet bool, limit int, fn GeneratorFn[T]) *T {
 	return nil
 }
 
-func Any[T any](lenSet bool, limit int, grtCnt int, fn GeneratorFn[T]) *T {
-	if grtCnt == 1 {
-		return anySingleThread(lenSet, limit, fn)
+// Any returns a pointer to a random element in the pipe or nil if none left.
+func (p Pipe[T]) Any() *T {
+	limit := p.limit()
+	lenSet := p.lenSet()
+	if p.GoroutinesCnt == 1 {
+		return anySingleThread(lenSet, limit, p.Fn)
 	}
 
 	step := infiniteLenStep
 	if lenSet {
-		step = max(divUp(limit, grtCnt), 1)
+		step = max(divUp(limit, p.GoroutinesCnt), 1)
 	}
 	var (
 		res = make(chan *T, 1)
 		// if p.len is not set, we need tickets to control the amount of goroutines
-		tickets = genTickets(grtCnt)
+		tickets = genTickets(p.GoroutinesCnt)
 
 		wg   sync.WaitGroup
 		done bool
@@ -61,7 +64,7 @@ func Any[T any](lenSet bool, limit int, grtCnt int, fn GeneratorFn[T]) *T {
 					rg = min(rg, limit)
 				}
 				for j := lf; j < rg && !done; j++ {
-					obj, skipped := fn(j)
+					obj, skipped := p.Fn(j)
 					if !skipped {
 						setObj(obj)
 						return

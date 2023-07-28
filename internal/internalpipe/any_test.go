@@ -23,116 +23,112 @@ func initA100k() {
 	})
 }
 
-func TestAnyOkNolimit1Thread(t *testing.T) {
+func TestAny(t *testing.T) {
 	initA100k()
+	t.Parallel()
 
-	s := Any(false, -1, 1, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), a100k[i] <= 90_000.0
+	t.Run("Single thread no limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			return a100k[i], a100k[i] <= 90_000.0
+		})
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Greater(t, 90_000.0, *s)
 	})
 
-	require.NotNil(t, s)
-	require.Greater(t, pointer.From(s), 90_000.0)
-}
-
-func TestAnyOkNolimit4thread(t *testing.T) {
-	initA100k()
-
-	s := Any(false, -1, 4, func(i int) (*float64, bool) {
-		if i > len(a100k) {
-			return nil, true
-		}
-		return pointer.To(a100k[i]), a100k[i] <= 90_000.0
+	t.Run("Seven thread no limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], a100k[i] <= 90_000.0
+		}).Parallel(7)
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Greater(t, 90_000.0, *s)
 	})
 
-	require.NotNil(t, s)
-	require.Greater(t, pointer.From(s), 90_000.0)
-}
-
-func TestAnyOkLimit1thread(t *testing.T) {
-	initA100k()
-
-	s := Any(true, len(a100k), 1, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), a100k[i] <= 90_000.0
+	t.Run("Single thread limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			return a100k[i], a100k[i] <= 90_000.0
+		}).Gen(len(a100k))
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Greater(t, 90_000.0, pointer.From(s))
 	})
 
-	require.NotNil(t, s)
-	require.True(t, pointer.From(s) > 90_000.0)
-}
-
-func TestAnyOkLimit4thread(t *testing.T) {
-	initA100k()
-
-	s := Any(true, len(a100k), 4, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), a100k[i] <= 90_000.0
+	t.Run("Seven thread limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], a100k[i] <= 90_000.0
+		}).Gen(len(a100k)).Parallel(7)
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Greater(t, 90_000.0, pointer.From(s))
 	})
 
-	require.NotNil(t, s)
-	require.True(t, pointer.From(s) > 90_000.0)
-}
-
-func TestAnyNFLimit1thread(t *testing.T) {
-	initA100k()
-
-	s := Any(true, len(a100k), 1, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), true
+	t.Run("Single thread NF limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			return a100k[i], false
+		}).Gen(len(a100k))
+		s := p.Any()
+		require.Nil(t, s)
 	})
 
-	require.Nil(t, s)
-}
-
-func TestAnyNFLimit4thread(t *testing.T) {
-	initA100k()
-
-	s := Any(true, len(a100k), 4, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), true
+	t.Run("Seven thread NF limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], false
+		}).Gen(len(a100k)).Parallel(7)
+		s := p.Any()
+		require.Nil(t, s)
 	})
 
-	require.Nil(t, s)
-}
-
-func TestAnyOkSingleElement1threadFinite(t *testing.T) {
-	initA100k()
-
-	s := Any(true, len(a100k), 1, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), !(a100k[i] > 90_000.0 && a100k[i] < 90_002.0)
+	t.Run("Single thread bounded limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			return a100k[i], false
+		}).Gen(len(a100k))
+		s := p.Any()
+		require.Nil(t, s)
 	})
 
-	require.NotNil(t, s)
-	require.Equal(t, float64(90_001), *s)
-}
-
-func TestAnyOkSingleElement4threadFinite(t *testing.T) {
-	initA100k()
-
-	s := Any(true, len(a100k), 4, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), !(a100k[i] > 90_000.0 && a100k[i] < 90_002.0)
+	t.Run("Seven thread bounded limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], a100k[i] > 90_000.0 && a100k[i] < 90_002.0
+		}).Gen(len(a100k)).Parallel(7)
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Equal(t, 90_001., *s)
 	})
 
-	require.NotNil(t, s)
-	require.Equal(t, float64(90_001), *s)
-}
-
-func TestAnyOkSingleElement1threadInfinite(t *testing.T) {
-	initA100k()
-
-	s := Any(false, -1, 1, func(i int) (*float64, bool) {
-		return pointer.To(a100k[i]), !(a100k[i] > 90_000.0 && a100k[i] < 90_002.0)
+	t.Run("Single thread bounded no limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], a100k[i] > 90_000.0 && a100k[i] < 90_002.0
+		})
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Equal(t, 90_001., *s)
 	})
 
-	require.NotNil(t, s)
-	require.Equal(t, float64(90_001), *s)
-}
-
-func TestAnyOkSingleElement4threadInfinite(t *testing.T) {
-	initA100k()
-
-	s := Any(false, -1, 4, func(i int) (*float64, bool) {
-		if i >= len(a100k) {
-			return pointer.To(100_000.0), true
-		}
-		return pointer.To(a100k[i]), !(a100k[i] > 90_000.0 && a100k[i] < 90_002.0)
+	t.Run("Seven thread bounded no limit", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], a100k[i] > 90_000.0 && a100k[i] < 90_002.0
+		}).Parallel(7)
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Equal(t, 90_001., *s)
 	})
-
-	require.NotNil(t, s)
-	require.Equal(t, float64(90_001), *s)
 }

@@ -5,4 +5,4 @@ test:
 	go test -coverprofile=coverage.out --parallel 8 -v ./... 
 
 get_coverage_pic:
-	gopherbadger -md="README.md,coverage.out" -style="social"
+	gopherbadger -md="README.md,coverage.out"

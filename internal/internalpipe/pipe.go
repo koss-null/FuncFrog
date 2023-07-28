@@ -19,15 +19,10 @@ type Pipe[T any] struct {
 	GoroutinesCnt int
 }
 
-// Any returns a pointer to a random element in the pipe or nil if none left.
-func (p Pipe[T]) Any() *T {
-	return Any(p.lenSet(), p.limit(), p.GoroutinesCnt, p.Fn)
-}
-
 // Parallel set n - the amount of goroutines to run on.
 // Only the first Parallel() in a pipe chain is applied.
 func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
-	if n < 1 {
+	if p.GoroutinesCnt != defaultParallelWrks || n < 1 {
 		return p
 	}
 	p.GoroutinesCnt = int(n)
@@ -37,7 +32,7 @@ func (p Pipe[T]) Parallel(n uint16) Pipe[T] {
 // Take is used to set the amount of values expected to be in result slice.
 // It's applied only the first Gen() or Take() function in the pipe.
 func (p Pipe[T]) Take(n int) Pipe[T] {
-	if n < 0 {
+	if p.limitSet() || p.lenSet() || n < 0 {
 		return p
 	}
 	p.ValLim = n
@@ -47,7 +42,7 @@ func (p Pipe[T]) Take(n int) Pipe[T] {
 // Gen set the amount of values to generate as initial array.
 // It's applied only the first Gen() or Take() function in the pipe.
 func (p Pipe[T]) Gen(n int) Pipe[T] {
-	if n < 0 {
+	if p.limitSet() || p.lenSet() || n < 0 {
 		return p
 	}
 	p.Len = n

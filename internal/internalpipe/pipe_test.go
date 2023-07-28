@@ -52,6 +52,140 @@ func Test_do(t *testing.T) {
 	}
 }
 
+func Test_Parallel(t *testing.T) {
+	p := Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           10000,
+		ValLim:        -1,
+		GoroutinesCnt: defaultParallelWrks,
+	}
+	p = p.Parallel(10)
+	require.Equal(t, 10, p.GoroutinesCnt)
+	p = p.Parallel(5) // second one should not be applied
+	require.Equal(t, 10, p.GoroutinesCnt)
+
+	p = Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           10000,
+		ValLim:        -1,
+		GoroutinesCnt: defaultParallelWrks,
+	}
+	p = p.Parallel(0)
+	require.Equal(t, defaultParallelWrks, p.GoroutinesCnt)
+	p = p.Parallel(4)
+	require.Equal(t, 4, p.GoroutinesCnt)
+}
+
+func Test_Take(t *testing.T) {
+	p := Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           -1,
+		ValLim:        -1,
+		GoroutinesCnt: 5,
+	}
+	p = p.Take(10)
+	require.Equal(t, 10, p.limit())
+	p = p.Take(5)
+	require.Equal(t, 10, p.limit())
+	p = p.Gen(5)
+	require.Equal(t, 10, p.limit())
+
+	p = Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           -1,
+		ValLim:        -1,
+		GoroutinesCnt: 5,
+	}
+	p = p.Take(-1)
+	require.Equal(t, math.MaxInt-1, p.limit())
+	p = p.Take(0)
+	require.Equal(t, 0, p.limit())
+	p = p.Take(4)
+	require.Equal(t, 0, p.limit())
+}
+
+func Test_Gen(t *testing.T) {
+	p := Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           -1,
+		ValLim:        -1,
+		GoroutinesCnt: 5,
+	}
+	p = p.Gen(10)
+	require.Equal(t, 10, p.limit())
+	p = p.Gen(5)
+	require.Equal(t, 10, p.limit())
+	p = p.Take(5)
+	require.Equal(t, 10, p.limit())
+
+	p = Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           -1,
+		ValLim:        -1,
+		GoroutinesCnt: 5,
+	}
+	p = p.Gen(-1)
+	require.Equal(t, math.MaxInt-1, p.limit())
+	p = p.Gen(0)
+	require.Equal(t, 0, p.limit())
+	p = p.Gen(4)
+	require.Equal(t, 0, p.limit())
+}
+
+func Test_Count(t *testing.T) {
+	p := Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           10000,
+		ValLim:        -1,
+		GoroutinesCnt: 5,
+	}
+	require.Equal(t, 10000, p.Count())
+
+	p = Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           10000,
+		ValLim:        -1,
+		GoroutinesCnt: 1,
+	}
+	require.Equal(t, 10000, p.Count())
+
+	p = Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           -1,
+		ValLim:        10000,
+		GoroutinesCnt: 7,
+	}
+	require.Equal(t, 10000, p.Count())
+
+	p = Pipe[int]{
+		Fn: func(i int) (*int, bool) {
+			return &i, false
+		},
+		Len:           -1,
+		ValLim:        10000,
+		GoroutinesCnt: 1,
+	}
+	require.Equal(t, 10000, p.Count())
+}
+
 func Test_limit(t *testing.T) {
 	p := Pipe[int]{
 		Len:    10000,
