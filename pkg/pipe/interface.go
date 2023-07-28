@@ -18,22 +18,6 @@ type PiperNoLen[T any] interface {
 	anier[T]
 }
 
-// Piper interface contains all methods of a pipe with determened length.
-type PiperPSet[T any] interface {
-	changer[T]
-	getter[T]
-}
-
-// PiperNoLen represents methods available to a Pipe type with no length determened.
-type PiperNoLenPSet[T any] interface {
-	taker[PiperPSet[T]]
-	genner[PiperPSet[T]]
-	mapper[T, PiperNoLenPSet[T]]
-	filterer[T, PiperNoLenPSet[T]]
-	firster[T]
-	anier[T]
-}
-
 type paralleller[T, PiperT any] interface {
 	Parallel(uint16) PiperT
 }
