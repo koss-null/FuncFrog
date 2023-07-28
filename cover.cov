@@ -100,7 +100,7 @@ github.com/koss-null/lambda/internal/internalpipe/do.go:15.27,16.18 1 1
 github.com/koss-null/lambda/internal/internalpipe/do.go:16.18,19.3 2 1
 github.com/koss-null/lambda/internal/internalpipe/do.go:20.2,21.12 2 1
 github.com/koss-null/lambda/internal/internalpipe/do.go:25.35,26.19 1 1
-github.com/koss-null/lambda/internal/internalpipe/do.go:26.19,28.3 1 0
+github.com/koss-null/lambda/internal/internalpipe/do.go:26.19,28.3 1 1
 github.com/koss-null/lambda/internal/internalpipe/do.go:30.2,31.39 2 1
 github.com/koss-null/lambda/internal/internalpipe/do.go:31.39,33.15 2 1
 github.com/koss-null/lambda/internal/internalpipe/do.go:33.15,35.4 1 1
@@ -193,8 +193,8 @@ github.com/koss-null/lambda/internal/internalpipe/pipe.go:104.38,107.25 3 1
 github.com/koss-null/lambda/internal/internalpipe/pipe.go:107.25,109.3 1 1
 github.com/koss-null/lambda/internal/internalpipe/pipe.go:110.2,110.16 1 1
 github.com/koss-null/lambda/internal/internalpipe/reduce.go:6.43,8.19 2 1
-github.com/koss-null/lambda/internal/internalpipe/reduce.go:9.9,10.13 1 0
-github.com/koss-null/lambda/internal/internalpipe/reduce.go:11.9,12.18 1 0
+github.com/koss-null/lambda/internal/internalpipe/reduce.go:9.9,10.13 1 1
+github.com/koss-null/lambda/internal/internalpipe/reduce.go:11.9,12.18 1 1
 github.com/koss-null/lambda/internal/internalpipe/reduce.go:13.10,15.32 2 1
 github.com/koss-null/lambda/internal/internalpipe/reduce.go:15.32,17.4 1 1
 github.com/koss-null/lambda/internal/internalpipe/reduce.go:18.3,18.14 1 1

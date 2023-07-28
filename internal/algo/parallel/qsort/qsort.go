@@ -91,7 +91,7 @@ func partition[T any](data []T, lf, rg int, less func(*T, *T) bool) int {
 // median returns the median of 3 elements; it's a bit ugly bit effective
 func median[T any](elems [3]T, less func(*T, *T) bool) (*T, int16) {
 	if less(&elems[1], &elems[0]) && less(&elems[0], &elems[2]) {
-		return &elems[0], 1
+		return &elems[0], 0
 	}
 	if less(&elems[2], &elems[0]) && less(&elems[0], &elems[1]) {
 		return &elems[0], 0
@@ -113,7 +113,7 @@ func median[T any](elems [3]T, less func(*T, *T) bool) (*T, int16) {
 
 	// two elements are equal
 	if !less(&elems[0], &elems[1]) && !less(&elems[1], &elems[0]) {
-		return &elems[0], 1
+		return &elems[0], 0
 	}
 	if !less(&elems[1], &elems[2]) && !less(&elems[2], &elems[1]) {
 		return &elems[1], 1

@@ -140,3 +140,17 @@ func Test_sort_same(t *testing.T) {
 		}
 	}
 }
+
+func Test_median(t *testing.T) {
+	val, idx := median([...]int{1, 1, 3}, func(x, y *int) bool { return *x < *y })
+	require.Equal(t, 1, *val)
+	require.Equal(t, int16(0), idx)
+
+	val, idx = median([...]int{0, 1, 1}, func(x, y *int) bool { return *x < *y })
+	require.Equal(t, 1, *val)
+	require.Equal(t, int16(1), idx)
+
+	val, idx = median([...]int{1, 2, 1}, func(x, y *int) bool { return *x < *y })
+	require.Equal(t, 1, *val)
+	require.Equal(t, int16(2), idx)
+}
