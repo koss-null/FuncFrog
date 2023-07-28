@@ -71,11 +71,11 @@ func (p *Pipe[T]) limit() int {
 }
 
 func (p *Pipe[T]) lenSet() bool {
-	return p.Len != -1
+	return p.Len != notSet
 }
 
 func (p *Pipe[T]) limitSet() bool {
-	return p.ValLim != -1
+	return p.ValLim != notSet
 }
 
 func min[T constraints.Ordered](a, b T) T {

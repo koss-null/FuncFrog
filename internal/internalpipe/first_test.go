@@ -29,6 +29,17 @@ func TestFirst(t *testing.T) {
 		}
 		require.Equal(t, 900_001, *p.First())
 	})
+	t.Run("single thread 2", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &s[i], true
+			},
+			Len:           len(s),
+			ValLim:        -1,
+			GoroutinesCnt: 1,
+		}
+		require.Nil(t, p.First())
+	})
 	t.Run("5 threads", func(t *testing.T) {
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {

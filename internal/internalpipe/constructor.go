@@ -2,7 +2,10 @@ package internalpipe
 
 import "golang.org/x/exp/constraints"
 
-const defaultParallelWrks = 1
+const (
+	defaultParallelWrks = 1
+	notSet              = -1
+)
 
 func Slice[T any](dt []T) Pipe[T] {
 	dtCp := make([]T, len(dt))
@@ -15,7 +18,7 @@ func Slice[T any](dt []T) Pipe[T] {
 			return &dtCp[i], false
 		},
 		Len:           len(dtCp),
-		ValLim:        -1,
+		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
 }
@@ -26,8 +29,8 @@ func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 			obj, exist := fn(i)
 			return &obj, !exist
 		},
-		Len:           -1,
-		ValLim:        -1,
+		Len:           notSet,
+		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
 }
@@ -35,30 +38,30 @@ func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 func FuncP[T any](fn func(i int) (*T, bool)) Pipe[T] {
 	return Pipe[T]{
 		Fn:            fn,
-		Len:           -1,
-		ValLim:        -1,
+		Len:           notSet,
+		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
 }
 
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pipe[T] {
-	if start+step >= finish {
+	if start >= finish {
 		return Pipe[T]{
 			Fn: func(int) (*T, bool) {
 				return nil, true
 			},
 			Len:           0,
-			ValLim:        -1,
+			ValLim:        notSet,
 			GoroutinesCnt: defaultParallelWrks,
 		}
 	}
 	return Pipe[T]{
 		Fn: func(i int) (*T, bool) {
 			val := start + T(i)*step
-			return &val, val < finish
+			return &val, val >= finish
 		},
-		Len:           int((finish - start) / step),
-		ValLim:        -1,
+		Len:           max(int((finish-start)/step), 1),
+		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
 }

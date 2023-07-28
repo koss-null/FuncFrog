@@ -81,4 +81,22 @@ func Test_Filter(t *testing.T) {
 		}).Do()
 		require.Equal(t, 0, len(res))
 	})
+	t.Run("seven thread even numbers empty res double filter", func(t *testing.T) {
+		pts := pointer.To(7)
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return pts, false
+			},
+			Len:           100_000,
+			ValLim:        -1,
+			GoroutinesCnt: 7,
+		}
+
+		res := p.Filter(func(x *int) bool {
+			return pointer.From(x)%2 == 0
+		}).Filter(func(x *int) bool {
+			return pointer.From(x)%2 == 0
+		}).Do()
+		require.Equal(t, 0, len(res))
+	})
 }
