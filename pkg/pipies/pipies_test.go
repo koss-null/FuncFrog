@@ -92,3 +92,13 @@ func Test_Accum(t *testing.T) {
 	require.Equal(t, Sum(pointer.To(10), pointer.To(20)), 30)
 	require.Equal(t, Sum(pointer.To(10.0), pointer.To(20.0)), 30.0)
 }
+
+func Test_Not(t *testing.T) {
+	require.Equal(t, Not(func(a bool) bool { return a })(true), false)
+	require.Equal(t, Nott(func(a, b bool) bool { return a && b })(true, true), false)
+	require.Equal(t, Nottt(func(a, b, c bool) bool { return a && b && c })(true, true, true), false)
+
+	require.Equal(t, Not(func(a bool) bool { return a })(false), true)
+	require.Equal(t, Nott(func(a, b bool) bool { return a && b })(false, false), true)
+	require.Equal(t, Nottt(func(a, b, c bool) bool { return a && b && c })(false, false, false), true)
+}

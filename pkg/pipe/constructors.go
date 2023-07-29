@@ -55,9 +55,7 @@ func FuncP[T any](fn func(i int) (*T, bool)) PiperNoLen[T] {
 // Use the 'Take' or 'Gen' functions to set the number of output values to generate,
 // or use the 'Until' function to enforce a limit based on a predicate function.
 func Cycle[T any](a []T) PiperNoLen[T] {
-	return Fn(func(i int) T {
-		return a[i%len(a)]
-	})
+	return &PipeNL[T]{internalpipe.Cycle(a)}
 }
 
 // Range creates a lazy sequence of type 'T', which consists of values
