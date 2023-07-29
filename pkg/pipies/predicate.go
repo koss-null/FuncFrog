@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/exp/constraints"
 
-	"github.com/koss-null/lambda/pkg/pipe"
+	"github.com/koss-null/funcfrog/pkg/pipe"
 )
 
 // The list of filter functions to use in Filter().

@@ -3,7 +3,7 @@ package pipe
 import (
 	"golang.org/x/exp/constraints"
 
-	"github.com/koss-null/lambda/internal/internalpipe"
+	"github.com/koss-null/funcfrog/internal/internalpipe"
 )
 
 // Slice creates a Pipe from a slice

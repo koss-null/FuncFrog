@@ -3,7 +3,7 @@ package internalpipe
 import (
 	"sync"
 
-	"github.com/koss-null/lambda/internal/algo/parallel/qsort"
+	"github.com/koss-null/funcfrog/internal/algo/parallel/qsort"
 )
 
 // Sort sorts the underlying slice on a current step of a pipeline.

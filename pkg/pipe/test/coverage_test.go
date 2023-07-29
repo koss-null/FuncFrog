@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/koss-null/lambda/pkg/pipe"
+	"github.com/koss-null/funcfrog/pkg/pipe"
 )
 
 func wrap[T any](x T) func() T {

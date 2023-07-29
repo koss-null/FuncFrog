@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/koss-null/lambda/pkg/pipe"
-	"github.com/koss-null/lambda/pkg/pipies"
+	"github.com/koss-null/funcfrog/pkg/pipe"
+	"github.com/koss-null/funcfrog/pkg/pipies"
 )
 
 var (

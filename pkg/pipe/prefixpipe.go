@@ -1,6 +1,6 @@
 package pipe
 
-import "github.com/koss-null/lambda/internal/internalpipe"
+import "github.com/koss-null/funcfrog/internal/internalpipe"
 
 type entrails[T any] interface {
 	Entrails() *internalpipe.Pipe[T]

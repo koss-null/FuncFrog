@@ -1,7 +1,7 @@
 package pipe
 
 import (
-	"github.com/koss-null/lambda/internal/internalpipe"
+	"github.com/koss-null/funcfrog/internal/internalpipe"
 )
 
 // Pipe implements the pipe on any slice.

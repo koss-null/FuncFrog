@@ -3,8 +3,9 @@ package batch_test
 import (
 	"testing"
 
-	"github.com/koss-null/lambda/internal/algo/batch"
 	"github.com/stretchr/testify/require"
+
+	"github.com/koss-null/funcfrog/internal/algo/batch"
 )
 
 func Test_BatchDo(t *testing.T) {

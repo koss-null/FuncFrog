@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/koss-null/lambda/internal/primitive/pointer"
+	"github.com/koss-null/funcfrog/internal/primitive/pointer"
 )
 
 func Test_Sum(t *testing.T) {

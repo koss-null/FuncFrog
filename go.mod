@@ -1,4 +1,4 @@
-module github.com/koss-null/lambda
+module github.com/koss-null/funcfrog
 
 go 1.18
 

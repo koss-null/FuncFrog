@@ -1,10 +1,10 @@
 # FuncFrog
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/lambda)](https://goreportcard.com/report/github.com/koss-null/lambda)
+[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/funcfrog)](https://goreportcard.com/report/github.com/koss-null/lambda)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Coverage](https://raw.githubusercontent.com/koss-null/lambda/0.9.0/coverage_badge.png?raw=true)](coverage)
+[![Coverage](https://raw.githubusercontent.com/koss-null/funcfrog/0.9.0/coverage_badge.png?raw=true)](coverage)
 
-![FuncFrog icon](https://github.com/koss-null/lambda/blob/0.9.0/FuncFrogIco.jpg?raw=true)
+![FuncFrog icon](https://github.com/koss-null/funcfrog/blob/0.9.0/FuncFrogIco.jpg?raw=true)
 
 FuncFrog is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments). 
 It is capable of handling large amounts of data with minimal overhead, and its parallel execution capabilities allow for even faster processing times. Additionally, the library is easy to use and has a clean, intuitive API. [Here](https://macias.info/entry/202212020000_go_streams.md) is some performance review. 
