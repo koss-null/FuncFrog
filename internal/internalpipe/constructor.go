@@ -44,6 +44,18 @@ func FuncP[T any](fn func(i int) (*T, bool)) Pipe[T] {
 	}
 }
 
+func Cycle[T any](a []T) Pipe[T] {
+	if len(a) == 0 {
+		return Func(func(_ int) (x T, exist bool) {
+			return
+		})
+	}
+
+	return Func(func(i int) (T, bool) {
+		return a[i%len(a)], true
+	})
+}
+
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pipe[T] {
 	if start >= finish {
 		return Pipe[T]{

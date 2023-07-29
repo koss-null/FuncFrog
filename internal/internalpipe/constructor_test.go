@@ -1,6 +1,7 @@
 package internalpipe
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,6 +26,52 @@ func Test_FuncP(t *testing.T) {
 	require.Equal(t, p.Len, notSet)
 	require.Equal(t, p.ValLim, notSet)
 	require.Equal(t, p.GoroutinesCnt, defaultParallelWrks)
+}
+
+func Not[T any](fn func(x T) bool) func(T) bool {
+	return func(x T) bool {
+		return !fn(x)
+	}
+}
+
+func Test_Cycle(t *testing.T) {
+	t.Parallel()
+
+	isVowel := func(s *string) bool {
+		st := struct{}{}
+		_, ok := map[string]struct{}{"a": st, "e": st, "i": st, "o": st, "u": st, "y": st}[*s]
+		return ok
+	}
+
+	t.Run("happy", func(t *testing.T) {
+		p := Cycle([]string{"a", "b", "c", "d"})
+		require.Equal(
+			t,
+			[]string{"A", "A", "A", "A", "A", "A", "A", "A", "A", "A"},
+			p.Filter(isVowel).Map(strings.ToUpper).Take(10).Do(),
+		)
+	})
+
+	t.Run("empty res", func(t *testing.T) {
+		p := Cycle([]string{"a", "b", "c", "d"})
+		require.Equal(
+			t,
+			[]string{},
+			p.Filter(isVowel).Filter(Not(isVowel)).Gen(10).Do(),
+		)
+	})
+
+	t.Run("empty cycle", func(t *testing.T) {
+		p := Cycle([]string{})
+		require.Equal(
+			t,
+			[]string{},
+			p.Filter(isVowel).
+				Map(strings.TrimSpace).
+				Gen(10).
+				Do(),
+		)
+	})
 }
 
 func Test_Range(t *testing.T) {
