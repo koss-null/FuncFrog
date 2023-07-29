@@ -36,7 +36,10 @@ Please update any local clones or remotes to reflect this change.
 
 To update a local clone of the repository, you can use the following command:
 ```bash
+# HTTP
 $ git remote set-url origin https://github.com/koss-null/funcfrog
+# SSH
+$ git remote set-url origin git@github.com:koss-null/FuncFrog.git
 ```
 This command will update the URL of the "origin" reomte to the new repository URL. 
 
