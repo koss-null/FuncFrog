@@ -13,15 +13,13 @@ func (p Pipe[T]) Sort(less func(*T, *T) bool) Pipe[T] {
 
 	return Pipe[T]{
 		Fn: func(i int) (*T, bool) {
-			if sorted == nil {
-				once.Do(func() {
-					data := p.Do()
-					if len(data) == 0 {
-						return
-					}
-					sorted = qsort.Sort(data, less, p.GoroutinesCnt)
-				})
-			}
+			once.Do(func() {
+				data := p.Do()
+				if len(data) == 0 {
+					return
+				}
+				sorted = qsort.Sort(data, less, p.GoroutinesCnt)
+			})
 			if i >= len(sorted) {
 				return nil, true
 			}
