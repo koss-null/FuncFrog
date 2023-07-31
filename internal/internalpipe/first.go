@@ -28,34 +28,52 @@ func (p Pipe[T]) First() *T {
 		step    = max(divUp(limit, p.GoroutinesCnt), 1)
 		tickets = genTickets(p.GoroutinesCnt)
 
-		resStorage = struct {
+		resContainer = struct {
 			val *T
 			pos int
 		}{nil, math.MaxInt}
-		resStorageMx sync.Mutex
-		res          = make(chan *T, 1)
+		res       = make(chan *T)
+		resContMx sync.Mutex
 
 		wg sync.WaitGroup
 
-		stepCnt  int
-		zeroStep int
+		stepCnt    int
+		zeroStep   int
+		zeroStepMx sync.Mutex
 	)
 
 	updStorage := func(val *T, pos int) {
-		resStorageMx.Lock()
-		if pos < resStorage.pos {
-			resStorage.pos = pos
-			resStorage.val = val
+		resContMx.Lock()
+		if pos < resContainer.pos {
+			resContainer.pos = pos
+			resContainer.val = val
 		}
-		resStorageMx.Unlock()
+		resContMx.Unlock()
+	}
+	resContainerPos := func() int {
+		resContMx.Lock()
+		defer resContMx.Unlock()
+		return resContainer.pos
 	}
 
 	// this wg.Add is to make wg.Wait() wait if for loops that have not start yet
 	wg.Add(1)
 	go func() {
-		var done bool
+		var dn bool
+		var dmx sync.Mutex
+		isDone := func() bool {
+			dmx.Lock()
+			defer dmx.Unlock()
+			return dn
+		}
+		done := func() {
+			dmx.Lock()
+			dn = true
+			dmx.Unlock()
+		}
+
 		// i >= 0 is for an int owerflow case
-		for i := 0; i >= 0 && i < limit && !done; i += step {
+		for i := 0; i >= 0 && i < limit && !isDone(); i += step {
 			wg.Add(1)
 			<-tickets
 			go func(lf, rg, stepCnt int) {
@@ -70,27 +88,34 @@ func (p Pipe[T]) First() *T {
 					if !skipped {
 						if stepCnt == zeroStep {
 							res <- obj
-							done = true
+							done()
 							return
 						}
 						updStorage(obj, stepCnt)
 						return
 					}
 
-					if resStorage.pos < stepCnt {
-						done = true
+					// FIXME: mutex is taken in for loop here
+					if resContainerPos() < stepCnt {
+						done()
 						return
 					}
 				}
-				// no lock needed since it's changed only in one goroutine
+
+				zeroStepMx.Lock()
 				if stepCnt == zeroStep {
 					zeroStep++
-					if resStorage.pos == zeroStep {
-						res <- resStorage.val
-						done = true
+					resContMx.Lock()
+					if resContainer.pos == zeroStep {
+						res <- resContainer.val
+						done()
+						resContMx.Unlock()
+						zeroStepMx.Unlock()
 						return
 					}
+					resContMx.Unlock()
 				}
+				zeroStepMx.Unlock()
 			}(i, i+step, stepCnt)
 			stepCnt++
 		}
@@ -99,9 +124,9 @@ func (p Pipe[T]) First() *T {
 
 	go func() {
 		wg.Wait()
-		resStorageMx.Lock()
-		defer resStorageMx.Unlock()
-		res <- resStorage.val
+		resContMx.Lock()
+		defer resContMx.Unlock()
+		res <- resContainer.val
 	}()
 
 	return <-res

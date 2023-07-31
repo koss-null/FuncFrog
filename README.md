@@ -93,9 +93,9 @@ available.
 The following functions can be used to create a new `Pipe` (this is how I call the inner representation of a sequence of
 elements and a sequence operations on them): 
 - :frog: `Slice([]T) Piper`: creates a `Pipe` of a given type `T` from a slice, *the length is known*.
-- :frog: `Func(func(i int) (T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns an element wich is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
+- :frog: `Func(func(i int) (T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
 - :frog: `Fn(func(i int) (T)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`; to be able to skip values use `Func`.
-- :frog: `FuncP(func(i int) (*T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns a pointer to an element wich is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
+- :frog: `FuncP(func(i int) (*T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns a pointer to an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
 - :frog: `Cycle(data []T) PiperNL`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely. *The length is unknown.*
 - :frog: `Range(start, end, step T) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`. *The length is known.*
 - :frog: `Take(n int) Piper`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. *Transforms
