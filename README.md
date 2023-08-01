@@ -203,11 +203,12 @@ result := pipe.Reduce(strP, func(x, y *string) int { return len(*x) + len(*y) })
 
 ```go
 p := pipe.Func(func(i int) (float32, bool) {
-	return float32(i) * 0.9, true
+	return 100500-float32(i) * 0.9, true
 }).
-	Map(func(x float32) float32 { return x * x }).
+	Map(func(x float32) float32 { return x * x * 0.1 }).
 	Gen(100500). // Sort is only availavle on pipes with known length
-	Sort(pipe.Less[float32]). // pipe.Less(x, y *T) bool is available to all comparables
+	Sort(pipies.Less[float32]). // pipies.Less(x, y *T) bool is available to all comparables
+    // check out pipies package to find more usefull things
 	Parallel(12).
 	Do()
 // p will contain the elements sorted in ascending order
@@ -215,25 +216,31 @@ p := pipe.Func(func(i int) (float32, bool) {
 
 ### Example of infine sequence generation:
 
-Here is an example of generating an infinite sequence of Fibonacci greater than 1000: 
+Here is an example of generating an infinite sequence of Fibonacci: 
 
 ```go
-prev := 0
+var fib []chan int
 p := pipe.Func(func(i int) (int, bool) {
-	return i, true
-}).
-    Map(func(x int) int {
-        prev = x+prev
-        return prev
-    }).
-	Filter(func(x *int) bool { return *x > 1000 })
+	if i < 2 {
+		fib[i] <- i
+		return i, true
+	}
+	p1 := <-fib[i-1]; fib[i-1] <- p1
+	p2 := <-fib[i-2]; fib[i-2] <- p2
+	
+	fib[i] <- p1 + p2
+	return p1 + p2, true
+}).Parallel(20)
 ```
-But be careful if you are going to do it in parallel, you never know in with order Map funcs will be called. 
 
-To generate a specific number of values, you can use the `Take` method: 
+To generate a specific number of values, you can use the `Take` or `Gen` method: 
 
 ```go
-p = p.Take(65000)
+// fill the array first
+fib = make([]chan int, 60)
+for i := range fib { fib[i] = make(chan int, 1) }
+// do the Take
+p = p.Take(60)
 ```
 
 To accumulate the elements of the `Pipe`, you can use the `Reduce` or `Sum` method:
