@@ -28,23 +28,25 @@ func (p Pipe[T]) Any() *T {
 		step = max(divUp(limit, p.GoroutinesCnt), 1)
 	}
 	var (
-		res = make(chan *T, 1)
+		res = make(chan *T)
 		// if p.len is not set, we need tickets to control the amount of goroutines
 		tickets = genTickets(p.GoroutinesCnt)
 
+		done = make(chan struct{})
 		wg   sync.WaitGroup
-		done bool
 	)
 	if !lenSet {
 		step = infiniteLenStep
 	}
 
 	setObj := func(obj *T) {
-		if done {
+		select {
+		case <-done:
 			return
+		default:
+			close(done)
+			res <- obj
 		}
-		done = true
-		res <- obj
 	}
 
 	go func() {
@@ -63,11 +65,16 @@ func (p Pipe[T]) Any() *T {
 				if lenSet {
 					rg = min(rg, limit)
 				}
-				for j := lf; j < rg && !done; j++ {
-					obj, skipped := p.Fn(j)
-					if !skipped {
-						setObj(obj)
+				for j := lf; j < rg; j++ {
+					select {
+					case <-done:
 						return
+					default:
+						obj, skipped := p.Fn(j)
+						if !skipped {
+							setObj(obj)
+							return
+						}
 					}
 				}
 			}(i, i+step)

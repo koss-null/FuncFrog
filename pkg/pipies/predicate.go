@@ -31,21 +31,21 @@ func NotZero[T comparable](x *T) bool {
 
 // Predicate builders
 
-// Eq returns a predicate wich is true when the argument is equal to x.
+// Eq returns a predicate which is true when the argument is equal to x.
 func Eq[T comparable](x T) pipe.Predicate[T] {
 	return func(y *T) bool {
 		return x == *y
 	}
 }
 
-// NotEq returns a predicate wich is true when the argument is NOT equal to x.
+// NotEq returns a predicate which is true when the argument is NOT equal to x.
 func NotEq[T comparable](x T) pipe.Predicate[T] {
 	return func(y *T) bool {
 		return x != *y
 	}
 }
 
-// LessThan returns a predicate wich is true when the argument is less than x.
+// LessThan returns a predicate which is true when the argument is less than x.
 func LessThan[T constraints.Ordered](x T) pipe.Predicate[T] {
 	return func(y *T) bool {
 		return *y < x

@@ -72,7 +72,7 @@ func mergeSplits[T any](
 			break
 		}
 
-		// this one controls amount of simultanious merge processes running
+		// this one controls amount of simultaneous merge processes running
 		<-jobTicket
 		wg.Add(1)
 		go func(i int) {

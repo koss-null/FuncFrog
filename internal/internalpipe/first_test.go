@@ -49,6 +49,7 @@ func TestFirst(t *testing.T) {
 			ValLim:        -1,
 			GoroutinesCnt: 5,
 		}
+		require.NotNil(t, p.First())
 		require.Equal(t, 900_001, *p.First())
 	})
 	t.Run("1000 threads", func(t *testing.T) {
@@ -60,6 +61,7 @@ func TestFirst(t *testing.T) {
 			ValLim:        -1,
 			GoroutinesCnt: 1000,
 		}
+		require.NotNil(t, p.First())
 		require.Equal(t, 900_001, *p.First())
 	})
 	t.Run("not found", func(t *testing.T) {

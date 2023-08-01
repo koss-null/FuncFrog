@@ -1,9 +1,18 @@
 package internalpipe
 
 import (
+	"context"
 	"math"
 	"sync"
 )
+
+func (p Pipe[T]) First() *T {
+	limit := p.limit()
+	if p.GoroutinesCnt == 1 {
+		return firstSingleThread(limit, p.Fn)
+	}
+	return first(limit, p.GoroutinesCnt, p.Fn)
+}
 
 func firstSingleThread[T any](limit int, fn func(i int) (*T, bool)) *T {
 	var obj *T
@@ -17,92 +26,108 @@ func firstSingleThread[T any](limit int, fn func(i int) (*T, bool)) *T {
 	return nil
 }
 
-// First returns the first element of the pipe.
-func (p Pipe[T]) First() *T {
-	limit := p.limit()
-	if p.GoroutinesCnt == 1 {
-		return firstSingleThread(limit, p.Fn)
+type firstResult[T any] struct {
+	val            *T
+	step           int
+	totalSteps     int
+	zeroStepBorder int
+	mx             *sync.Mutex
+	ctx            context.Context
+	cancel         func()
+	done           map[int]struct{}
+
+	resForSure chan *T
+}
+
+func newFirstResult[T any](totalSteps int) *firstResult[T] {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &firstResult[T]{
+		step:       math.MaxInt,
+		totalSteps: totalSteps,
+		mx:         &sync.Mutex{},
+		ctx:        ctx,
+		cancel:     cancel,
+		done:       make(map[int]struct{}, totalSteps),
+		resForSure: make(chan *T),
 	}
+}
 
-	var (
-		step    = max(divUp(limit, p.GoroutinesCnt), 1)
-		tickets = genTickets(p.GoroutinesCnt)
+func (r *firstResult[T]) setVal(val *T, step int) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 
-		resStorage = struct {
-			val *T
-			pos int
-		}{nil, math.MaxInt}
-		resStorageMx sync.Mutex
-		res          = make(chan *T, 1)
+	if step == r.zeroStepBorder {
+		r.resForSure <- val
+		r.cancel()
+		return
+	}
+	if step < r.step {
+		r.val = val
+		r.step = step
+	}
+}
 
-		wg sync.WaitGroup
+func (r *firstResult[T]) stepDone(step int) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
 
-		stepCnt  int
-		zeroStep int
-	)
+	r.done[step] = struct{}{}
 
-	updStorage := func(val *T, pos int) {
-		resStorageMx.Lock()
-		if pos < resStorage.pos {
-			resStorage.pos = pos
-			resStorage.val = val
+	// need to move r.zeroStepBorder up
+	if step == r.zeroStepBorder {
+		ok := true
+		for ok {
+			r.zeroStepBorder++
+			if r.zeroStepBorder == r.step {
+				r.resForSure <- r.val
+				r.cancel()
+				return
+			}
+
+			_, ok = r.done[r.zeroStepBorder]
 		}
-		resStorageMx.Unlock()
 	}
 
-	// this wg.Add is to make wg.Wait() wait if for loops that have not start yet
-	wg.Add(1)
-	go func() {
-		var done bool
-		// i >= 0 is for an int owerflow case
-		for i := 0; i >= 0 && i < limit && !done; i += step {
-			wg.Add(1)
-			<-tickets
-			go func(lf, rg, stepCnt int) {
-				defer func() {
-					tickets <- struct{}{}
-					wg.Done()
-				}()
+	if r.zeroStepBorder >= r.totalSteps {
+		r.resForSure <- nil
+		r.cancel()
+	}
+}
 
-				rg = max(rg, limit)
-				for j := lf; j < rg; j++ {
-					obj, skipped := p.Fn(j)
+func first[T any](limit, grtCnt int, fn func(i int) (*T, bool)) (f *T) {
+	if limit == 0 {
+		return
+	}
+	step := max(divUp(limit, grtCnt), 1)
+	tickets := genTickets(grtCnt)
+
+	res := newFirstResult[T](grtCnt)
+
+	stepCnt := 0
+	for i := 0; i >= 0 && i < limit; i += step {
+		<-tickets
+		go func(lf, rg, stepCnt int) {
+			defer func() {
+				tickets <- struct{}{}
+			}()
+
+			done := res.ctx.Done()
+			for j := lf; j < rg; j++ {
+				select {
+				case <-done:
+					return
+				default:
+					val, skipped := fn(j)
 					if !skipped {
-						if stepCnt == zeroStep {
-							res <- obj
-							done = true
-							return
-						}
-						updStorage(obj, stepCnt)
-						return
-					}
-
-					if resStorage.pos < stepCnt {
-						done = true
+						res.setVal(val, stepCnt)
 						return
 					}
 				}
-				// no lock needed since it's changed only in one goroutine
-				if stepCnt == zeroStep {
-					zeroStep++
-					if resStorage.pos == zeroStep {
-						res <- resStorage.val
-						done = true
-						return
-					}
-				}
-			}(i, i+step, stepCnt)
-			stepCnt++
-		}
-		wg.Done()
-	}()
+			}
+			res.stepDone(stepCnt)
+		}(i, i+step, stepCnt)
+		stepCnt++
+	}
 
-	go func() {
-		wg.Wait()
-		resStorageMx.Lock()
-		defer resStorageMx.Unlock()
-		res <- resStorage.val
-	}()
-
-	return <-res
+	return <-res.resForSure
 }

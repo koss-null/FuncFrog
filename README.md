@@ -2,9 +2,9 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/funcfrog)](https://goreportcard.com/report/github.com/koss-null/lambda)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Coverage](https://raw.githubusercontent.com/koss-null/funcfrog/0.9.0/coverage_badge.png?raw=true)](coverage)
+[![Coverage](https://raw.githubusercontent.com/koss-null/funcfrog/master/coverage_badge.png?raw=true)](coverage)
 
-![FuncFrog icon](https://github.com/koss-null/funcfrog/blob/0.9.0/FuncFrogIco.jpg?raw=true)
+![FuncFrog icon](https://github.com/koss-null/funcfrog/blob/master/FuncFrogIco.jpg?raw=true)
 
 FuncFrog is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments). 
 It is capable of handling large amounts of data with minimal overhead, and its parallel execution capabilities allow for even faster processing times. Additionally, the library is easy to use and has a clean, intuitive API. [Here](https://macias.info/entry/202212020000_go_streams.md) is some performance review. 
@@ -93,9 +93,9 @@ available.
 The following functions can be used to create a new `Pipe` (this is how I call the inner representation of a sequence of
 elements and a sequence operations on them): 
 - :frog: `Slice([]T) Piper`: creates a `Pipe` of a given type `T` from a slice, *the length is known*.
-- :frog: `Func(func(i int) (T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns an element wich is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
+- :frog: `Func(func(i int) (T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
 - :frog: `Fn(func(i int) (T)) *Pipe`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`; to be able to skip values use `Func`.
-- :frog: `FuncP(func(i int) (*T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns a pointer to an element wich is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
+- :frog: `FuncP(func(i int) (*T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns a pointer to an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
 - :frog: `Cycle(data []T) PiperNL`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely. *The length is unknown.*
 - :frog: `Range(start, end, step T) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`. *The length is known.*
 - :frog: `Take(n int) Piper`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. *Transforms
@@ -203,11 +203,12 @@ result := pipe.Reduce(strP, func(x, y *string) int { return len(*x) + len(*y) })
 
 ```go
 p := pipe.Func(func(i int) (float32, bool) {
-	return float32(i) * 0.9, true
+	return 100500-float32(i) * 0.9, true
 }).
-	Map(func(x float32) float32 { return x * x }).
+	Map(func(x float32) float32 { return x * x * 0.1 }).
 	Gen(100500). // Sort is only availavle on pipes with known length
-	Sort(pipe.Less[float32]). // pipe.Less(x, y *T) bool is available to all comparables
+	Sort(pipies.Less[float32]). // pipies.Less(x, y *T) bool is available to all comparables
+    // check out pipies package to find more usefull things
 	Parallel(12).
 	Do()
 // p will contain the elements sorted in ascending order
@@ -215,25 +216,31 @@ p := pipe.Func(func(i int) (float32, bool) {
 
 ### Example of infine sequence generation:
 
-Here is an example of generating an infinite sequence of Fibonacci greater than 1000: 
+Here is an example of generating an infinite sequence of Fibonacci: 
 
 ```go
-prev := 0
+var fib []chan int
 p := pipe.Func(func(i int) (int, bool) {
-	return i, true
-}).
-    Map(func(x int) int {
-        prev = x+prev
-        return prev
-    }).
-	Filter(func(x *int) bool { return *x > 1000 })
+	if i < 2 {
+		fib[i] <- i
+		return i, true
+	}
+	p1 := <-fib[i-1]; fib[i-1] <- p1
+	p2 := <-fib[i-2]; fib[i-2] <- p2
+	
+	fib[i] <- p1 + p2
+	return p1 + p2, true
+}).Parallel(20)
 ```
-But be careful if you are going to do it in parallel, you never know in with order Map funcs will be called. 
 
-To generate a specific number of values, you can use the `Take` method: 
+To generate a specific number of values, you can use the `Take` or `Gen` method: 
 
 ```go
-p = p.Take(65000)
+// fill the array first
+fib = make([]chan int, 60)
+for i := range fib { fib[i] = make(chan int, 1) }
+// do the Take
+p = p.Take(60)
 ```
 
 To accumulate the elements of the `Pipe`, you can use the `Reduce` or `Sum` method:
