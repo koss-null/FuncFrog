@@ -52,6 +52,18 @@ func TestFirst(t *testing.T) {
 		require.NotNil(t, p.First())
 		require.Equal(t, 900_001, *p.First())
 	})
+	t.Run("2 threads first half", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &s[i], s[i] < 1000
+			},
+			Len:           len(s),
+			ValLim:        -1,
+			GoroutinesCnt: 2,
+		}
+		require.NotNil(t, p.First())
+		require.Equal(t, 1000, *p.First())
+	})
 	t.Run("1000 threads", func(t *testing.T) {
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
