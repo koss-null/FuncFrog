@@ -104,3 +104,16 @@ func Test_Range(t *testing.T) {
 		require.Equal(t, 0, len(res))
 	})
 }
+
+func Test_Repeat(t *testing.T) {
+	t.Parallel()
+
+	t.Run("happy", func(t *testing.T) {
+		p := Repeat("hello", 5).Map(strings.ToUpper).Do()
+		require.Equal(t, []string{"HELLO", "HELLO", "HELLO", "HELLO", "HELLO"}, p)
+	})
+	t.Run("n == 0", func(t *testing.T) {
+		p := Repeat("hello", 0).Map(strings.ToUpper).Do()
+		require.Equal(t, []string{}, p)
+	})
+}

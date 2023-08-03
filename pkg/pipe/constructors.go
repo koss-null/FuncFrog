@@ -64,3 +64,8 @@ func Cycle[T any](a []T) PiperNoLen[T] {
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Piper[T] {
 	return &Pipe[T]{internalpipe.Range(start, finish, step)}
 }
+
+// Repeat creates a lazy sequence of the objects like x with the length of n.
+func Repeat[T any](x T, n int) Piper[T] {
+	return &Pipe[T]{internalpipe.Repeat(x, n)}
+}

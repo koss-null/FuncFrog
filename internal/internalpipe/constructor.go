@@ -77,3 +77,25 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 		GoroutinesCnt: defaultParallelWrks,
 	}
 }
+
+func Repeat[T any](x T, n int) Pipe[T] {
+	if n <= 0 {
+		return Pipe[T]{
+			Fn: func(int) (*T, bool) {
+				return nil, true
+			},
+			Len:           0,
+			ValLim:        notSet,
+			GoroutinesCnt: defaultParallelWrks,
+		}
+	}
+	return Pipe[T]{
+		Fn: func(i int) (*T, bool) {
+			cp := x
+			return &cp, i >= n
+		},
+		Len:           n,
+		ValLim:        notSet,
+		GoroutinesCnt: defaultParallelWrks,
+	}
+}
