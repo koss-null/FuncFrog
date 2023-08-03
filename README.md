@@ -23,8 +23,8 @@ It is capable of handling large amounts of data with minimal overhead, and its p
   - [Example using `Sort`](#example-using-sort)
   - [Example of infine sequence generation](#example-of-infine-sequence-generation)
   - [Example using `Range` and `Map`](#example-using-range-not-implemented-yet-and-map)
-  - [Example using `Repeat` (not implemented yet) and `Map`](#example-using-repeat-not-implemented-yet-and-map)
-  - [Example using `Cycle` (not implemented yet) and `Filter`](#example-using-cycle-not-implemented-yet-and-filter)
+  - [Example using `Repeat` and `Map`](#example-using-repeat-not-implemented-yet-and-map)
+  - [Example using `Cycle` and `Filter`](#example-using-cycle-not-implemented-yet-and-filter)
 - [Is this package stable?](#is-this-package-stable)
 - [Contributions](#contributions)
 - [What's next?](#whats-next)
@@ -98,6 +98,7 @@ elements and a sequence operations on them):
 - :frog: `FuncP(func(i int) (*T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns a pointer to an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
 - :frog: `Cycle(data []T) PiperNL`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely. *The length is unknown.*
 - :frog: `Range(start, end, step T) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`. *The length is known.*
+- :frog: `Repeat(x T, n int) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` and value x with the length of n. *The length is known.*
 - :frog: `Take(n int) Piper`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. *Transforms
   unknown length to known.*
 - :frog: `Gen(n int) Piper`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it. *Transforms
@@ -258,7 +259,7 @@ p := pipe.Range(10, 20, 2).Map(func(x int) int { return x * x }).Do()
 // p will be [100, 144, 196, 256, 324]
 ```
 
-### Example using `Repeat` (not implemented yet) and `Map`:
+### Example using `Repeat` and `Map`:
 
 ```go
 p := pipe.Repeat("hello", 5).Map(strings.ToUpper).Do()
