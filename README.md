@@ -22,7 +22,7 @@ It is capable of handling large amounts of data with minimal overhead, and its p
   - [Example of `Map` and `Reduce` with the underlying array type change](#example-of-map-and-reduce-with-the-underlying-array-type-change)
   - [Example using `Sort`](#example-using-sort)
   - [Example of infine sequence generation](#example-of-infine-sequence-generation)
-  - [Example using `Range` (not implemented yet) and `Map`](#example-using-range-not-implemented-yet-and-map)
+  - [Example using `Range` and `Map`](#example-using-range-not-implemented-yet-and-map)
   - [Example using `Repeat` (not implemented yet) and `Map`](#example-using-repeat-not-implemented-yet-and-map)
   - [Example using `Cycle` (not implemented yet) and `Filter`](#example-using-cycle-not-implemented-yet-and-filter)
 - [Is this package stable?](#is-this-package-stable)
