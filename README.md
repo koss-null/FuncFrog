@@ -265,6 +265,25 @@ p := pipe.Range(10, 20, 2).Map(func(x int) int { return x * x }).Do()
 p := pipe.Repeat("hello", 5).Map(strings.ToUpper).Do()
 // p will be ["HELLO", "HELLO", "HELLO", "HELLO", "HELLO"]
 ```
+Here is an example how you can handle multiple function returning error call this way:
+
+```go
+func foo() error {
+    // <...>
+    return nil
+}
+
+errs := pipe.Map(
+            pipe.Repeat(foo, 50),
+            func(f func() error) error { return f() },
+        ).Do()
+
+for _, e := range errs {
+    if e != nil {
+        log.Err(e)
+    }
+}
+```
 
 ### Example using `Cycle` and `Filter`:
 
