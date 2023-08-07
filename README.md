@@ -17,8 +17,10 @@ It is capable of handling large amounts of data with minimal overhead, and its p
 - [Examples](#examples)
   - [Basic example](#basic-example)
   - [Example using `Func` and `Take`](#example-using-func-and-take)
+  - [Example using `Func` and `Gen`](#example-using-func-and-gen)
+  - [Example difference between `Take` and `Gen`](#example-difference-between-take-and-gen)
   - [Example using `Filter` and `Map`](#example-using-filter-and-map)
-  - [Example using `Map` and `Reduce`](#example-using-map-and-reduce-)
+  - [Example using `Map` and `Reduce`](#example-using-map-and-reduce)
   - [Example of `Map` and `Reduce` with the underlying array type change](#example-of-map-and-reduce-with-the-underlying-array-type-change)
   - [Example using `Sort`](#example-using-sort)
   - [Example of infine sequence generation](#example-of-infine-sequence-generation)
@@ -156,6 +158,54 @@ p := pipe.Func(func(i int) (v int, b bool) {
 // p will be [0, 1, 4, 9, 16]
 ```
 
+### Example using `Func` and `Gen`:
+
+```go
+p := pipe.Func(func(i int) (v int, b bool) {
+	if i < 10 {
+		return i * i, true
+	}; return
+}).Gen(5).Do()
+// p will be [0, 1, 4, 9, 16]
+```
+
+### Example difference between `Take` and `Gen`:
+
+Gen(n) generates the sequence of n elements and applies all pipeline afterwards.
+```go
+
+p := pipe.Func(func(i int) (v int, b bool) {
+        return i, true
+    }).
+    Filter(func(x *int) bool { return (*x) % 2 == 0})
+    Gen(10).
+    Do()
+// p will be [0, 2, 4]
+```
+
+Take(n) expects the result to be of n length.
+```go
+p := pipe.Func(func(i int) (v int, b bool) {
+        return i, true
+    }).
+    Filter(func(x *int) bool { return (*x) % 2 == 0})
+    Take(10).
+    Do()
+// p will be [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+```
+
+Watch out, if Take value is set uncarefully, it may jam the whole pipenile.
+```go
+// DO NOT DO THIS, IT WILL JAM
+p := pipe.Func(func(i int) (v int, b bool) {
+        return i, i < 10 // only 10 first values are not skipped
+    }).
+    Take(11). // we can't get any 11th value ever
+    Parallel(4). // why not
+    Do()
+// Do() will try to evaluate the 11th value in 4 goroutines until it reaches maximum int value
+```
+
 ### Example using `Filter` and `Map`:
 
 ```go
@@ -166,7 +216,7 @@ p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).
 // p will be [1, 1, 1, 1, 2]
 ```
 
-### Example using `Map` and `Reduce` :
+### Example using `Map` and `Reduce`:
 
 In this example Reduce is used in it's prefix form to be able to convert ints to string. 
 ```go
