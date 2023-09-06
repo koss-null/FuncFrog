@@ -63,6 +63,9 @@ func (p *Pipe[T]) Count() int {
 	return p.Pipe.Count()
 }
 
+func (p *Pipe[T]) Promices() []func() (T, bool) {
+}
+
 // Entrails is an out-of-Piper interface method to provide Map[T1 -> T2].
 func (p *Pipe[T]) Entrails() *internalpipe.Pipe[T] {
 	return &p.Pipe
