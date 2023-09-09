@@ -63,7 +63,16 @@ func (p *Pipe[T]) Count() int {
 	return p.Pipe.Count()
 }
 
+// Promices returns an array of Promice values - functions to be evaluated to get the value on i'th place.
+// Promice returns two values: the evaluated value and if it is not skipped.
 func (p *Pipe[T]) Promices() []func() (T, bool) {
+	return p.Pipe.Promices()
+}
+
+// Erase wraps all pipe values to interface{} type, so you are able to use pipe methods with type convertions.
+// You can use collectors from collectiors.go file of this package to collect results into a particular type.
+func (p *Pipe[T]) Erase() Piper[any] {
+	return &Pipe[any]{p.Pipe.Erase()}
 }
 
 // Entrails is an out-of-Piper interface method to provide Map[T1 -> T2].

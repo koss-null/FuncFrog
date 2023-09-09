@@ -1,3 +1,4 @@
+// Function set to use with Sort
 package pipies
 
 import "golang.org/x/exp/constraints"

@@ -110,8 +110,7 @@ func TestSlice_ok(t *testing.T) {
 func TestFilter_NotNull_ok(t *testing.T) {
 	genFunc := func(i int) (*float64, bool) {
 		if i%10 == 0 {
-			var empty *float64
-			return empty, true
+			return nil, true
 		}
 		return pointer.To(float64(i)), true
 	}
@@ -120,7 +119,7 @@ func TestFilter_NotNull_ok(t *testing.T) {
 		pipe.Func(genFunc).
 			Filter(pipies.NotNil[*float64]).
 			Take(10_000),
-		func(x *float64) float64 { return pointer.From(x) },
+		pointer.From[float64],
 	).
 		Sum(pipies.Sum[float64])
 	require.NotNil(t, s)

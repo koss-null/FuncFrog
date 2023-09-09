@@ -6,16 +6,12 @@ type entrails[T any] interface {
 	Entrails() *internalpipe.Pipe[T]
 }
 
-type anyPipe[T any] interface {
-	Pipe[T] | PipeNL[T]
-}
-
 // Map applies function on a Piper of type SrcT and returns a Pipe of type DstT.
-func Map[SrcT, DstT any](
+func Map[SrcT any, DstT any](
 	p Piper[SrcT],
 	fn func(x SrcT) DstT,
 ) Piper[DstT] {
-	pp := p.(entrails[SrcT]).Entrails()
+	pp := any(p).(entrails[SrcT]).Entrails()
 	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
 		Fn: func(i int) (*DstT, bool) {
 			if obj, skipped := pp.Fn(i); !skipped {
@@ -30,12 +26,12 @@ func Map[SrcT, DstT any](
 	}}
 }
 
-// MapNL applies function on a PiperNL of type SrcT and returns a PiperNoLen of type DstT.
-func MapNL[SrcT, DstT any](
+// MapNL applies function on a PiperNoLen of type SrcT and returns a Pipe of type DstT.
+func MapNL[SrcT any, DstT any](
 	p PiperNoLen[SrcT],
 	fn func(x SrcT) DstT,
 ) PiperNoLen[DstT] {
-	pp := p.(entrails[SrcT]).Entrails()
+	pp := any(p).(entrails[SrcT]).Entrails()
 	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
 		Fn: func(i int) (*DstT, bool) {
 			if obj, skipped := pp.Fn(i); !skipped {

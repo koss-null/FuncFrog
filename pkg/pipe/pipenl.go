@@ -49,6 +49,12 @@ func (p *PipeNL[T]) Parallel(n uint16) PiperNoLen[T] {
 	return &PipeNL[T]{p.Pipe.Parallel(n)}
 }
 
+// Erase wraps all pipe values to interface{} type, so you are able to use pipe methods with type convertions.
+// You can use collectors from collectiors.go file of this package to collect results into a particular type.
+func (p *PipeNL[T]) Erase() PiperNoLen[any] {
+	return &PipeNL[any]{p.Pipe.Erase()}
+}
+
 // Entrails is an out of Piper interface method to provide Map[T1 -> T2].
 func (p *PipeNL[T]) Entrails() *internalpipe.Pipe[T] {
 	return &p.Pipe

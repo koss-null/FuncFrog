@@ -39,3 +39,7 @@ func Comp[T any](cmp func(T, T) bool) Comparator[T] {
 		return cmp(*x, *y)
 	}
 }
+
+// Promice returns two values: the evaluated value and if it is not skipped.
+// It should be checked as: if p, notSkipped := promice(); notSkipped { appendToAns(p) }
+type Promice[T any] func() (T, bool)
