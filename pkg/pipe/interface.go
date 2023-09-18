@@ -2,39 +2,41 @@ package pipe
 
 // Piper interface contains all methods of a pipe with determened length.
 type Piper[T any] interface {
-	changer[T]
-	getter[T]
+	doer[T]
+
+	mapper[T, Piper[T]]
+	filterer[T, Piper[T]]
+	sorter[T, Piper[T]]
+
 	paralleller[T, Piper[T]]
+
+	firster[T]
+	anier[T]
+	reducer[T]
+	summer[T]
+	counter
+
+	eraser[Piper[any]]
 }
 
 // PiperNoLen represents methods available to a Pipe type with no length determened.
 type PiperNoLen[T any] interface {
 	taker[Piper[T]]
 	genner[Piper[T]]
+
 	mapper[T, PiperNoLen[T]]
 	filterer[T, PiperNoLen[T]]
+
 	paralleller[T, PiperNoLen[T]]
+
 	firster[T]
 	anier[T]
+
+	eraser[PiperNoLen[any]]
 }
 
 type paralleller[T, PiperT any] interface {
 	Parallel(uint16) PiperT
-}
-
-type changer[T any] interface {
-	mapper[T, Piper[T]]
-	filterer[T, Piper[T]]
-	sorter[T, Piper[T]]
-}
-
-type getter[T any] interface {
-	reducer[T]
-	summer[T]
-	doer[T]
-	firster[T]
-	anier[T]
-	counter
 }
 
 type mapper[T, PiperT any] interface {
@@ -79,4 +81,8 @@ type anier[T any] interface {
 
 type counter interface {
 	Count() int
+}
+
+type eraser[PiperT any] interface {
+	Erase() PiperT
 }
