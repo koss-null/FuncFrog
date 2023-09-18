@@ -16,6 +16,7 @@ type Piper[T any] interface {
 	summer[T]
 	counter
 
+	promicer[T]
 	eraser[Piper[any]]
 }
 
@@ -85,4 +86,8 @@ type counter interface {
 
 type eraser[PiperT any] interface {
 	Erase() PiperT
+}
+
+type promicer[T any] interface {
+	Promices() []func() (T, bool)
 }
