@@ -18,6 +18,7 @@ type Piper[T any] interface {
 
 	promicer[T]
 	eraser[Piper[any]]
+	snagger[Piper[T]]
 }
 
 // PiperNoLen represents methods available to a Pipe type with no length determened.
@@ -34,6 +35,7 @@ type PiperNoLen[T any] interface {
 	anier[T]
 
 	eraser[PiperNoLen[any]]
+	snagger[PiperNoLen[T]]
 }
 
 type paralleller[T, PiperT any] interface {
@@ -90,4 +92,8 @@ type eraser[PiperT any] interface {
 
 type promicer[T any] interface {
 	Promices() []func() (T, bool)
+}
+
+type snagger[PiperT any] interface {
+	Snag(func(error)) PiperT
 }

@@ -55,6 +55,11 @@ func (p *PipeNL[T]) Erase() PiperNoLen[any] {
 	return &PipeNL[any]{p.Pipe.Erase()}
 }
 
+// Snag links an error handler to the previous Pipe method.
+func (p *PipeNL[T]) Snag(h func(error)) PiperNoLen[T] {
+	return &PipeNL[T]{p.Pipe.Snag(internalpipe.ErrHandler(h))}
+}
+
 // Entrails is an out of Piper interface method to provide Map[T1 -> T2].
 func (p *PipeNL[T]) Entrails() *internalpipe.Pipe[T] {
 	return &p.Pipe

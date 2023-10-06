@@ -2,6 +2,7 @@ package internalpipe
 
 import (
 	"math"
+	"unsafe"
 
 	"golang.org/x/exp/constraints"
 )
@@ -17,6 +18,7 @@ type Pipe[T any] struct {
 	Len           int
 	ValLim        int
 	GoroutinesCnt int
+	y             yeti
 }
 
 // Parallel set n - the amount of goroutines to run on.
@@ -56,6 +58,13 @@ func (p Pipe[T]) Count() int {
 	}
 	_, cnt := p.do(false)
 	return cnt
+}
+
+// Sang ads error handler to a current Pipe step.
+func (p Pipe[T]) Snag(h ErrHandler) Pipe[T] {
+	// FIXME: this pointer should be taken from p as the pointer to the previous Pipe step
+	p.y.SnagPipe(unsafe.Pointer(&p), h)
+	return p
 }
 
 // limit returns the upper border limit as the pipe evaluation limit.
