@@ -1,5 +1,7 @@
 package internalpipe
 
+import "unsafe"
+
 func (p Pipe[T]) Erase() Pipe[any] {
 	return Pipe[any]{
 		Fn: func(i int) (*any, bool) {
@@ -12,5 +14,8 @@ func (p Pipe[T]) Erase() Pipe[any] {
 		Len:           p.Len,
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
+
+		prevP: uintptr(unsafe.Pointer(&p)),
+		y:     p.y,
 	}
 }

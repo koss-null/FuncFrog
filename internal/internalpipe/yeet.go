@@ -15,6 +15,16 @@ type Yeti struct {
 	HMx        *sync.Mutex
 }
 
+func NewYeti() *Yeti {
+	return &Yeti{
+		Errs:       make([]error, 0),
+		Handlers:   make([]ErrHandler, 0),
+		Pipe2Hdlrs: make(map[unsafe.Pointer][]ErrHandler),
+		EMx:        &sync.Mutex{},
+		HMx:        &sync.Mutex{},
+	}
+}
+
 func (y *Yeti) Yeet(err error) {
 	y.EMx.Lock()
 	y.Errs = append(y.Errs, err)
@@ -34,6 +44,10 @@ func (y *Yeti) SnagPipe(p unsafe.Pointer, h ErrHandler) {
 		y.Pipe2Hdlrs[p] = append(make([]ErrHandler, 0, 10), h)
 	}
 	y.HMx.Unlock()
+}
+
+func (y *Yeti) Handle(p unsafe.Pointer) {
+	// TODO: impl
 }
 
 type yeti interface {
