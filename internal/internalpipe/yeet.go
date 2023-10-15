@@ -5,7 +5,7 @@ import (
 	"unsafe"
 )
 
-type ErrHandler func(err error)
+type ErrHandler func(error)
 
 type Yeti struct {
 	Errs       []error

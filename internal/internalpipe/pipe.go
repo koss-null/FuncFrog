@@ -2,7 +2,6 @@ package internalpipe
 
 import (
 	"math"
-	"unsafe"
 
 	"golang.org/x/exp/constraints"
 )
@@ -60,12 +59,6 @@ func (p Pipe[T]) Count() int {
 	}
 	_, cnt := p.do(false)
 	return cnt
-}
-
-// Sang ads error handler to a current Pipe step.
-func (p Pipe[T]) Snag(h ErrHandler) Pipe[T] {
-	p.y.SnagPipe(unsafe.Pointer(p.prevP), h)
-	return p
 }
 
 // limit returns the upper border limit as the pipe evaluation limit.

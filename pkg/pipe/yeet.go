@@ -1,8 +1,6 @@
 package pipe
 
 import (
-	"sync"
-
 	"github.com/koss-null/funcfrog/internal/internalpipe"
 )
 
@@ -11,18 +9,7 @@ const (
 	initHandlersAmount = 5
 )
 
-type Yeti interface {
-	// yeet an error
-	Yeet(err error)
-	// snag and handle the error
-	Snag(handler func(err error))
-}
-
-// FIXME
-func Yeet() Yeti {
-	return &internalpipe.Yeti{
-		Errs:     make(map[*any][]error, initErrsAmount),
-		Handlers: make(map[*any][]internalpipe.ErrHandler, initHandlersAmount),
-		Mx:       &sync.Mutex{},
-	}
+// NewYeti creates a brand new Yeti - an object for error handling.
+func NewYeti() internalpipe.YeetSnag {
+	return internalpipe.NewYeti()
 }

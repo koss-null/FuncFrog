@@ -1,5 +1,7 @@
 package pipe
 
+import "github.com/koss-null/funcfrog/internal/internalpipe"
+
 // Piper interface contains all methods of a pipe with determened length.
 type Piper[T any] interface {
 	doer[T]
@@ -19,6 +21,7 @@ type Piper[T any] interface {
 	promicer[T]
 	eraser[Piper[any]]
 	snagger[Piper[T]]
+	yeti[Piper[T]]
 }
 
 // PiperNoLen represents methods available to a Pipe type with no length determened.
@@ -36,6 +39,7 @@ type PiperNoLen[T any] interface {
 
 	eraser[PiperNoLen[any]]
 	snagger[PiperNoLen[T]]
+	yeti[PiperNoLen[T]]
 }
 
 type paralleller[T, PiperT any] interface {
@@ -96,4 +100,8 @@ type promicer[T any] interface {
 
 type snagger[PiperT any] interface {
 	Snag(func(error)) PiperT
+}
+
+type yeti[PiperT any] interface {
+	Yeti(y internalpipe.YeetSnag) PiperT
 }
