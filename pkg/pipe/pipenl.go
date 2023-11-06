@@ -24,7 +24,7 @@ func (p *PipeNL[T]) Filter(fn Predicate[T]) PiperNoLen[T] {
 // MapFilter applies given function to each element of the underlying slice,
 // if the second returning value of fn is false, the element is skipped (may be useful for error handling).
 // returns the slice where each element is n[i] = f(p[i]) if it is not skipped.
-func (p *PipeNL[T]) MapFilter(fn func(*T) (*T, bool)) PiperNoLen[T] {
+func (p *PipeNL[T]) MapFilter(fn func(T) (T, bool)) PiperNoLen[T] {
 	return &PipeNL[T]{p.Pipe.MapFilter(fn)}
 }
 

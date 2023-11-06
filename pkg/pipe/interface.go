@@ -48,7 +48,7 @@ type paralleller[T, PiperT any] interface {
 
 type mapper[T, PiperT any] interface {
 	Map(func(T) T) PiperT
-	MapFilter(func(*T) (*T, bool)) PiperT
+	MapFilter(func(T) (T, bool)) PiperT
 }
 
 type filterer[T, PiperT any] interface {
