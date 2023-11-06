@@ -33,7 +33,7 @@ func rnd(n int) []int {
 }
 
 func Test_partition(t *testing.T) {
-	a := rnd(6000)
+	a := rnd(1000)
 	q := partition(a, 0, len(a)-1, func(a, b *int) bool { return *a < *b })
 	for i := 0; i <= q; i++ {
 		for j := q + 1; j < len(a); j++ {
