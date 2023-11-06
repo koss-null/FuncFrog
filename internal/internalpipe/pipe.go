@@ -18,8 +18,7 @@ type Pipe[T any] struct {
 	ValLim        int
 	GoroutinesCnt int
 
-	prevP uintptr //*Pipe[T]
-	y     yeti
+	y yeti
 }
 
 // Parallel set n - the amount of goroutines to run on.

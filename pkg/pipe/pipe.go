@@ -21,6 +21,13 @@ func (p *Pipe[T]) Filter(fn Predicate[T]) Piper[T] {
 	return &Pipe[T]{p.Pipe.Filter(fn)}
 }
 
+// MapFilter applies given function to each element of the underlying slice,
+// if the second returning value of fn is false, the element is skipped (may be useful for error handling).
+// returns the slice where each element is n[i] = f(p[i]) if it is not skipped.
+func (p *Pipe[T]) MapFilter(fn func(*T) (*T, bool)) Piper[T] {
+	return &Pipe[T]{p.Pipe.MapFilter(fn)}
+}
+
 // Sort sorts the underlying slice on a current step of a pipeline.
 func (p *Pipe[T]) Sort(less Comparator[T]) Piper[T] {
 	return &Pipe[T]{p.Pipe.Sort(less)}

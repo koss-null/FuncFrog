@@ -2,7 +2,6 @@ package internalpipe
 
 import (
 	"sync"
-	"unsafe"
 
 	"github.com/koss-null/funcfrog/internal/algo/parallel/qsort"
 )
@@ -30,7 +29,6 @@ func (p Pipe[T]) Sort(less func(*T, *T) bool) Pipe[T] {
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
 
-		prevP: uintptr(unsafe.Pointer(&p)),
-		y:     p.y,
+		y: p.y,
 	}
 }
