@@ -60,6 +60,11 @@ func (p *PipeNL[T]) Snag(h func(error)) PiperNoLen[T] {
 	return &PipeNL[T]{p.Pipe.Snag(internalpipe.ErrHandler(h))}
 }
 
+// Yeti links a yeti error handler to the Pipe.
+func (p *PipeNL[T]) Yeti(y internalpipe.YeetSnag) PiperNoLen[T] {
+	return &PipeNL[T]{p.Pipe.Yeti(y)}
+}
+
 // Entrails is an out of Piper interface method to provide Map[T1 -> T2].
 func (p *PipeNL[T]) Entrails() *internalpipe.Pipe[T] {
 	return &p.Pipe

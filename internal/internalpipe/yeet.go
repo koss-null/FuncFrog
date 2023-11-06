@@ -10,7 +10,7 @@ type ErrHandler func(error)
 type Yeti struct {
 	Errs       []error
 	Handlers   []ErrHandler
-	Pipe2Hdlrs map[unsafe.Pointer][]ErrHandler
+	Pipe2Hdlrs map[uintptr][]ErrHandler
 	EMx        *sync.Mutex
 	HMx        *sync.Mutex
 }
@@ -19,7 +19,7 @@ func NewYeti() *Yeti {
 	return &Yeti{
 		Errs:       make([]error, 0),
 		Handlers:   make([]ErrHandler, 0),
-		Pipe2Hdlrs: make(map[unsafe.Pointer][]ErrHandler),
+		Pipe2Hdlrs: make(map[uintptr][]ErrHandler),
 		EMx:        &sync.Mutex{},
 		HMx:        &sync.Mutex{},
 	}
@@ -35,7 +35,7 @@ func (y *Yeti) Snag(handler ErrHandler) {
 	y.Handlers = append(y.Handlers, handler)
 }
 
-func (y *Yeti) SnagPipe(p unsafe.Pointer, h ErrHandler) {
+func (y *Yeti) SnagPipe(p uintptr, h ErrHandler) {
 	y.HMx.Lock()
 	if hdlrs, ok := y.Pipe2Hdlrs[p]; ok {
 		y.Pipe2Hdlrs[p] = append(hdlrs, h)
@@ -52,7 +52,7 @@ func (y *Yeti) Handle(p unsafe.Pointer) {
 
 type yeti interface {
 	Yeet(err error)
-	SnagPipe(p unsafe.Pointer, h ErrHandler)
+	SnagPipe(p uintptr, h ErrHandler)
 	// TODO: Handle should be called after each Pipe function eval
 	Handle(p unsafe.Pointer)
 }

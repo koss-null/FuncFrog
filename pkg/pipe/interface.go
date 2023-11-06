@@ -21,7 +21,7 @@ type Piper[T any] interface {
 	promicer[T]
 	eraser[Piper[any]]
 	snagger[Piper[T]]
-	yeti[Piper[T]]
+	yetyer[Piper[T]]
 }
 
 // PiperNoLen represents methods available to a Pipe type with no length determened.
@@ -39,7 +39,7 @@ type PiperNoLen[T any] interface {
 
 	eraser[PiperNoLen[any]]
 	snagger[PiperNoLen[T]]
-	yeti[PiperNoLen[T]]
+	yetyer[PiperNoLen[T]]
 }
 
 type paralleller[T, PiperT any] interface {
@@ -102,6 +102,6 @@ type snagger[PiperT any] interface {
 	Snag(func(error)) PiperT
 }
 
-type yeti[PiperT any] interface {
+type yetyer[PiperT any] interface {
 	Yeti(y internalpipe.YeetSnag) PiperT
 }

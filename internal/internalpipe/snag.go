@@ -1,11 +1,9 @@
 package internalpipe
 
-import "unsafe"
-
 // Sang ads error handler to a current Pipe step.
 func (p Pipe[T]) Snag(h ErrHandler) Pipe[T] {
 	// todo: think about NPE here
-	p.y.SnagPipe(unsafe.Pointer(p.prevP), h)
+	p.y.SnagPipe(p.prevP, h)
 	return p
 }
 
