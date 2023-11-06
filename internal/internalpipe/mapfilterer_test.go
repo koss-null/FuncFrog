@@ -106,4 +106,65 @@ func Test_MapFilter(t *testing.T) {
 			require.Equal(t, exp[i], r)
 		}
 	})
+
+	t.Run("single thread lim set empty", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &i, false
+			},
+			Len:           100_000,
+			ValLim:        -1,
+			GoroutinesCnt: 1,
+		}
+		res := p.MapFilter(func(x int) (int, bool) { return x + 1, false }).
+			Do()
+
+		require.Equal(t, 0, len(res))
+	})
+
+	t.Run("seven thread lim set", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &i, false
+			},
+			Len:           100_000,
+			ValLim:        -1,
+			GoroutinesCnt: 7,
+		}
+
+		res := p.MapFilter(func(x int) (int, bool) { return x + 1, false }).
+			Parallel(7).Do()
+
+		require.Equal(t, 0, len(res))
+	})
+
+	t.Run("single thread ValLim set", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &i, false
+			},
+			Len:           -1,
+			ValLim:        len(exp),
+			GoroutinesCnt: 1,
+		}
+		res := p.MapFilter(func(x int) (int, bool) { return x + 1, false }).
+			Do()
+
+		require.Equal(t, 0, len(res))
+	})
+
+	t.Run("seven thread ValLim set", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &i, false
+			},
+			Len:           -1,
+			ValLim:        len(exp),
+			GoroutinesCnt: 7,
+		}
+		res := p.MapFilter(func(x int) (int, bool) { return x + 1, false }).
+			Do()
+
+		require.Equal(t, 0, len(res))
+	})
 }

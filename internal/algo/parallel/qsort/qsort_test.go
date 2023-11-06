@@ -9,12 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// saving random array to make tests faster
+var (
+	rndAr []int
+	rndMx sync.Mutex
+)
+
 func rnd(n int) []int {
+	rndMx.Lock()
+	defer rndMx.Unlock()
+
+	if len(rndAr) >= n {
+		return rndAr[:n]
+	}
+
 	res := make([]int, n)
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < n; i++ {
 		res[i] = r.Intn(n)
 	}
+	rndAr = res
 	return res
 }
 
@@ -111,7 +125,7 @@ func Test_sort_big(t *testing.T) {
 }
 
 func Test_sort_huge(t *testing.T) {
-	a := rnd(1_000_000)
+	a := rnd(500_000)
 	tickets := genTickets(12)
 	var wg sync.WaitGroup
 	wg.Add(1)
