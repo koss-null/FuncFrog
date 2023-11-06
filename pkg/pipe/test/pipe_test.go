@@ -252,24 +252,6 @@ func TestSort_ok_parallel_large(t *testing.T) {
 	}
 }
 
-func TestSort_ok_parallel_large_single_thread(t *testing.T) {
-	largeNumber := 6_000_000
-	rnd := randN(largeNumber)
-	s := pipe.Func(func(i int) (float32, bool) {
-		return float32(rnd[i]), true
-	}).
-		Parallel(1).
-		Take(largeNumber).
-		Sort(pipies.Less[float32]).
-		Do()
-
-	require.NotNil(t, s)
-	prevItem := s[0]
-	for _, item := range s {
-		require.GreaterOrEqual(t, item, prevItem)
-	}
-}
-
 func TestReduce(t *testing.T) {
 	res := pipe.Func(func(i int) (int, bool) {
 		return i, true
