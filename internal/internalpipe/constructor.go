@@ -24,11 +24,10 @@ func Slice[T any](dt []T) Pipe[T] {
 		Len:           len(dtCp),
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
-
-		y: NewYeti(),
 	}
 
-	p.prevP = uintptr(unsafe.Pointer(&p))
+	ptr := uintptr(unsafe.Pointer(&p))
+	p.prevP = ptr
 	return p
 }
 
@@ -41,11 +40,10 @@ func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 		Len:           notSet,
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
-
-		y: NewYeti(),
 	}
 
-	p.prevP = uintptr(unsafe.Pointer(&p))
+	ptr := uintptr(unsafe.Pointer(&p))
+	p.prevP = ptr
 	return p
 }
 
@@ -55,11 +53,10 @@ func FuncP[T any](fn func(i int) (*T, bool)) Pipe[T] {
 		Len:           notSet,
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
-
-		y: NewYeti(),
 	}
 
-	p.prevP = uintptr(unsafe.Pointer(&p))
+	ptr := uintptr(unsafe.Pointer(&p))
+	p.prevP = ptr
 	return p
 }
 
@@ -84,10 +81,10 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 			Len:           0,
 			ValLim:        notSet,
 			GoroutinesCnt: defaultParallelWrks,
-
-			y: NewYeti(),
 		}
-		p.prevP = uintptr(unsafe.Pointer(&p))
+
+		ptr := uintptr(unsafe.Pointer(&p))
+		p.prevP = ptr
 		return p
 	}
 
@@ -99,10 +96,10 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 		Len:           max(int((finish-start)/step), 1),
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
-
-		y: NewYeti(),
 	}
-	p.prevP = uintptr(unsafe.Pointer(&p))
+
+	ptr := uintptr(unsafe.Pointer(&p))
+	p.prevP = ptr
 	return p
 }
 
@@ -115,11 +112,10 @@ func Repeat[T any](x T, n int) Pipe[T] {
 			Len:           0,
 			ValLim:        notSet,
 			GoroutinesCnt: defaultParallelWrks,
-
-			y: NewYeti(),
 		}
 
-		p.prevP = uintptr(unsafe.Pointer(&p))
+		ptr := uintptr(unsafe.Pointer(&p))
+		p.prevP = ptr
 		return p
 	}
 
@@ -131,10 +127,9 @@ func Repeat[T any](x T, n int) Pipe[T] {
 		Len:           n,
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
-
-		y: NewYeti(),
 	}
 
-	p.prevP = uintptr(unsafe.Pointer(&p))
+	ptr := uintptr(unsafe.Pointer(&p))
+	p.prevP = ptr
 	return p
 }

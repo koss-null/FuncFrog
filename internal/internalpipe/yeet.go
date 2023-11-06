@@ -2,57 +2,76 @@ package internalpipe
 
 import (
 	"sync"
-	"unsafe"
 )
 
 type ErrHandler func(error)
 
 type Yeti struct {
-	Errs       []error
-	Handlers   []ErrHandler
-	Pipe2Hdlrs map[uintptr][]ErrHandler
-	EMx        *sync.Mutex
-	HMx        *sync.Mutex
+	EMx      *sync.Mutex
+	errs     []error
+	HMx      *sync.Mutex
+	handlers []ErrHandler
+	YMx      *sync.Mutex
+	yetties  []yeti
 }
 
 func NewYeti() *Yeti {
 	return &Yeti{
-		Errs:       make([]error, 0),
-		Handlers:   make([]ErrHandler, 0),
-		Pipe2Hdlrs: make(map[uintptr][]ErrHandler),
-		EMx:        &sync.Mutex{},
-		HMx:        &sync.Mutex{},
+		errs:     make([]error, 0),
+		handlers: make([]ErrHandler, 0),
+		yetties:  make([]yeti, 0),
+		EMx:      &sync.Mutex{},
+		HMx:      &sync.Mutex{},
+		YMx:      &sync.Mutex{},
 	}
 }
 
 func (y *Yeti) Yeet(err error) {
 	y.EMx.Lock()
-	y.Errs = append(y.Errs, err)
+	y.errs = append(y.errs, err)
 	y.EMx.Unlock()
 }
 
 func (y *Yeti) Snag(handler ErrHandler) {
-	y.Handlers = append(y.Handlers, handler)
-}
-
-func (y *Yeti) SnagPipe(p uintptr, h ErrHandler) {
 	y.HMx.Lock()
-	if hdlrs, ok := y.Pipe2Hdlrs[p]; ok {
-		y.Pipe2Hdlrs[p] = append(hdlrs, h)
-	} else {
-		// FIXME: use constant, remove else
-		y.Pipe2Hdlrs[p] = append(make([]ErrHandler, 0, 10), h)
-	}
+	y.handlers = append(y.handlers, handler)
 	y.HMx.Unlock()
 }
 
-func (y *Yeti) Handle(p unsafe.Pointer) {
-	// TODO: impl
+func (y *Yeti) Handle() {
+	if y == nil {
+		return
+	}
+
+	y.YMx.Lock()
+	prevYs := y.yetties
+	y.YMx.Unlock()
+	for _, prevYetti := range prevYs {
+		prevYetti.Handle()
+	}
+
+	y.HMx.Lock()
+	y.EMx.Lock()
+	defer y.HMx.Unlock()
+	defer y.EMx.Unlock()
+
+	for _, err := range y.errs {
+		for _, handle := range y.handlers {
+			handle(err)
+		}
+	}
+}
+
+func (y *Yeti) AddYeti(yt yeti) {
+	y.YMx.Lock()
+	y.yetties = append(y.yetties, yt)
+	y.YMx.Unlock()
 }
 
 type yeti interface {
 	Yeet(err error)
-	SnagPipe(p uintptr, h ErrHandler)
+	Snag(h ErrHandler)
 	// TODO: Handle should be called after each Pipe function eval
-	Handle(p unsafe.Pointer)
+	Handle()
+	AddYeti(y yeti)
 }

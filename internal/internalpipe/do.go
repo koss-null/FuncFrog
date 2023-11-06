@@ -27,6 +27,8 @@ func (p *Pipe[T]) doToLimit() []T {
 		return []T{}
 	}
 
+	defer p.y.Handle()
+
 	res := make([]T, 0, p.ValLim)
 	for i := 0; len(res) < p.ValLim; i++ {
 		obj, skipped := p.Fn(i)
@@ -43,6 +45,8 @@ func (p *Pipe[T]) doToLimit() []T {
 
 // do runs the result evaluation.
 func (p *Pipe[T]) do(needResult bool) ([]T, int) {
+	defer p.y.Handle()
+
 	var (
 		eval    []ev[T]
 		limit   = p.limit()

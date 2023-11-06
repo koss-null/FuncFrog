@@ -1,7 +1,5 @@
 package internalpipe
 
-import "unsafe"
-
 // Map applies given function to each element of the underlying slice
 // returns the slice where each element is n[i] = f(p[i]).
 func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
@@ -17,7 +15,6 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
 
-		prevP: uintptr(unsafe.Pointer(&p)),
-		y:     p.y,
+		y: p.y,
 	}
 }
