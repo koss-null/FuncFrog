@@ -62,7 +62,7 @@ func Reduce[SrcT any, DstT any](p Piper[SrcT], fn func(*DstT, *SrcT) DstT, initV
 	default:
 		res := fn(&init, &data[0])
 		for i := range data[1:] {
-			res = fn(&res, &data[i])
+			res = fn(&res, &data[i+1])
 		}
 		return res
 	}
