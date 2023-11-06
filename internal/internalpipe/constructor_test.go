@@ -8,6 +8,8 @@ import (
 )
 
 func Test_Slice(t *testing.T) {
+	t.Parallel()
+
 	a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	p := Slice(a)
 	require.Equal(t, p.Len, 10)
@@ -20,6 +22,8 @@ func Test_Slice(t *testing.T) {
 }
 
 func Test_FuncP(t *testing.T) {
+	t.Parallel()
+
 	p := FuncP(func(i int) (*int, bool) {
 		return &i, true
 	})

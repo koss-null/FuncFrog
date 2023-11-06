@@ -8,9 +8,9 @@ func (p Pipe[T]) Promices() []func() (T, bool) {
 		proms[i] = func() (T, bool) {
 			obj, skipped := p.Fn(cpi)
 			if skipped {
-				return empty, true
+				return empty, false
 			}
-			return *obj, false
+			return *obj, true
 		}
 	}
 	return proms

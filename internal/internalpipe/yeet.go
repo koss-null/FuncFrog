@@ -7,53 +7,50 @@ import (
 type ErrHandler func(error)
 
 type Yeti struct {
-	EMx      *sync.Mutex
+	eMx      *sync.Mutex
 	errs     []error
-	HMx      *sync.Mutex
+	hMx      *sync.Mutex
 	handlers []ErrHandler
-	YMx      *sync.Mutex
-	yetties  []yeti
+	yMx      *sync.Mutex
+	yetis    []yeti
 }
 
 func NewYeti() *Yeti {
+	const yetiExpectedErrors = 6
 	return &Yeti{
-		errs:     make([]error, 0),
-		handlers: make([]ErrHandler, 0),
-		yetties:  make([]yeti, 0),
-		EMx:      &sync.Mutex{},
-		HMx:      &sync.Mutex{},
-		YMx:      &sync.Mutex{},
+		errs:     make([]error, 0, yetiExpectedErrors),
+		handlers: make([]ErrHandler, 0, yetiExpectedErrors),
+		yetis:    make([]yeti, 0),
+		eMx:      &sync.Mutex{},
+		hMx:      &sync.Mutex{},
+		yMx:      &sync.Mutex{},
 	}
 }
 
 func (y *Yeti) Yeet(err error) {
-	y.EMx.Lock()
+	y.eMx.Lock()
 	y.errs = append(y.errs, err)
-	y.EMx.Unlock()
+	y.eMx.Unlock()
 }
 
 func (y *Yeti) Snag(handler ErrHandler) {
-	y.HMx.Lock()
+	y.hMx.Lock()
 	y.handlers = append(y.handlers, handler)
-	y.HMx.Unlock()
+	y.hMx.Unlock()
 }
 
 func (y *Yeti) Handle() {
-	if y == nil {
-		return
-	}
-
-	y.YMx.Lock()
-	prevYs := y.yetties
-	y.YMx.Unlock()
+	y.yMx.Lock()
+	prevYs := y.yetis
+	y.yMx.Unlock()
 	for _, prevYetti := range prevYs {
 		prevYetti.Handle()
 	}
 
-	y.HMx.Lock()
-	y.EMx.Lock()
-	defer y.HMx.Unlock()
-	defer y.EMx.Unlock()
+	y.hMx.Lock()
+	y.eMx.Lock()
+	defer y.hMx.Unlock()
+	defer y.eMx.Unlock()
 
 	for _, err := range y.errs {
 		for _, handle := range y.handlers {
@@ -63,9 +60,9 @@ func (y *Yeti) Handle() {
 }
 
 func (y *Yeti) AddYeti(yt yeti) {
-	y.YMx.Lock()
-	y.yetties = append(y.yetties, yt)
-	y.YMx.Unlock()
+	y.yMx.Lock()
+	y.yetis = append(y.yetis, yt)
+	y.yMx.Unlock()
 }
 
 type yeti interface {
