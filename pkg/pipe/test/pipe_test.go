@@ -1,8 +1,9 @@
 package pipe_test
 
 import (
+	"crypto/rand"
 	"math"
-	"math/rand"
+	"math/big"
 	"sort"
 	"sync"
 	"testing"
@@ -26,6 +27,36 @@ func initA1kk() {
 			a1kk[i] = float64(i)
 		}
 	})
+}
+
+var (
+	randSrc []int
+	randMx  sync.Mutex
+)
+
+func randN(n int) []int {
+	randMx.Lock()
+	defer randMx.Unlock()
+
+	if len(randSrc) != 0 {
+		dest := make([]int, n)
+		copy(dest, randSrc[:n])
+		return dest
+	}
+
+	result := make([]int, 10e8)
+	for i := 0; i < n; i++ {
+		nBig, err := rand.Int(rand.Reader, big.NewInt(10e8))
+		if err != nil {
+			panic(err)
+		}
+		result[i] = int(nBig.Int64())
+	}
+
+	randSrc = result
+	dest := make([]int, n)
+	copy(dest, randSrc[:n])
+	return dest
 }
 
 func TestSlice_ok(t *testing.T) {
@@ -136,10 +167,9 @@ func TestFilter_NotNull_ok(t *testing.T) {
 // Sort() function
 
 func TestSort_ok_parallel1(t *testing.T) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(11)
+	rnd := randN(100_000)
 	s := pipe.Func(func(i int) (float32, bool) {
-		return rnd.Float32(), true
+		return float32(rnd[i]), true
 	}).
 		Parallel(1).
 		Take(100_000).
@@ -154,10 +184,9 @@ func TestSort_ok_parallel1(t *testing.T) {
 }
 
 func TestSort_ok_parallel_default(t *testing.T) {
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(11)
+	rnd := randN(100_000)
 	s := pipe.Func(func(i int) (float32, bool) {
-		return rnd.Float32(), true
+		return float32(rnd[i]), true
 	}).
 		Take(100_000).
 		Sort(pipies.Less[float32]).
@@ -172,10 +201,9 @@ func TestSort_ok_parallel_default(t *testing.T) {
 
 func TestSort_ok_parallel_slice(t *testing.T) {
 	a := make([]int, 6000)
-	rnd := rand.New(rand.NewSource(42))
-	rnd.Seed(22)
+	rnd := randN(100_000)
 	for i := range a {
-		a[i] = int(rnd.Float32() * 100_000.0)
+		a[i] = int(rnd[i] * 100_000)
 	}
 
 	s := pipe.Slice(a).
@@ -190,10 +218,9 @@ func TestSort_ok_parallel_slice(t *testing.T) {
 }
 
 func TestSort_ok_parallel12(t *testing.T) {
+	rnd := randN(100_000)
 	s := pipe.Func(func(i int) (float32, bool) {
-		rnd := rand.New(rand.NewSource(42))
-		rnd.Seed(int64(i))
-		return rnd.Float32(), true
+		return float32(rnd[i]), true
 	}).
 		Parallel(12).
 		Take(100_000).
@@ -208,12 +235,31 @@ func TestSort_ok_parallel12(t *testing.T) {
 }
 
 func TestSort_ok_parallel_large(t *testing.T) {
-	rnd := rand.New(rand.NewSource(42))
+	largeNumber := 6_000_000
+	rnd := randN(largeNumber)
 	s := pipe.Func(func(i int) (float32, bool) {
-		return rnd.Float32(), true
+		return float32(rnd[i]), true
 	}).
 		Parallel(12).
-		Take(10_000_000).
+		Take(largeNumber).
+		Sort(pipies.Less[float32]).
+		Do()
+
+	require.NotNil(t, s)
+	prevItem := s[0]
+	for _, item := range s {
+		require.GreaterOrEqual(t, item, prevItem)
+	}
+}
+
+func TestSort_ok_parallel_large_single_thread(t *testing.T) {
+	largeNumber := 6_000_000
+	rnd := randN(largeNumber)
+	s := pipe.Func(func(i int) (float32, bool) {
+		return float32(rnd[i]), true
+	}).
+		Parallel(1).
+		Take(largeNumber).
 		Sort(pipies.Less[float32]).
 		Do()
 
