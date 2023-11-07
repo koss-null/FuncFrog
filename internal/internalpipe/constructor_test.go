@@ -48,6 +48,7 @@ func Test_Cycle(t *testing.T) {
 	}
 
 	t.Run("happy", func(t *testing.T) {
+		t.Parallel()
 		p := Cycle([]string{"a", "b", "c", "d"})
 		require.Equal(
 			t,
@@ -57,6 +58,7 @@ func Test_Cycle(t *testing.T) {
 	})
 
 	t.Run("empty res", func(t *testing.T) {
+		t.Parallel()
 		p := Cycle([]string{"a", "b", "c", "d"})
 		require.Equal(
 			t,
@@ -66,6 +68,7 @@ func Test_Cycle(t *testing.T) {
 	})
 
 	t.Run("empty cycle", func(t *testing.T) {
+		t.Parallel()
 		p := Cycle([]string{})
 		require.Equal(
 			t,
@@ -82,6 +85,7 @@ func Test_Range(t *testing.T) {
 	t.Parallel()
 
 	t.Run("happy", func(t *testing.T) {
+		t.Parallel()
 		p := Range(0, 10, 1)
 		require.Equal(t, p.Len, 10)
 		require.Equal(t, p.ValLim, notSet)
@@ -92,6 +96,7 @@ func Test_Range(t *testing.T) {
 		}
 	})
 	t.Run("single step owerflow", func(t *testing.T) {
+		t.Parallel()
 		p := Range(1, 10, 100)
 		require.Equal(t, 1, p.Len)
 		require.Equal(t, notSet, p.ValLim)
@@ -100,6 +105,7 @@ func Test_Range(t *testing.T) {
 		require.Equal(t, 1, res[0])
 	})
 	t.Run("finish less than start", func(t *testing.T) {
+		t.Parallel()
 		p := Range(100, 10, 100)
 		require.Equal(t, 0, p.Len)
 		require.Equal(t, notSet, p.ValLim)
