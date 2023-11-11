@@ -136,4 +136,37 @@ func Test_MapFilter(t *testing.T) {
 
 		require.Equal(t, 0, len(res))
 	})
+<<<<<<< HEAD
+=======
+
+	t.Run("single thread ValLim set", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &i, false
+			},
+			Len:           -1,
+			ValLim:        len(exp),
+			GoroutinesCnt: 1,
+		}
+		res := p.MapFilter(func(x int) (int, bool) { return x + 1, true }).
+			Do()
+
+		require.Equal(t, 0, len(res))
+	})
+
+	t.Run("seven thread ValLim set", func(t *testing.T) {
+		p := Pipe[int]{
+			Fn: func(i int) (*int, bool) {
+				return &i, false
+			},
+			Len:           -1,
+			ValLim:        len(exp),
+			GoroutinesCnt: 7,
+		}
+		res := p.MapFilter(func(x int) (int, bool) { return x + 1, false }).
+			Do()
+
+		require.Equal(t, 0, len(res))
+	})
+>>>>>>> 7a99372 ([] refactoring tests)
 }
