@@ -1020,12 +1020,15 @@ func TestYetiSnag(t *testing.T) {
 
 func TestPrefixMap(t *testing.T) {
 	res := pipe.Map(
-		pipe.Slice([]int{1, 2, 3}),
+		pipe.Slice([]int{1, 2, 3, 4}).
+			Filter(func(x *int) bool {
+				return *x != 2
+			}),
 		func(x int) string {
 			return strconv.Itoa(x)
 		},
 	).Do()
-	require.Equal(t, []string{"1", "2", "3"}, res)
+	require.Equal(t, []string{"1", "3", "4"}, res)
 }
 
 func TestPrefixMapNL(t *testing.T) {
@@ -1033,19 +1036,22 @@ func TestPrefixMapNL(t *testing.T) {
 
 	res := pipe.MapNL(
 		pipe.Func(func(i int) (int, bool) {
-			return []int{1, 2, 3}[i], true
+			return []int{1, 2, 3, 4}[i], true
+		}).Filter(func(x *int) bool {
+			return *x != 2
 		}),
 		func(x int) string {
 			return strconv.Itoa(x)
 		},
 	).Take(3).Do()
-	require.Equal(t, []string{"1", "2", "3"}, res)
+	require.Equal(t, []string{"1", "3", "4"}, res)
 }
 
 func TestPrefixReduce(t *testing.T) {
 	t.Parallel()
 
 	t.Run("common", func(t *testing.T) {
+		t.Parallel()
 		res := pipe.Reduce(
 			pipe.Slice([]int{1, 2, 3, 4, 5}),
 			func(s *string, n *int) string {
@@ -1055,7 +1061,9 @@ func TestPrefixReduce(t *testing.T) {
 		)
 		require.Equal(t, "the result string is: 12345", res)
 	})
+
 	t.Run("zero_res", func(t *testing.T) {
+		t.Parallel()
 		res := pipe.Reduce(
 			pipe.Slice([]int{1, 2, 3, 4, 5}).
 				Filter(func(x *int) bool { return *x > 100 }),
@@ -1066,7 +1074,9 @@ func TestPrefixReduce(t *testing.T) {
 		)
 		require.Equal(t, "the result string is: ", res)
 	})
+
 	t.Run("single_res", func(t *testing.T) {
+		t.Parallel()
 		res := pipe.Reduce(
 			pipe.Slice([]int{1, 2, 3, 4, 5}).
 				Filter(func(x *int) bool { return *x == 5 }),
@@ -1077,6 +1087,39 @@ func TestPrefixReduce(t *testing.T) {
 		)
 		require.Equal(t, "the result string is: 5", res)
 	})
+}
+
+// functype test
+
+func TestAcc(t *testing.T) {
+	t.Parallel()
+
+	res := pipe.Slice([]int{1, 2, 3, 4, 5}).Reduce(
+		pipe.Acc(func(x int, y int) int {
+			return x + y
+		}),
+	)
+	require.Equal(t, 15, *res)
+}
+
+func TestPred(t *testing.T) {
+	t.Parallel()
+
+	res := pipe.Slice([]int{1, 2, 3, 4, 5}).Filter(
+		pipe.Pred(func(x int) bool {
+			return x != 2
+		}),
+	).Do()
+	require.Equal(t, []int{1, 3, 4, 5}, res)
+}
+
+func TestComp(t *testing.T) {
+	t.Parallel()
+
+	res := pipe.Slice([]int{5, 3, 4, 1, 3, 5, 2, 3, 6}).Sort(
+		pipe.Comp(func(x, y int) bool { return x < y }),
+	).Do()
+	require.Equal(t, []int{1, 2, 3, 3, 3, 4, 5, 5, 6}, res)
 }
 
 // helping functions
