@@ -16,6 +16,34 @@ import (
 	"github.com/koss-null/funcfrog/pkg/pipies"
 )
 
+// testing collectors
+
+func TestCollect(t *testing.T) {
+	t.Parallel()
+
+	p := pipe.Func(func(i int) (int, bool) {
+		if i == 4 {
+			return 0, false
+		}
+		return i, true
+	}).Take(5).Erase()
+	c := pipe.Collect[int](p).Do()
+	require.Equal(t, []int{0, 1, 2, 3, 5}, c)
+}
+
+func TestCollectNL(t *testing.T) {
+	t.Parallel()
+
+	p := pipe.Func(func(i int) (int, bool) {
+		if i == 4 {
+			return 0, false
+		}
+		return i, true
+	}).Erase()
+	c := pipe.CollectNL[int](p).Take(5).Do()
+	require.Equal(t, []int{0, 1, 2, 3, 5}, c)
+}
+
 // testing constructions
 
 func TestSlice(t *testing.T) {

@@ -8,8 +8,8 @@ func Collect[DstT any](p Piper[any]) Piper[DstT] {
 	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
 		Fn: func(i int) (*DstT, bool) {
 			if obj, skipped := pp.Fn(i); !skipped {
-				dst, ok := (*obj).(DstT)
-				return &dst, !ok
+				dst, ok := (*obj).(*DstT)
+				return dst, !ok
 			}
 			return nil, true
 		},
@@ -25,8 +25,8 @@ func CollectNL[DstT any](p PiperNoLen[any]) PiperNoLen[DstT] {
 	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
 		Fn: func(i int) (*DstT, bool) {
 			if obj, skipped := pp.Fn(i); !skipped {
-				dst, ok := (*obj).(DstT)
-				return &dst, !ok
+				dst, ok := (*obj).(*DstT)
+				return dst, !ok
 			}
 			return nil, true
 		},

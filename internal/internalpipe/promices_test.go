@@ -10,8 +10,8 @@ func TestPromices(t *testing.T) {
 	t.Parallel()
 
 	a := Func(func(i int) (int, bool) {
-		return i, i != 100
-	}).Take(100)
+		return i, true
+	}).Filter(func(x *int) bool { return *x != 100 }).Take(101)
 
 	proms := a.Promices()
 	for i := 0; i < 100; i++ {
@@ -23,4 +23,6 @@ func TestPromices(t *testing.T) {
 		}
 		require.Equal(t, i, res)
 	}
+	_, ok := proms[100]()
+	require.False(t, ok)
 }

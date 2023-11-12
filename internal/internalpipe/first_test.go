@@ -93,7 +93,7 @@ func TestFirst(t *testing.T) {
 				return nil, true
 			},
 			Len:           0,
-			ValLim:        -1,
+			ValLim:        0,
 			GoroutinesCnt: 10,
 		}
 		require.Nil(t, p.First())

@@ -30,6 +30,9 @@ func Test_FuncP(t *testing.T) {
 	require.Equal(t, p.Len, notSet)
 	require.Equal(t, p.ValLim, notSet)
 	require.Equal(t, p.GoroutinesCnt, defaultParallelWrks)
+
+	res := p.Gen(5).Do()
+	require.Equal(t, []int{0, 1, 2, 3, 4}, res)
 }
 
 func Not[T any](fn func(x T) bool) func(T) bool {
@@ -138,10 +141,15 @@ func Test_Repeat(t *testing.T) {
 	t.Parallel()
 
 	t.Run("happy", func(t *testing.T) {
+		t.Parallel()
+
 		p := Repeat("hello", 5).Map(strings.ToUpper).Do()
 		require.Equal(t, []string{"HELLO", "HELLO", "HELLO", "HELLO", "HELLO"}, p)
 	})
-	t.Run("n == 0", func(t *testing.T) {
+
+	t.Run("n==0", func(t *testing.T) {
+		t.Parallel()
+
 		p := Repeat("hello", 0).Map(strings.ToUpper).Do()
 		require.Equal(t, []string{}, p)
 	})

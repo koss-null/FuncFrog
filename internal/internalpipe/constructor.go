@@ -64,25 +64,12 @@ func Cycle[T any](a []T) Pipe[T] {
 	})
 }
 
-func abs[T constraints.Integer | constraints.Float](a T) T {
-	if a < 0 {
-		return -a
-	}
-	return a
-}
-
-func ceil[T constraints.Integer | constraints.Float](a T) int {
-	return int(math.Ceil(float64(a)))
-}
-
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pipe[T] {
 	if (step == 0) ||
 		(step > 0 && start >= finish) ||
 		(step < 0 && finish >= start) {
 		return Pipe[T]{
-			Fn: func(i int) (*T, bool) {
-				return nil, true
-			},
+			Fn:            nil,
 			Len:           0,
 			ValLim:        notSet,
 			GoroutinesCnt: defaultParallelWrks,
@@ -102,7 +89,7 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 			val := start + T(i)*step
 			return &val, pred(val)
 		},
-		Len:           ceil(abs(float64(finish-start) / float64(step))),
+		Len:           ceil(float64(finish-start) / float64(step)),
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
@@ -111,9 +98,7 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 func Repeat[T any](x T, n int) Pipe[T] {
 	if n <= 0 {
 		return Pipe[T]{
-			Fn: func(int) (*T, bool) {
-				return nil, true
-			},
+			Fn:            nil,
 			Len:           0,
 			ValLim:        notSet,
 			GoroutinesCnt: defaultParallelWrks,
@@ -129,4 +114,8 @@ func Repeat[T any](x T, n int) Pipe[T] {
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
+}
+
+func ceil[T constraints.Integer | constraints.Float](a T) int {
+	return int(math.Ceil(float64(a)))
 }
