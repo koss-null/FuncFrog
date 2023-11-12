@@ -1,6 +1,8 @@
 package internalpipe
 
 import (
+	"math"
+
 	"golang.org/x/exp/constraints"
 )
 
@@ -40,7 +42,10 @@ func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 
 func FuncP[T any](fn func(i int) (*T, bool)) Pipe[T] {
 	return Pipe[T]{
-		Fn:            fn,
+		Fn: func(i int) (*T, bool) {
+			obj, exist := fn(i)
+			return obj, !exist
+		},
 		Len:           notSet,
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
@@ -59,10 +64,23 @@ func Cycle[T any](a []T) Pipe[T] {
 	})
 }
 
+func abs[T constraints.Integer | constraints.Float](a T) T {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
+
+func ceil[T constraints.Integer | constraints.Float](a T) int {
+	return int(math.Ceil(float64(a)))
+}
+
 func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pipe[T] {
-	if start >= finish {
+	if (step == 0) ||
+		(step > 0 && start >= finish) ||
+		(step < 0 && finish >= start) {
 		return Pipe[T]{
-			Fn: func(int) (*T, bool) {
+			Fn: func(i int) (*T, bool) {
 				return nil, true
 			},
 			Len:           0,
@@ -71,12 +89,20 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 		}
 	}
 
+	pred := func(x T) bool {
+		return x >= finish
+	}
+	if step < 0 {
+		pred = func(x T) bool {
+			return x <= finish
+		}
+	}
 	return Pipe[T]{
 		Fn: func(i int) (*T, bool) {
 			val := start + T(i)*step
-			return &val, val >= finish
+			return &val, pred(val)
 		},
-		Len:           max(int((finish-start)/step), 1),
+		Len:           ceil(abs(float64(finish-start) / float64(step))),
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}

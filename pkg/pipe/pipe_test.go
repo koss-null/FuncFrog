@@ -16,6 +16,8 @@ import (
 	"github.com/koss-null/funcfrog/pkg/pipies"
 )
 
+// testing constructions
+
 func TestSlice(t *testing.T) {
 	t.Parallel()
 
@@ -171,6 +173,65 @@ func TestFunc(t *testing.T) {
 		})
 	}
 }
+
+func TestFuncP(t *testing.T) {
+	t.Parallel()
+
+	const testSize = 10_000
+	p := pipe.FuncP(func(i int) (*int, bool) { return &i, true }).Gen(testSize).Do()
+	for i := 0; i < testSize; i++ {
+		require.Equal(t, i, p[i])
+	}
+}
+
+func TestCycle(t *testing.T) {
+	t.Parallel()
+
+	const testSize = 10_000
+	c := pipe.Cycle([]int{0, 1, 2, 3, 4}).Take(testSize).Do()
+	for i := 0; i < testSize; i++ {
+		require.Equal(t, i%5, c[i])
+	}
+}
+
+func TestRange(t *testing.T) {
+	t.Parallel()
+
+	t.Run("asc", func(t *testing.T) {
+		t.Parallel()
+
+		r := pipe.Range(0, 10_000, 5).Do()
+		idx := 0
+		for i := 0; i < 10_000; i += 5 {
+			require.Equal(t, i, r[idx])
+			idx++
+		}
+	})
+
+	t.Run("desc", func(t *testing.T) {
+		t.Parallel()
+
+		r := pipe.Range(10_000, 0, -5).Do()
+		idx := 0
+		for i := 10_000; i > 0; i -= 5 {
+			require.Equal(t, i, r[idx])
+			idx++
+		}
+	})
+
+	t.Run("desc2", func(t *testing.T) {
+		t.Parallel()
+
+		r := pipe.Range(0, -10_000, -5).Do()
+		idx := 0
+		for i := 0; i > -10_000; i -= 5 {
+			require.Equal(t, i, r[idx])
+			idx++
+		}
+	})
+}
+
+// testing pipe and pipeNL functions
 
 func TestMap(t *testing.T) {
 	t.Parallel()

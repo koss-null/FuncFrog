@@ -87,31 +87,50 @@ func Test_Range(t *testing.T) {
 	t.Run("happy", func(t *testing.T) {
 		t.Parallel()
 		p := Range(0, 10, 1)
-		require.Equal(t, p.Len, 10)
-		require.Equal(t, p.ValLim, notSet)
-		require.Equal(t, p.GoroutinesCnt, defaultParallelWrks)
 		res := p.Do()
+		require.Equal(t, 10, len(res))
 		for i := 0; i < 10; i++ {
 			require.Equal(t, i, res[i])
 		}
 	})
-	t.Run("single step owerflow", func(t *testing.T) {
+	t.Run("single_step_owerflow", func(t *testing.T) {
 		t.Parallel()
-		p := Range(1, 10, 100)
-		require.Equal(t, 1, p.Len)
-		require.Equal(t, notSet, p.ValLim)
-		require.Equal(t, defaultParallelWrks, p.GoroutinesCnt)
+		p := Range(1, 10, 50)
 		res := p.Do()
+		require.Equal(t, 1, len(res))
 		require.Equal(t, 1, res[0])
 	})
-	t.Run("finish less than start", func(t *testing.T) {
+	t.Run("finish_is_less_than_start", func(t *testing.T) {
 		t.Parallel()
-		p := Range(100, 10, 100)
-		require.Equal(t, 0, p.Len)
-		require.Equal(t, notSet, p.ValLim)
-		require.Equal(t, defaultParallelWrks, p.GoroutinesCnt)
+		p := Range(100, 10, 50)
 		res := p.Do()
 		require.Equal(t, 0, len(res))
+	})
+	t.Run("step_is_0", func(t *testing.T) {
+		t.Parallel()
+		p := Range(1, 10, 0)
+		res := p.Do()
+		require.Equal(t, 0, len(res))
+	})
+	t.Run("start_is_finish", func(t *testing.T) {
+		t.Parallel()
+		p := Range(1, 1, 1)
+		res := p.Do()
+		require.Equal(t, 0, len(res))
+	})
+	t.Run("start_is_finish_negative", func(t *testing.T) {
+		t.Parallel()
+		p := Range(1, 1, -1)
+		res := p.Do()
+		require.Equal(t, 0, len(res))
+	})
+	t.Run("finish_is_less_than_start_and_step_is_negative", func(t *testing.T) {
+		t.Parallel()
+		p := Range(100, 10, -50)
+		res := p.Do()
+		require.Equal(t, 2, len(res))
+		require.Equal(t, 100, res[0])
+		require.Equal(t, 50, res[1])
 	})
 }
 
