@@ -231,6 +231,17 @@ func TestRange(t *testing.T) {
 	})
 }
 
+func TestRepeat(t *testing.T) {
+	t.Parallel()
+
+	const r = 1
+
+	exp := [][]int{{}, {r, r, r, r, r}, {}}
+	for i, n := range []int{0, 5, -1} {
+		require.Equal(t, exp[i], pipe.Repeat(r, n).Do())
+	}
+}
+
 // testing pipe and pipeNL functions
 
 func TestMap(t *testing.T) {
