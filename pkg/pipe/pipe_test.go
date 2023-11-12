@@ -1016,6 +1016,69 @@ func TestYetiSnag(t *testing.T) {
 	}
 }
 
+// prefixpipe
+
+func TestPrefixMap(t *testing.T) {
+	res := pipe.Map(
+		pipe.Slice([]int{1, 2, 3}),
+		func(x int) string {
+			return strconv.Itoa(x)
+		},
+	).Do()
+	require.Equal(t, []string{"1", "2", "3"}, res)
+}
+
+func TestPrefixMapNL(t *testing.T) {
+	t.Parallel()
+
+	res := pipe.MapNL(
+		pipe.Func(func(i int) (int, bool) {
+			return []int{1, 2, 3}[i], true
+		}),
+		func(x int) string {
+			return strconv.Itoa(x)
+		},
+	).Take(3).Do()
+	require.Equal(t, []string{"1", "2", "3"}, res)
+}
+
+func TestPrefixReduce(t *testing.T) {
+	t.Parallel()
+
+	t.Run("common", func(t *testing.T) {
+		res := pipe.Reduce(
+			pipe.Slice([]int{1, 2, 3, 4, 5}),
+			func(s *string, n *int) string {
+				return *s + strconv.Itoa(*n)
+			},
+			"the result string is: ",
+		)
+		require.Equal(t, "the result string is: 12345", res)
+	})
+	t.Run("zero_res", func(t *testing.T) {
+		res := pipe.Reduce(
+			pipe.Slice([]int{1, 2, 3, 4, 5}).
+				Filter(func(x *int) bool { return *x > 100 }),
+			func(s *string, n *int) string {
+				return *s + strconv.Itoa(*n)
+			},
+			"the result string is: ",
+		)
+		require.Equal(t, "the result string is: ", res)
+	})
+	t.Run("single_res", func(t *testing.T) {
+		res := pipe.Reduce(
+			pipe.Slice([]int{1, 2, 3, 4, 5}).
+				Filter(func(x *int) bool { return *x == 5 }),
+			func(s *string, n *int) string {
+				return *s + strconv.Itoa(*n)
+			},
+			"the result string is: ",
+		)
+		require.Equal(t, "the result string is: 5", res)
+	})
+}
+
 // helping functions
 
 func wrap[T any](x T) func() T {

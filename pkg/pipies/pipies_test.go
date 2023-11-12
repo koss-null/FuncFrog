@@ -116,14 +116,15 @@ func Test_Not(t *testing.T) {
 func Test_Distinct(t *testing.T) {
 	t.Parallel()
 
-	getKey := func(x *int) int { return *x }
+	z, o, w, r, fv := 0, 1, 2, 3, 5
+	getKey := func(x **int) int { return **x }
 	predicate := Distinct(getKey)
-	filtered := pipe.Slice([]int{1, 2, 3, 3, 2, 2, 1, 5, 2, 3, 1}).Filter(predicate).Do()
+	filtered := pipe.Slice([]*int{&o, &w, &r, &r, &w, &w, &o, &fv, &w, &r, &z}).Filter(predicate).Do()
 
 	found := make(map[int]struct{})
 	for _, f := range filtered {
-		_, ok := found[f]
+		_, ok := found[*f]
 		require.False(t, ok, "Distinct element is duplicated")
-		found[f] = struct{}{}
+		found[*f] = struct{}{}
 	}
 }

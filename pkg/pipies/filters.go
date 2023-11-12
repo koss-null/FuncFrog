@@ -61,9 +61,6 @@ func Distinct[T any, C comparable](getKey func(x *T) C) pipe.Predicate[T] {
 	var mx sync.Mutex
 
 	return func(y *T) bool {
-		if y == nil {
-			return false
-		}
 		key := getKey(y)
 
 		mx.Lock()
