@@ -176,33 +176,49 @@ func TestMap(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		name  string
-		input pipe.Piper[int]
-		f     func(int) int
-		want  []int
+		name    string
+		input   pipe.Piper[int]
+		inputNL pipe.PiperNoLen[int]
+		f       func(int) int
+		want    []int
 	}{
 		{
-			name:  "Map_double",
+			name:  "double",
 			input: pipe.Slice([]int{1, 2, 3}),
 			f:     func(i int) int { return i * 2 },
 			want:  []int{2, 4, 6},
 		},
 		{
-			name:  "Map_empty",
+			name:  "empty",
 			input: pipe.Slice([]int{}),
 			f:     func(i int) int { return i },
 			want:  []int{},
 		},
 		{
-			name:  "Map_single_element",
+			name:  "single_element",
 			input: pipe.Slice([]int{1}),
 			f:     func(i int) int { return i },
 			want:  []int{1},
 		},
 		{
-			name:  "Map_many_diffeerent_elements",
+			name:  "many_diffeerent_elements",
 			input: pipe.Slice(largeSlice()),
 			f:     func(x int) int { return x * 2 },
+			want: func() []int {
+				b := make([]int, len(largeSlice()))
+				ls := largeSlice()
+				for i := range ls {
+					b[i] = ls[i] * 2
+				}
+				return b
+			}(),
+		},
+		{
+			name: "many_diffeerent_elements_fn",
+			inputNL: pipe.Func(func(i int) (int, bool) {
+				return largeSlice()[i], i < len(largeSlice())
+			}),
+			f: func(x int) int { return x * 2 },
 			want: func() []int {
 				b := make([]int, len(largeSlice()))
 				ls := largeSlice()
@@ -216,19 +232,33 @@ func TestMap(t *testing.T) {
 
 	for _, c := range cases {
 		c := c
+
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			res := c.input.Map(c.f).Do()
-			require.Equal(t, c.want, res)
+
+			if c.inputNL != nil {
+				res := c.inputNL.Map(c.f).Gen(len(largeSlice())).Do()
+				require.Equal(t, c.want, res)
+			} else {
+				res := c.input.Map(c.f).Do()
+				require.Equal(t, c.want, res)
+			}
 		})
-		t.Run(c.name+" parallel 12", func(t *testing.T) {
+		t.Run(c.name+"_parallel", func(t *testing.T) {
 			t.Parallel()
-			res := c.input.Map(c.f).Do()
-			require.Equal(t, c.want, res)
+
+			if c.inputNL != nil {
+				res := c.inputNL.Map(c.f).Gen(len(largeSlice())).Parallel(7).Do()
+				require.Equal(t, c.want, res)
+			} else {
+				res := c.input.Map(c.f).Parallel(7).Do()
+				require.Equal(t, c.want, res)
+			}
 		})
 	}
 }
 
+// FIXME: this test is ok but ugly, need to be refactored
 func TestFilter(t *testing.T) {
 	t.Parallel()
 
@@ -239,21 +269,34 @@ func TestFilter(t *testing.T) {
 		return pointer.To(float64(i)), true
 	}
 
-	s := pipe.Map(
+	s := pipe.MapNL(
 		pipe.Func(genFunc).
-			Filter(pipies.NotNil[*float64]).
-			Take(10_000),
+			Filter(pipies.NotNil[*float64]),
 		pointer.From[float64],
-	).Sum(pipies.Sum[float64])
+	).Take(10_000).Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
 
 	sm := 0
-	for i := 1; i < 10000; i++ {
+	a := make([]*float64, 0)
+	for i := 0; i < 10000; i++ {
+		f := float64(i)
+		a = append(a, &f)
 		if i%10 != 0 {
 			sm += i
 		}
 	}
 	require.Equal(t, float64(sm), s)
+
+	ss := pipe.Map(
+		pipe.Slice(a).Map(func(x *float64) *float64 {
+			if int(*x)%10 != 0 {
+				return x
+			}
+			return nil
+		}).Filter(pipies.NotNil[*float64]),
+		pointer.From[float64],
+	).Sum(pipies.Sum[float64])
+	require.Equal(t, float64(sm), ss)
 }
 
 func TestMapFilter(t *testing.T) {
@@ -262,15 +305,32 @@ func TestMapFilter(t *testing.T) {
 	cases := []struct {
 		name       string
 		source     []int
-		take       int
+		gen        int
 		funcSource func(int) (int, bool)
 		apply      func(pipe.Piper[int]) pipe.Piper[int]
+		applyNL    func(pipe.PiperNoLen[int]) pipe.PiperNoLen[int]
 		expect     []int
 	}{
 		{
 			name:   "simple",
 			source: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 			apply: func(p pipe.Piper[int]) pipe.Piper[int] {
+				return p.MapFilter(func(x int) (int, bool) {
+					return x * 3, x%2 == 0
+				})
+			},
+			expect: []int{6, 12, 18, 24, 0},
+		},
+		{
+			name: "simple_fn",
+			funcSource: func(i int) (int, bool) {
+				if i < 10 {
+					return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], true
+				}
+				return 0, true
+			},
+			gen: 10,
+			applyNL: func(p pipe.PiperNoLen[int]) pipe.PiperNoLen[int] {
 				return p.MapFilter(func(x int) (int, bool) {
 					return x * 3, x%2 == 0
 				})
@@ -286,9 +346,22 @@ func TestMapFilter(t *testing.T) {
 
 			var p pipe.Piper[int]
 			if c.funcSource != nil {
-				p = c.apply(pipe.Func(c.funcSource).Take(c.take))
+				p = c.applyNL(pipe.Func(c.funcSource)).Gen(c.gen)
 			} else {
 				p = c.apply(pipe.Slice(c.source))
+			}
+
+			res := p.Do()
+			require.Equal(t, c.expect, res)
+		})
+		t.Run(c.name+"_parallel", func(t *testing.T) {
+			t.Parallel()
+
+			var p pipe.Piper[int]
+			if c.funcSource != nil {
+				p = c.applyNL(pipe.Func(c.funcSource)).Parallel(7).Gen(c.gen)
+			} else {
+				p = c.apply(pipe.Slice(c.source)).Parallel(7)
 			}
 
 			res := p.Do()
@@ -383,9 +456,14 @@ func TestReduce(t *testing.T) {
 		Reduce(func(a, b *int) int { return *a + *b })
 
 	expected := 0
-	for i := 1; i < 6000; i++ {
+	a := make([]int, 0)
+	for i := 0; i < 6000; i++ {
 		expected += i
+		a = append(a, i)
 	}
+	require.Equal(t, expected, *res)
+
+	res = pipe.Slice(a).Reduce(func(a, b *int) int { return *a + *b })
 	require.Equal(t, expected, *res)
 }
 
@@ -396,12 +474,19 @@ func TestSum(t *testing.T) {
 		return i, true
 	}).
 		Gen(6000).
+		Parallel(6000).
 		Sum(func(a, b *int) int { return *a + *b })
 
 	expected := 0
-	for i := 1; i < 6000; i++ {
+	a := make([]int, 0)
+	for i := 0; i < 6000; i++ {
 		expected += i
+		a = append(a, i)
 	}
+
+	require.Equal(t, expected, res)
+
+	res = pipe.Slice(a).Sum(func(a, b *int) int { return *a + *b })
 	require.Equal(t, expected, res)
 }
 
@@ -469,12 +554,27 @@ func TestAny(t *testing.T) {
 		take       int
 		funcSource func(int) (int, bool)
 		apply      func(pipe.Piper[int]) pipe.Piper[int]
+		applyNL    func(pipe.PiperNoLen[int]) pipe.PiperNoLen[int]
 		expect     []int
 	}{
 		{
 			name:   "simple",
 			source: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 			apply: func(p pipe.Piper[int]) pipe.Piper[int] {
+				return p
+			},
+			expect: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+		},
+		{
+			name: "simple_fn",
+			funcSource: func(i int) (int, bool) {
+				if i < 10 {
+					return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], true
+				}
+				return 0, false
+			},
+			take: 10,
+			applyNL: func(p pipe.PiperNoLen[int]) pipe.PiperNoLen[int] {
 				return p
 			},
 			expect: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
@@ -488,11 +588,12 @@ func TestAny(t *testing.T) {
 
 			var p pipe.Piper[int]
 			if c.funcSource != nil {
-				p = c.apply(pipe.Func(c.funcSource).Take(c.take))
-			} else {
-				p = c.apply(pipe.Slice(c.source))
+				rs := c.applyNL(pipe.Func(c.funcSource)).Any()
+				require.Contains(t, c.expect, *rs)
+				return
 			}
 
+			p = c.apply(pipe.Slice(c.source))
 			res := p.Any()
 			require.Contains(t, c.expect, *res)
 		})
@@ -501,11 +602,12 @@ func TestAny(t *testing.T) {
 
 			var p pipe.Piper[int]
 			if c.funcSource != nil {
-				p = c.apply(pipe.Func(c.funcSource).Take(c.take))
-			} else {
-				p = c.apply(pipe.Slice(c.source))
+				rs := c.applyNL(pipe.Func(c.funcSource)).Parallel(7).Any()
+				require.Contains(t, c.expect, *rs)
+				return
 			}
 
+			p = c.apply(pipe.Slice(c.source))
 			res := p.Parallel(7).Any()
 			require.Contains(t, c.expect, *res)
 		})
@@ -541,7 +643,7 @@ func TestCount(t *testing.T) {
 		},
 		{
 			name:       "simple_fn",
-			funcSource: func(i int) (int, bool) { return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], false },
+			funcSource: func(i int) (int, bool) { return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], true },
 			apply: func(p pipe.Piper[int]) pipe.Piper[int] {
 				return p
 			},
@@ -550,7 +652,7 @@ func TestCount(t *testing.T) {
 		},
 		{
 			name:       "zero_fn",
-			funcSource: func(i int) (int, bool) { return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], false },
+			funcSource: func(i int) (int, bool) { return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], true },
 			apply: func(p pipe.Piper[int]) pipe.Piper[int] {
 				return p
 			},
@@ -609,6 +711,15 @@ func TestPromices(t *testing.T) {
 			},
 			expect: []int{},
 		},
+		{
+			name:       "simple_fn",
+			funcSource: func(i int) (int, bool) { return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], true },
+			apply: func(p pipe.Piper[int]) pipe.Piper[int] {
+				return p
+			},
+			take:   10,
+			expect: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+		},
 	}
 
 	for _, c := range cases {
@@ -654,13 +765,13 @@ func TestErase(t *testing.T) {
 		source     []int
 		take       int
 		funcSource func(int) (int, bool)
-		apply      func(pipe.Piper[int]) pipe.Piper[int]
+		apply      func(pipe.Piper[any]) pipe.Piper[any]
 		expect     []int
 	}{
 		{
 			name:   "simple",
 			source: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
-			apply: func(p pipe.Piper[int]) pipe.Piper[int] {
+			apply: func(p pipe.Piper[any]) pipe.Piper[any] {
 				return p
 			},
 			expect: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
@@ -668,27 +779,36 @@ func TestErase(t *testing.T) {
 		{
 			name:   "zero",
 			source: []int{},
-			apply: func(p pipe.Piper[int]) pipe.Piper[int] {
+			apply: func(p pipe.Piper[any]) pipe.Piper[any] {
 				return p
 			},
 			expect: []int{},
+		},
+		{
+			name:       "simple_fn",
+			funcSource: func(i int) (int, bool) { return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], true },
+			take:       10,
+			apply: func(p pipe.Piper[any]) pipe.Piper[any] {
+				return p
+			},
+			expect: []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 		},
 	}
 
 	for _, c := range cases {
 		c := c
 
-		var p pipe.Piper[int]
+		var p pipe.Piper[any]
 		if c.funcSource != nil {
-			p = c.apply(pipe.Func(c.funcSource).Take(c.take))
+			p = c.apply(pipe.Func(c.funcSource).Erase().Take(c.take))
 		} else {
-			p = c.apply(pipe.Slice(c.source))
+			p = c.apply(pipe.Slice(c.source).Erase())
 		}
 
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 
-			res := p.Erase().Do()
+			res := p.Do()
 			resAr := make([]int, len(res))
 			for i := range res {
 				resAr[i] = *(res[i].(*int))
@@ -698,7 +818,7 @@ func TestErase(t *testing.T) {
 		t.Run(c.name+"_parallel", func(t *testing.T) {
 			t.Parallel()
 
-			res := p.Erase().Parallel(7).Do()
+			res := p.Parallel(7).Do()
 			resAr := make([]int, len(res))
 			for i := range res {
 				resAr[i] = *(res[i].(*int))
@@ -713,6 +833,7 @@ func TestYetiSnag(t *testing.T) {
 
 	randErr := errors.New("test err")
 	simpleTestErr := errors.New("simple")
+	simpleFnTestErr := errors.New("simpleFn")
 
 	mx := sync.Mutex{}
 	sharedCnt := 0
@@ -724,6 +845,7 @@ func TestYetiSnag(t *testing.T) {
 		take       int
 		funcSource func(int) (int, bool)
 		apply      func(pipe.Piper[int]) pipe.Piper[int]
+		applyNL    func(pipe.PiperNoLen[int]) pipe.PiperNoLen[int]
 		expect     func(*testing.T)
 	}{
 		{
@@ -760,6 +882,41 @@ func TestYetiSnag(t *testing.T) {
 				require.True(t, found, "simple test case error was not found")
 			},
 		},
+		{
+			name:       "simple_fn",
+			funcSource: func(i int) (int, bool) { return []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 0}[i], true },
+			take:       10,
+			applyNL: func(p pipe.PiperNoLen[int]) pipe.PiperNoLen[int] {
+				y := pipe.NewYeti()
+				return p.
+					Yeti(y).
+					Map(func(i int) int {
+						if i == 5 {
+							y.Yeet(errors.Join(simpleFnTestErr, randErr))
+						}
+						return i
+					}).
+					Snag(func(e error) {
+						mx.Lock()
+						sharedCnt++
+						shared[sharedCnt] = e
+						mx.Unlock()
+					})
+			},
+			expect: func(t *testing.T) {
+				mx.Lock()
+				defer mx.Unlock()
+				found := false
+				for _, v := range shared {
+					er := v.(error)
+					if errors.Is(er, simpleFnTestErr) {
+						found = true
+						break
+					}
+				}
+				require.True(t, found, "simple test case error was not found")
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -767,7 +924,7 @@ func TestYetiSnag(t *testing.T) {
 
 		var p pipe.Piper[int]
 		if c.funcSource != nil {
-			p = c.apply(pipe.Func(c.funcSource).Take(c.take))
+			p = c.applyNL(pipe.Func(c.funcSource)).Take(c.take)
 		} else {
 			p = c.apply(pipe.Slice(c.source))
 		}
