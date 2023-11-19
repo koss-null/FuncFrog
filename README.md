@@ -6,14 +6,25 @@
 
 ![FuncFrog icon](https://github.com/koss-null/funcfrog/blob/master/FuncFrogIco.jpg?raw=true)
 
-FuncFrog is a library for performing parallel, lazy `map`, `reduce`, and `filter` operations on slices in one pipeline. The slice can be set by a generating function, and parallel execution is supported. It is expected that all function arguments will be **pure functions** (functions with no side effects that can be cached by their arguments). 
-It is capable of handling large amounts of data with minimal overhead, and its parallel execution capabilities allow for even faster processing times. Additionally, the library is easy to use and has a clean, intuitive API. [Here](https://macias.info/entry/202212020000_go_streams.md) is some performance review. 
+*FuncFrog* is a library for performing **efficient**, **parallel**, **lazy** `map`, `reduce`, `filter` and [many other](#supported-functions-list) operations on slices and other data sequences in a pipeline. The sequence can be set by a variety of [generating functions](#constructors). Everything is supported to be executed in parallel with **minimal overhead** on copying and locks. There is a built-in support of [error handling](#error-handling) with Yeet/Snag methods  
+The library is easy to use and has a clean, intuitive API.  
+Also [here](https://macias.info/entry/202212020000_go_streams.md) is some **performance review**. 
 
 ## Table of Contents
 - [Repository Renamed](#repository-renamed)
 - [Getting Started](#getting-started)
 - [Basic information](#basic-information)
 - [Supported functions list](#supported-functions-list)
+  - [Constructors](#constructors)
+  - [Set Pipe length](#set-pipe-length)
+  - [Split evaluation into *n* goroutines](#split-evaluation-into-n-goroutines)
+  - [Transform data](#transform-data)
+  - [Retrieve a single element or perform a boolean check](#retrieve-a-single-element-or-perform-a-boolean-check)
+  -  [Evaluate the pipeline](#evaluate-the-pipeline)
+  - [Transform Pipe *from one type to another*](#transform-pipe-from-one-type-to-another)
+  - [Easy type conversion for Pipe[any]]( #easy-type-conversion-for-pipe[any])
+  - [Error handling](#error-handling)
+  - [To be done](#to-be-done)
 - [Examples](#examples)
   - [Basic example](#basic-example)
   - [Example using `Func` and `Take`](#example-using-func-and-take)
@@ -34,7 +45,7 @@ It is capable of handling large amounts of data with minimal overhead, and its p
 # Repository Renamed
 
 This repository has been renamed from github.com/koss-null/lambda to github.com/koss-null/funcfrog.
-Please update any local clones or remotes to reflect this change. 
+Please **update** any local clones or remotes to reflect this change. 
 
 To update a local clone of the repository, you can use the following command:
 ```bash
@@ -56,7 +67,7 @@ go get github.com/koss-null/funcfrog
 
 ## Getting Started
 
-To install FuncFrog, run the following command:
+To use FuncFrog in your project, run the following command:
 
 ```
 go get github.com/koss-null/funcfrog
@@ -85,15 +96,13 @@ To see some code snippets, check out the `examples/main.go` file. You can also r
 
 ## Basic information
 
-The `Piper` (or `PiperNL` for pipes with undetermined lengths) is an interface that represents a *lazy-evaluated*, potentially infinite *sequence of data*. The `Piper` interface provides a set of methods that can be used to transform, filter, collect and analize data in the sequence. 
-Every pipe can be conveniently copied at every moment just by equating it to a variable. There are different interfaces for pipes
-with known and unknown length. Some methods lead from `PiperNL` to `Piper` interface making wider method range
-available. 
+The `Piper` (or `PiperNoLen` for pipes with undetermined lengths) is an interface that represents a *lazy-evaluated sequence of data*. The `Piper` interface provides a set of methods that can be used to transform, filter, collect and analyze data in the sequence. 
+Every pipe can be conveniently copied at every moment just by equating it to a variable.  Some methods (as `Take` or `Gen`) lead from `PiperNoLen` to `Piper` interface making wider method range available. 
 
 ## Supported functions list
 
-The following functions can be used to create a new `Pipe` (this is how I call the inner representation of a sequence of
-elements and a sequence operations on them): 
+The following functions can be used to create a new `Pipe` (this is how I call the inner representation of a sequence ofelements and a sequence operations on them): 
+#### Constructors
 - :frog: `Slice([]T) Piper`: creates a `Pipe` of a given type `T` from a slice, *the length is known*.
 - :frog: `Func(func(i int) (T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
 - :frog: `Fn(func(i int) (T)) PiperNL`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`; to be able to skip values use `Func`.
@@ -101,37 +110,53 @@ elements and a sequence operations on them):
 - :frog: `Cycle(data []T) PiperNL`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely. *The length is unknown.*
 - :frog: `Range(start, end, step T) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`. *The length is known.*
 - :frog: `Repeat(x T, n int) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` and value x with the length of n. *The length is known.*
-- :frog: `Take(n int) Piper`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. *Transforms
-  unknown length to known.*
-- :frog: `Gen(n int) Piper`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it. *Transforms
-  unknown length to known.*
-- :seedling: TBD: `Until(fn func(*T) bool)`: if it's a `Func`-made `Pipe`, it evaluates one-by-one until fn return false. *This feature may require some new `Pipe` interfaces, since it is applicable only in a context of a single thread*
+
+#### Set Pipe length
+- :frog: `Take(n int) Piper`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. *Transforms unknown length to known.*
+- :frog: `Gen(n int) Piper`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it. *Transforms unknown length to known.*
+
+
+#### Split evaluation into *n* goroutines
 - :frog: `Parallel(n int) Pipe`: sets the number of goroutines to be executed on (1 by default). This function can be used to specify the level of parallelism in the pipeline. *Availabble for unknown length.*
 
-The following functions can be used to transform and filter the data in the `Pipe`. `Pipe` here represents either
-`Piper` or `PiperNL` interface:
+#### Transform data
 - :frog: `Map(fn func(x T) T) Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data. *Available for unknown length.*
 - :frog: `Filter(fn func(x *T) bool) Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate. *Available for unknown length.*
-- :frog: `Sort(less func(x, y *T) bool) Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
-- :seedling: TBD: `Reverse() *Pipe`: reverses the underlying slice.
-
+- :frog: `MapFilter(fn func(T) (T, bool)) Piper[T]`: applies given function to each element of the underlying slice. If the second returning value of `fn` is *false*, the element is skipped (may be useful for error handling).
 - :frog: `Reduce(fn func(x, y *T) T) *T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction. Returns `nil` if the `Pipe` was empty before reduction.
 - :frog: `Sum(plus func(x, y *T) T) T`: makes parallel reduce with associative function `plus`.
+- :frog: `Sort(less func(x, y *T) bool) Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
 
-The following functions can be used to retrieve a single element or perform a boolean check on the `Pipe` without executing the entire pipeline:
+#### Retrieve a single element or perform a boolean check
 - :frog: `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise. *Available for unknown length.*
 - :frog: `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty. *Available for unknown length.*
 - :frog: `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
-- :seedling: TBD: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise. *Available for unknown length.*
-- :seedling: TBD: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise. *Available for unknown length.*
 
+#### Evaluate the pipeline
+- :frog: `Do() []T` function is used to **execute** the pipeline and **return the resulting slice of data**. This function should be called at the end of the pipeline to retrieve the final result.
 
-Finally, the :frog: `Do() []T` function is used to execute the pipeline and return the resulting slice of data. This function should be called at the end of the pipeline to retrieve the final result.
+#### Transform Pipe *from one type to another*
+- :frog: `Erase() Pipe[any]`: returns a pipe where all objects are the objects from the initial `Pipe` but with erased type. Basically for each `x` it returns `any(&x)`. Use `pipe.Collect[T](Piper[any]) PiperT` to collect it back into some type (or `pipe.CollectNL` for slices with length not set yet).
+
+#### Easy type conversion for Pipe[any]
+- :frog: `pipe.Collect[T](Piper[any]) PiperNoLen[T]`
+- :frog: `pipe.CollectNL[T](PiperNoLen[any]) PiperNoLen[T]`
+This functions takes a Pipe of erased `interface{}` type (which is pretty useful if you have a lot of type conversions along your pipeline and can be achieved by calling `Erase()` on a `Pipe`). Basically, for each element `x` in a sequence `Collect` returns `*(x.(*T))` element.
+
+#### Error handling
+- :frog:  `Yeti(yeti) Pipe[T]`:set a `yeti` - an object that will collect errors thrown with `yeti.Yeet(error)`  and will be used to handle them.
+- :frog: `Snag(func(error)) Pipe[T]`: set a function that will handle all errors which have been sent with `yeti.Yeet(error)` to the **last** `yeti` object that was set through `Pipe[T].Yeti(yeti) Pipe[T]` method. 
+Error handling may look pretty uncommon at a first glance. To get better intuition about it you may like to check out [examples](#example-of-simple-error-handling) section.
+
+#### To be done
+- :seedling: TBD: `Until(fn func(*T) bool)`: if it's a `Func`-made `Pipe`, it evaluates one-by-one until fn return false. *This feature may require some new `Pipe` interfaces, since it is applicable only in a context of a single thread*
+- :seedling: *TBD*: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise. *Available for unknown length.*
+- :seedling: *TBD*: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise. *Available for unknown length.*
+- :seedling: *TBD*: `Reverse() *Pipe`: reverses the underlying slice.
 
 In addition to the functions described above, the `pipe` package also provides several utility functions that can be used to create common types of `Pipe`s, such as `Range`, `Repeat`, and `Cycle`. These functions can be useful for creating `Pipe`s of data that follow a certain pattern or sequence.
 
-Also it is highly recommended to get familiarize with the `pipies` package, containing some useful *predecates*,
-*comparators* and *accumulators*.
+Also it is highly recommended to get familiarize with the `pipies` package, containing some useful *predecates*, *comparators* and *accumulators*.
 
 ## Examples
 
@@ -342,12 +367,87 @@ p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x *int) bool { return *x % 2 == 0 })
 // p will be [2, 2, 2, 2]
 ```
 
+### Example of simple error handling
+
+```go
+y := pipe.NewYeti()
+p := pipe.Range[int](-10, 10, 1).
+	Yeti(y). // it's important to set yeti before yeeting, or the handle process will not be called
+	MapFilter(func(x int) (int, bool) {
+		if x == 0 {
+			y.Yeet(errors.New("zero devision")) // yeet the error
+			return 0, false                     // use MapFilter to filter out this value
+		}
+		return int(256.0 / float64(x)), true
+	}).Snag(func(err error) {
+	fmt.Println("oopsie-doopsie: ", err)
+}).Do()
+
+fmt.Println("p is: ", p)
+/////////// output is:
+// oopsie-doopsie:  zero devision
+// p is:  [-25 -28 -32 -36 -42 -51 -64 -85 -128 -256 256 128 85 64 51 42 36 32 28]
+```
+
+This example demonstrates generating a set of values 256/i, where i ranges from -10 to 9 (excluding 10) with a step of 1. To handle division by zero, the library provides an error handling mechanism.
+
+To begin, you need to create an error handler using the `pipe.NewYeti()` function. Then, register the error handler by calling the `Yeti(yeti)` method on your `pipe` object. This registered `yeti` will be the **last** error handler used in the `pipe` chain.
+
+To **yeet** an error, you can use `y.Yeet(error)` from the registered `yeti` object.
+
+To **handle** the yeeted error, use the `Snag(func(error))` method, which sets up an error handling function. You can set up multiple `Snag` functions, but all of them will consider the last `yeti` object set with the `Yeti(yeti)` method.
+
+This is a simple example of how to handle basic errors. Below, you will find a more realistic example of error handling in a real-life scenario.
+
+### Example of multiple error handling
+
+```go
+y1, y2 := pipe.NewYeti(), pipe.NewYeti()
+users := pipe.Func(func(i int) (*domain.DomObj, bool) {
+	domObj, err := uc.GetUser(i)
+	if err != nil {
+		y1.Yeet(err)
+		return nil, false
+	}
+	return domObj, true
+}).
+	Yeti(y1).Snag(handleGetUserErr). // suppose we have some pre-defined handler
+	MapFilter(func(do *domain.DomObj) (*domain.DomObj, bool) {
+		enriched, err := uc.EnrichUser(do)
+		if err != nil {
+			return nil, false
+		}
+		return enriched, true
+    }).Yeti(y2).Snag(handleEnrichUserErr).
+	Do()
+```
+
+The full working code with samples of handlers and implementations of usecase functions can be found at: https://go.dev/play/p/YGtM-OeMWqu.
+
+Lets break down what is happening here.
+
+In this code fragment, there are two instances of `pipe.Yeti` created: `y1` and `y2`. These `Yeti` instances are used to handle errors at different stages of the data processing pipeline.
+
+Within the `pipe.Func` operation, there are error-handling statements. When calling `uc.GetUser(i)`, if an error occurs, it is *yeeted* using `y1.Yeet(err)`, and the function returns `nil` and `false` to indicate the failure.
+
+The `Yeti(y1).Snag(handleGetUserErr)` statement sets up an error handling function `handleGetUserErr` to handle the error thrown by `uc.GetUser(i)`. This function is defined elsewhere and specifies how to handle the error.
+
+After that, the `MapFilter` operation is performed on the resulting `*domain.DomObj`. If the `uc.EnrichUser(do)` operation encounters an error, it returns `nil` and `false` to filter out the value.
+
+The `Yeti(y2).Snag(handleEnrichUserErr)` statement sets up another error handling function `handleEnrichUserErr` to handle the error thrown by `uc.EnrichUser(do)`.
+
+Finally, the `Do()` method executes the entire pipeline and assigns the result to the `users` variable.
+
+This example demonstrates how multiple error handling functions can be set up at different stages of the data processing pipeline to handle errors specific to each stage.
+
+I hope this clarifies the description of the second code fragment. Let me know if you have any further questions!
+
 ## Is this package stable?
 
-Yes it finally is stable since v1.0.0! All listed functionality is fully covered by unit-tests.
+Yes it finally is **stable since v1.0.0**! All listed functionality is **fully covered** by unit-tests.
 Functionality marked as TBD will be implemented as it described in the README and covered by unit-tests to be delivered stable. 
 
-If there will be any method signature changes, the major version will be incremented. 
+If there will be any method **signature changes**, the **major version** will be **incremented**. 
 
 ## Contributions
 
@@ -365,3 +465,4 @@ I hope to provide some roadmap of the project soon.
 
 Feel free to fork, inspire and use! 
 
+#### 

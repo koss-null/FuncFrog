@@ -1,29 +1,68 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/koss-null/funcfrog/pkg/pipe"
 )
 
+type DomObj struct{ i int }
+
+func GetUser(i int) (*DomObj, error) {
+	if i%2 != 0 {
+		return &DomObj{i}, nil
+	}
+	return nil, fmt.Errorf("%d user can't be found", i)
+}
+
+func EnrichUser(do *DomObj) (*DomObj, error) {
+	if do.i%3 == 0 {
+		return nil, fmt.Errorf("user can't be enriched %d", do.i)
+	}
+	return do, nil
+}
+
 func main() {
-	p := pipe.Slice([]int{1, 2, 3, 4, -5, 6, 7, 8, 9})
+	getUserErr := make(chan error, 1)
+	handleGetUserErr := func(err error) {
+		getUserErr <- err
+	}
+	enrichUserErr := make(chan error, 1)
+	handleEnrichUserErr := func(err error) {
+		enrichUserErr <- err
+	}
+	go func() {
+		for err := range getUserErr {
+			fmt.Println("unable to get user", err)
+		}
+	}()
+	go func() {
+		for err := range enrichUserErr {
+			fmt.Println("unable to enrich user", err)
+		}
+	}()
+
 	y1, y2 := pipe.NewYeti(), pipe.NewYeti()
-	res := p.Yeti(y1).Map(func(i int) int {
-		if i < 0 {
-			y1.Yeet(errors.New("omg the value is NEGATIVE"))
+	users := pipe.Func(func(i int) (*DomObj, bool) {
+		domObj, err := GetUser(i)
+		if err != nil {
+			y1.Yeet(err)
+			return nil, false
 		}
-		return i - 6
-	}).Snag(func(err error) {
-		fmt.Println("Snagging an error: " + err.Error())
-	}).Yeti(y2).Map(func(i int) int {
-		if i > 0 {
-			y2.Yeet(errors.New("omg the value is POSITIVE"))
-		}
-		return 2 * i
-	}).Snag(func(err error) {
-		fmt.Println("another snag for the same error: " + err.Error())
-	}).Filter(func(i *int) bool { return *i > 0 }).Do()
-	fmt.Println(res)
+		return domObj, true
+	}).Yeti(y1).
+		Snag(handleGetUserErr). // suppose we have some pre-defined handler
+		MapFilter(func(do *DomObj) (*DomObj, bool) {
+			enriched, err := EnrichUser(do)
+			if err != nil {
+				y2.Yeet(err)
+				return nil, false
+			}
+			return enriched, true
+		}).Yeti(y2).Snag(handleEnrichUserErr).
+		Gen(20).
+		Parallel(16).
+		Do()
+
+	fmt.Println(users)
 }
