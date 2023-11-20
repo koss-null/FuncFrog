@@ -38,6 +38,9 @@ Also [here](https://macias.info/entry/202212020000_go_streams.md) is some **perf
   - [Example using `Range` and `Map`](#example-using-range-not-implemented-yet-and-map)
   - [Example using `Repeat` and `Map`](#example-using-repeat-not-implemented-yet-and-map)
   - [Example using `Cycle` and `Filter`](#example-using-cycle-not-implemented-yet-and-filter)
+  - [Example using `Erase` and `Collect`](#example-using-erase-and-collect)
+  - [Example of simple error handling](#example-of-simple-error-handling)
+  - [Example of multiple error handling](example-of-multiple-error-handling)
 - [Is this package stable?](#is-this-package-stable)
 - [Contributions](#contributions)
 - [What's next?](#whats-next)
@@ -122,7 +125,7 @@ The following functions can be used to create a new `Pipe` (this is how I call t
 #### Transform data
 - :frog: `Map(fn func(x T) T) Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data. *Available for unknown length.*
 - :frog: `Filter(fn func(x *T) bool) Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate. *Available for unknown length.*
-- :frog: `MapFilter(fn func(T) (T, bool)) Piper[T]`: applies given function to each element of the underlying slice. If the second returning value of `fn` is *false*, the element is skipped (may be useful for error handling).
+- :frog: `MapFilter(fn func(T) (T, bool)) Piper[T]`: applies given function to each element of the underlying slice. If the second returning value of `fn` is *false*, the element is skipped (may be **useful for error handling**).
 - :frog: `Reduce(fn func(x, y *T) T) *T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction. Returns `nil` if the `Pipe` was empty before reduction.
 - :frog: `Sum(plus func(x, y *T) T) T`: makes parallel reduce with associative function `plus`.
 - :frog: `Sort(less func(x, y *T) bool) Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
@@ -130,7 +133,7 @@ The following functions can be used to create a new `Pipe` (this is how I call t
 #### Retrieve a single element or perform a boolean check
 - :frog: `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise. *Available for unknown length.*
 - :frog: `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty. *Available for unknown length.*
-- :frog: `Count() int`: returns the number of elements in the `Pipe`. It does not execute the entire pipeline, but instead simply returns the number of elements in the `Pipe`.
+- :frog: `Count() int`: returns the number of elements in the `Pipe`. It does not allocate memory for the elements, but instead simply returns the number of elements in the `Pipe`.
 
 #### Evaluate the pipeline
 - :frog: `Do() []T` function is used to **execute** the pipeline and **return the resulting slice of data**. This function should be called at the end of the pipeline to retrieve the final result.
@@ -360,12 +363,28 @@ for _, e := range errs {
 }
 ```
 
-### Example using `Cycle` and `Filter`:
+### Example using `Cycle` and `Filter`
 
 ```go
 p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x *int) bool { return *x % 2 == 0 }).Take(4).Do()
 // p will be [2, 2, 2, 2]
 ```
+
+### Example using `Erase` and `Collect`
+
+```go
+p := pipe.Slice([]int{1, 2, 3}).
+Erase().
+Map(func(x any) any {
+    i := *(x.(*int))
+    return &MyStruct{Weight: i}
+}).Filter(x *any) bool {
+    return (*x).(*MyStruct).Weight > 10
+}
+ms := pipe.Collect[MyStruct](p).Parallel(10).Do()
+```
+
+
 
 ### Example of simple error handling
 
@@ -464,5 +483,3 @@ You are welcome to create any issues and connect to me via email.
 I hope to provide some roadmap of the project soon. 
 
 Feel free to fork, inspire and use! 
-
-#### 

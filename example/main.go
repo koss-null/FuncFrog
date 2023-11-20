@@ -22,7 +22,19 @@ func EnrichUser(do *DomObj) (*DomObj, error) {
 	return do, nil
 }
 
+type MyStruct struct{ Weight int }
+
 func main() {
+	p := pipe.Slice([]int{1, 2, 3}).
+		Erase().
+		Map(func(x any) any {
+			i := *(x.(*int))
+			return &MyStruct{Weight: i}
+		}).Filter(func(x *any) bool {
+		return (*x).(*MyStruct).Weight > 10
+	})
+	ms := pipe.Collect[MyStruct](p).Parallel(10).Do()
+
 	getUserErr := make(chan error, 1)
 	handleGetUserErr := func(err error) {
 		getUserErr <- err
