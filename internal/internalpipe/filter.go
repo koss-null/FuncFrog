@@ -15,5 +15,7 @@ func (p Pipe[T]) Filter(fn func(*T) bool) Pipe[T] {
 		Len:           p.Len,
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
+
+		y: p.y,
 	}
 }

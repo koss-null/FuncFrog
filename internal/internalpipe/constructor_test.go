@@ -8,6 +8,8 @@ import (
 )
 
 func Test_Slice(t *testing.T) {
+	t.Parallel()
+
 	a := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	p := Slice(a)
 	require.Equal(t, p.Len, 10)
@@ -20,12 +22,17 @@ func Test_Slice(t *testing.T) {
 }
 
 func Test_FuncP(t *testing.T) {
+	t.Parallel()
+
 	p := FuncP(func(i int) (*int, bool) {
 		return &i, true
 	})
 	require.Equal(t, p.Len, notSet)
 	require.Equal(t, p.ValLim, notSet)
 	require.Equal(t, p.GoroutinesCnt, defaultParallelWrks)
+
+	res := p.Gen(5).Do()
+	require.Equal(t, []int{0, 1, 2, 3, 4}, res)
 }
 
 func Not[T any](fn func(x T) bool) func(T) bool {
@@ -44,6 +51,7 @@ func Test_Cycle(t *testing.T) {
 	}
 
 	t.Run("happy", func(t *testing.T) {
+		t.Parallel()
 		p := Cycle([]string{"a", "b", "c", "d"})
 		require.Equal(
 			t,
@@ -53,6 +61,7 @@ func Test_Cycle(t *testing.T) {
 	})
 
 	t.Run("empty res", func(t *testing.T) {
+		t.Parallel()
 		p := Cycle([]string{"a", "b", "c", "d"})
 		require.Equal(
 			t,
@@ -62,6 +71,7 @@ func Test_Cycle(t *testing.T) {
 	})
 
 	t.Run("empty cycle", func(t *testing.T) {
+		t.Parallel()
 		p := Cycle([]string{})
 		require.Equal(
 			t,
@@ -78,30 +88,52 @@ func Test_Range(t *testing.T) {
 	t.Parallel()
 
 	t.Run("happy", func(t *testing.T) {
+		t.Parallel()
 		p := Range(0, 10, 1)
-		require.Equal(t, p.Len, 10)
-		require.Equal(t, p.ValLim, notSet)
-		require.Equal(t, p.GoroutinesCnt, defaultParallelWrks)
 		res := p.Do()
+		require.Equal(t, 10, len(res))
 		for i := 0; i < 10; i++ {
 			require.Equal(t, i, res[i])
 		}
 	})
-	t.Run("single step owerflow", func(t *testing.T) {
-		p := Range(1, 10, 100)
-		require.Equal(t, 1, p.Len)
-		require.Equal(t, notSet, p.ValLim)
-		require.Equal(t, defaultParallelWrks, p.GoroutinesCnt)
+	t.Run("single_step_owerflow", func(t *testing.T) {
+		t.Parallel()
+		p := Range(1, 10, 50)
 		res := p.Do()
+		require.Equal(t, 1, len(res))
 		require.Equal(t, 1, res[0])
 	})
-	t.Run("finish less than start", func(t *testing.T) {
-		p := Range(100, 10, 100)
-		require.Equal(t, 0, p.Len)
-		require.Equal(t, notSet, p.ValLim)
-		require.Equal(t, defaultParallelWrks, p.GoroutinesCnt)
+	t.Run("finish_is_less_than_start", func(t *testing.T) {
+		t.Parallel()
+		p := Range(100, 10, 50)
 		res := p.Do()
 		require.Equal(t, 0, len(res))
+	})
+	t.Run("step_is_0", func(t *testing.T) {
+		t.Parallel()
+		p := Range(1, 10, 0)
+		res := p.Do()
+		require.Equal(t, 0, len(res))
+	})
+	t.Run("start_is_finish", func(t *testing.T) {
+		t.Parallel()
+		p := Range(1, 1, 1)
+		res := p.Do()
+		require.Equal(t, 0, len(res))
+	})
+	t.Run("start_is_finish_negative", func(t *testing.T) {
+		t.Parallel()
+		p := Range(1, 1, -1)
+		res := p.Do()
+		require.Equal(t, 0, len(res))
+	})
+	t.Run("finish_is_less_than_start_and_step_is_negative", func(t *testing.T) {
+		t.Parallel()
+		p := Range(100, 10, -50)
+		res := p.Do()
+		require.Equal(t, 2, len(res))
+		require.Equal(t, 100, res[0])
+		require.Equal(t, 50, res[1])
 	})
 }
 
@@ -109,10 +141,15 @@ func Test_Repeat(t *testing.T) {
 	t.Parallel()
 
 	t.Run("happy", func(t *testing.T) {
+		t.Parallel()
+
 		p := Repeat("hello", 5).Map(strings.ToUpper).Do()
 		require.Equal(t, []string{"HELLO", "HELLO", "HELLO", "HELLO", "HELLO"}, p)
 	})
-	t.Run("n == 0", func(t *testing.T) {
+
+	t.Run("n==0", func(t *testing.T) {
+		t.Parallel()
+
 		p := Repeat("hello", 0).Map(strings.ToUpper).Do()
 		require.Equal(t, []string{}, p)
 	})

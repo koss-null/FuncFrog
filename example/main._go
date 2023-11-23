@@ -1,0 +1,80 @@
+package main
+
+import (
+	"fmt"
+
+	"github.com/koss-null/funcfrog/pkg/pipe"
+)
+
+type DomObj struct{ i int }
+
+func GetUser(i int) (*DomObj, error) {
+	if i%2 != 0 {
+		return &DomObj{i}, nil
+	}
+	return nil, fmt.Errorf("%d user can't be found", i)
+}
+
+func EnrichUser(do *DomObj) (*DomObj, error) {
+	if do.i%3 == 0 {
+		return nil, fmt.Errorf("user can't be enriched %d", do.i)
+	}
+	return do, nil
+}
+
+type MyStruct struct{ Weight int }
+
+func main() {
+	p := pipe.Slice([]int{1, 2, 3}).
+		Erase().
+		Map(func(x any) any {
+			i := *(x.(*int))
+			return &MyStruct{Weight: i}
+		}).Filter(func(x *any) bool {
+		return (*x).(*MyStruct).Weight > 10
+	})
+	ms := pipe.Collect[MyStruct](p).Parallel(10).Do()
+
+	getUserErr := make(chan error, 1)
+	handleGetUserErr := func(err error) {
+		getUserErr <- err
+	}
+	enrichUserErr := make(chan error, 1)
+	handleEnrichUserErr := func(err error) {
+		enrichUserErr <- err
+	}
+	go func() {
+		for err := range getUserErr {
+			fmt.Println("unable to get user", err)
+		}
+	}()
+	go func() {
+		for err := range enrichUserErr {
+			fmt.Println("unable to enrich user", err)
+		}
+	}()
+
+	y1, y2 := pipe.NewYeti(), pipe.NewYeti()
+	users := pipe.Func(func(i int) (*DomObj, bool) {
+		domObj, err := GetUser(i)
+		if err != nil {
+			y1.Yeet(err)
+			return nil, false
+		}
+		return domObj, true
+	}).Yeti(y1).
+		Snag(handleGetUserErr). // suppose we have some pre-defined handler
+		MapFilter(func(do *DomObj) (*DomObj, bool) {
+			enriched, err := EnrichUser(do)
+			if err != nil {
+				y2.Yeet(err)
+				return nil, false
+			}
+			return enriched, true
+		}).Yeti(y2).Snag(handleEnrichUserErr).
+		Gen(20).
+		Parallel(16).
+		Do()
+
+	fmt.Println(users)
+}

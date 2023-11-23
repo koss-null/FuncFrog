@@ -14,5 +14,7 @@ func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 		Len:           p.Len,
 		ValLim:        p.ValLim,
 		GoroutinesCnt: p.GoroutinesCnt,
+
+		y: p.y,
 	}
 }

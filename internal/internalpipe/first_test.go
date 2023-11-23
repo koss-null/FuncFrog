@@ -19,6 +19,8 @@ func TestFirst(t *testing.T) {
 	t.Parallel()
 
 	t.Run("single thread", func(t *testing.T) {
+		t.Parallel()
+
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return &s[i], i <= 900_000
@@ -29,7 +31,10 @@ func TestFirst(t *testing.T) {
 		}
 		require.Equal(t, 900_001, *p.First())
 	})
+
 	t.Run("single thread 2", func(t *testing.T) {
+		t.Parallel()
+
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return &s[i], true
@@ -40,7 +45,10 @@ func TestFirst(t *testing.T) {
 		}
 		require.Nil(t, p.First())
 	})
+
 	t.Run("5 threads", func(t *testing.T) {
+		t.Parallel()
+
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return &s[i], i <= 900_000
@@ -52,7 +60,10 @@ func TestFirst(t *testing.T) {
 		require.NotNil(t, p.First())
 		require.Equal(t, 900_001, *p.First())
 	})
+
 	t.Run("2 threads first half", func(t *testing.T) {
+		t.Parallel()
+
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return &s[i], s[i] < 1000
@@ -64,7 +75,10 @@ func TestFirst(t *testing.T) {
 		require.NotNil(t, p.First())
 		require.Equal(t, 1000, *p.First())
 	})
+
 	t.Run("1000 threads", func(t *testing.T) {
+		t.Parallel()
+
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return &s[i], i <= 900_000
@@ -76,7 +90,10 @@ func TestFirst(t *testing.T) {
 		require.NotNil(t, p.First())
 		require.Equal(t, 900_001, *p.First())
 	})
+
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return nil, true
@@ -87,13 +104,16 @@ func TestFirst(t *testing.T) {
 		}
 		require.Nil(t, p.First())
 	})
+
 	t.Run("not found len 0", func(t *testing.T) {
+		t.Parallel()
+
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return nil, true
 			},
 			Len:           0,
-			ValLim:        -1,
+			ValLim:        0,
 			GoroutinesCnt: 10,
 		}
 		require.Nil(t, p.First())

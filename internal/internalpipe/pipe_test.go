@@ -8,6 +8,7 @@ import (
 )
 
 func Test_min(t *testing.T) {
+	t.Parallel()
 	require.Equal(t, min(1, 2), 1)
 	require.Equal(t, min(2, 1), 1)
 	require.Equal(t, min(1.1, 1.11), 1.1)
@@ -17,6 +18,7 @@ func Test_min(t *testing.T) {
 }
 
 func Test_max(t *testing.T) {
+	t.Parallel()
 	require.Equal(t, max(1, 2), 2)
 	require.Equal(t, max(1.1, 1.11), 1.11)
 	require.Equal(t, max(0, -1), 0)
@@ -25,6 +27,7 @@ func Test_max(t *testing.T) {
 }
 
 func Test_divUp(t *testing.T) {
+	t.Parallel()
 	require.Equal(t, divUp(121, 1), 121)
 	require.Equal(t, divUp(121, 2), 61)
 	require.Equal(t, divUp(5, 5), 1)
@@ -34,10 +37,13 @@ func Test_divUp(t *testing.T) {
 }
 
 func Test_genTickets(t *testing.T) {
+	t.Parallel()
 	require.Equal(t, len(genTickets(100)), 100)
 }
 
 func Test_do(t *testing.T) {
+	t.Parallel()
+
 	p := Pipe[int]{
 		Fn: func(i int) (*int, bool) {
 			return &i, false
@@ -53,6 +59,8 @@ func Test_do(t *testing.T) {
 }
 
 func Test_Parallel(t *testing.T) {
+	t.Parallel()
+
 	p := Pipe[int]{
 		Fn: func(i int) (*int, bool) {
 			return &i, false
@@ -81,6 +89,8 @@ func Test_Parallel(t *testing.T) {
 }
 
 func Test_Take(t *testing.T) {
+	t.Parallel()
+
 	p := Pipe[int]{
 		Fn: func(i int) (*int, bool) {
 			return &i, false
@@ -113,6 +123,8 @@ func Test_Take(t *testing.T) {
 }
 
 func Test_Gen(t *testing.T) {
+	t.Parallel()
+
 	p := Pipe[int]{
 		Fn: func(i int) (*int, bool) {
 			return &i, false
@@ -145,6 +157,8 @@ func Test_Gen(t *testing.T) {
 }
 
 func Test_Count(t *testing.T) {
+	t.Parallel()
+
 	p := Pipe[int]{
 		Fn: func(i int) (*int, bool) {
 			return &i, false
@@ -187,6 +201,8 @@ func Test_Count(t *testing.T) {
 }
 
 func Test_limit(t *testing.T) {
+	t.Parallel()
+
 	p := Pipe[int]{
 		Len:    10000,
 		ValLim: -1,

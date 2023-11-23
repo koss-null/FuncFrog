@@ -1,44 +1,54 @@
 package pipe
 
+import "github.com/koss-null/funcfrog/internal/internalpipe"
+
 // Piper interface contains all methods of a pipe with determened length.
 type Piper[T any] interface {
-	changer[T]
-	getter[T]
+	doer[T]
+
+	mapper[T, Piper[T]]
+	filterer[T, Piper[T]]
+	sorter[T, Piper[T]]
+
 	paralleller[T, Piper[T]]
+
+	firster[T]
+	anier[T]
+	reducer[T]
+	summer[T]
+	counter
+
+	promicer[T]
+	eraser[Piper[any]]
+	snagger[Piper[T]]
+	yetyer[Piper[T]]
 }
 
 // PiperNoLen represents methods available to a Pipe type with no length determened.
 type PiperNoLen[T any] interface {
 	taker[Piper[T]]
 	genner[Piper[T]]
+
 	mapper[T, PiperNoLen[T]]
 	filterer[T, PiperNoLen[T]]
+
 	paralleller[T, PiperNoLen[T]]
+
 	firster[T]
 	anier[T]
+
+	eraser[PiperNoLen[any]]
+	snagger[PiperNoLen[T]]
+	yetyer[PiperNoLen[T]]
 }
 
 type paralleller[T, PiperT any] interface {
 	Parallel(uint16) PiperT
 }
 
-type changer[T any] interface {
-	mapper[T, Piper[T]]
-	filterer[T, Piper[T]]
-	sorter[T, Piper[T]]
-}
-
-type getter[T any] interface {
-	reducer[T]
-	summer[T]
-	doer[T]
-	firster[T]
-	anier[T]
-	counter
-}
-
 type mapper[T, PiperT any] interface {
 	Map(func(T) T) PiperT
+	MapFilter(func(T) (T, bool)) PiperT
 }
 
 type filterer[T, PiperT any] interface {
@@ -79,4 +89,20 @@ type anier[T any] interface {
 
 type counter interface {
 	Count() int
+}
+
+type eraser[PiperT any] interface {
+	Erase() PiperT
+}
+
+type promicer[T any] interface {
+	Promices() []func() (T, bool)
+}
+
+type snagger[PiperT any] interface {
+	Snag(func(error)) PiperT
+}
+
+type yetyer[PiperT any] interface {
+	Yeti(y internalpipe.YeetSnag) PiperT
 }

@@ -21,6 +21,13 @@ func (p *PipeNL[T]) Filter(fn Predicate[T]) PiperNoLen[T] {
 	return &PipeNL[T]{p.Pipe.Filter(fn)}
 }
 
+// MapFilter applies given function to each element of the underlying slice,
+// if the second returning value of fn is false, the element is skipped (may be useful for error handling).
+// returns the slice where each element is n[i] = f(p[i]) if it is not skipped.
+func (p *PipeNL[T]) MapFilter(fn func(T) (T, bool)) PiperNoLen[T] {
+	return &PipeNL[T]{p.Pipe.MapFilter(fn)}
+}
+
 // First returns the first element of the pipe.
 func (p *PipeNL[T]) First() *T {
 	return p.Pipe.First()
@@ -47,6 +54,22 @@ func (p *PipeNL[T]) Gen(n int) Piper[T] {
 // Only the first Parallel() in a pipe chain is applied.
 func (p *PipeNL[T]) Parallel(n uint16) PiperNoLen[T] {
 	return &PipeNL[T]{p.Pipe.Parallel(n)}
+}
+
+// Erase wraps all pipe values to interface{} type, so you are able to use pipe methods with type convertions.
+// You can use collectors from collectiors.go file of this package to collect results into a particular type.
+func (p *PipeNL[T]) Erase() PiperNoLen[any] {
+	return &PipeNL[any]{p.Pipe.Erase()}
+}
+
+// Snag links an error handler to the previous Pipe method.
+func (p *PipeNL[T]) Snag(h func(error)) PiperNoLen[T] {
+	return &PipeNL[T]{p.Pipe.Snag(internalpipe.ErrHandler(h))}
+}
+
+// Yeti links a yeti error handler to the Pipe.
+func (p *PipeNL[T]) Yeti(y internalpipe.YeetSnag) PiperNoLen[T] {
+	return &PipeNL[T]{p.Pipe.Yeti(y)}
 }
 
 // Entrails is an out of Piper interface method to provide Map[T1 -> T2].
