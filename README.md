@@ -25,6 +25,9 @@ Also [here](https://macias.info/entry/202212020000_go_streams.md) is some **perf
   - [Easy type conversion for Pipe[any]]( #easy-type-conversion-for-pipe[any])
   - [Error handling](#error-handling)
   - [To be done](#to-be-done)
+- [Using prefix `Pipe` to transform `Pipe` type](#using-prefix-pipe-to-transform-pipe-type)
+- [Using `ff` package to write shortened pipes](#using-ff-package-to-write-shortened-pipes)
+- [Look for useful functions in `Pipies` package](#look-for-useful-functions-in-pipies-package)
 - [Examples](#examples)
   - [Basic example](#basic-example)
   - [Example using `Func` and `Take`](#example-using-func-and-take)
@@ -160,6 +163,27 @@ Error handling may look pretty uncommon at a first glance. To get better intuiti
 In addition to the functions described above, the `pipe` package also provides several utility functions that can be used to create common types of `Pipe`s, such as `Range`, `Repeat`, and `Cycle`. These functions can be useful for creating `Pipe`s of data that follow a certain pattern or sequence.
 
 Also it is highly recommended to get familiarize with the `pipies` package, containing some useful *predecates*, *comparators* and *accumulators*.
+
+### Using prefix `Pipe` to transform `Pipe` type
+
+You may found that using `Erase()` is not so convenient as it makes you to do some pointer conversions. Fortunately there is another way to convert a pipe type: use functions from `pipe/prefixpipe.go`. These functions takes `Piper` or `PiperNoLen` as a first parameter and function to apply as the second and returns a resulting pipe (or the result itself) of a destination type.
+
+#### Prefix pipe functinos
+
+- :frog: `pipe.Map(Piper[SrcT], func(x SrcT) DstT) Piper[DstT] ` - applies *map* from one type to another for the `Pipe` with **known** length.
+- :frog: `pipe.MapNL(PiperNoLen[SrcT], func(x SrcT) DstT) PiperNoLen[DstT] ` - applies *map* from one type to another for the `Pipe` with **unknown** length.
+- :frog: `Reduce(Piper[SrcT], func(*DstT, *SrcT) DstT, initVal ...DstT)` - applies *reduce* operation on `Pipe` of type `SrcT` and returns result of type `DstT`. `initVal` is an optional parameter to **initialize** a value that should be used on the **first steps** of reduce.
+
+### Using `ff` package to write shortened pipes
+
+Sometimes you need just to apply a function. Creating a pipe using `pipe.Slice` and then call `Map` looks a little bit verbose, especially when you need to call `Map` or `Reduce` from one type to another. The solution for it is `funcfrog/pkg/ff` package. It contains shortened `Map` and `Reduce` functions which can be called directly with a slice as a first parameter.
+
+- :frog: `Map([]SrcT, func(SrcT) DstT) pipe.Piper[DstT]` - applies sent function to a slice, returns a `Pipe` of resulting type
+- :frog: `Reduce([]SrcT, func(*DstT, *SrcT) DstT, initVal ...DstT) DstT` - applies *reduce* operation on a slice and returns the result of type `DstT`. `initVal` is an optional parameter to **initialize** a value that should be used on the **first steps** of reduce.
+
+### Look for useful functions in `Pipies` package
+
+Some of the functions that are sent to `Map`, `Filter` or `Reduce` (or other `Pipe` methods) are pretty common. Also there is a common comparator for any integers and floats for a `Sort` method. 
 
 ## Examples
 
