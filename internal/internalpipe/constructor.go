@@ -12,17 +12,14 @@ const (
 )
 
 func Slice[T any](dt []T) Pipe[T] {
-	dtCp := make([]T, len(dt))
-	copy(dtCp, dt)
-
 	return Pipe[T]{
 		Fn: func(i int) (*T, bool) {
-			if i >= len(dtCp) {
+			if i >= len(dt) {
 				return nil, true
 			}
-			return &dtCp[i], false
+			return &dt[i], false
 		},
-		Len:           len(dtCp),
+		Len:           len(dt),
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
