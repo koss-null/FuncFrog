@@ -1,6 +1,6 @@
 # FuncFrog
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/funcfrog)](https://goreportcard.com/report/github.com/koss-null/lambda)
+[![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/funcfrog)](https://goreportcard.com/report/github.com/koss-null/funcfrog)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Coverage](https://raw.githubusercontent.com/koss-null/funcfrog/master/coverage_badge.png?raw=true)](coverage)
 
