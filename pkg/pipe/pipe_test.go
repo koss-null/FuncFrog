@@ -1075,6 +1075,33 @@ func TestPrefixMapNL(t *testing.T) {
 	require.Equal(t, []string{"1", "3", "4"}, res)
 }
 
+func TestPrefixMapFilter(t *testing.T) {
+	res := pipe.MapFilter(
+		pipe.Slice([]int{1, 2, 3, 4, 5}).Filter(
+			func(x *int) bool { return *x != 5 },
+		),
+		func(x int) (string, bool) {
+			return strconv.Itoa(x), x != 2
+		},
+	).Do()
+	require.Equal(t, []string{"1", "3", "4"}, res)
+}
+
+func TestPrefixMapFilterNL(t *testing.T) {
+	t.Parallel()
+
+	res := pipe.MapFilterNL(
+		pipe.Func(func(i int) (int, bool) {
+			a := [...]int{1, 2, 3, 4, 5}
+			return a[i], a[i] != 5
+		}),
+		func(x int) (string, bool) {
+			return strconv.Itoa(x), x != 2
+		},
+	).Gen(5).Do()
+	require.Equal(t, []string{"1", "3", "4"}, res)
+}
+
 func TestPrefixReduce(t *testing.T) {
 	t.Parallel()
 
