@@ -27,7 +27,7 @@ func Map[SrcT any, DstT any](
 }
 
 // MapNL applies function on a PiperNoLen of type SrcT and returns a Pipe of type DstT.
-func MapNL[SrcT any, DstT any](
+func MapNL[SrcT, DstT any](
 	p PiperNoLen[SrcT],
 	fn func(x SrcT) DstT,
 ) PiperNoLen[DstT] {
@@ -46,9 +46,51 @@ func MapNL[SrcT any, DstT any](
 	}}
 }
 
+// MapFilter applies function on a Piper of type SrcT and returns a Pipe of type DstT.
+// fn returns a value of DstT type and true if this value is not skipped.
+func MapFilter[SrcT, DstT any](
+	p Piper[SrcT],
+	fn func(x SrcT) (DstT, bool),
+) Piper[DstT] {
+	pp := any(p).(entrails[SrcT]).Entrails()
+	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
+		Fn: func(i int) (*DstT, bool) {
+			if obj, skipped := pp.Fn(i); !skipped {
+				dst, exist := fn(*obj)
+				return &dst, !exist
+			}
+			return nil, true
+		},
+		Len:           pp.Len,
+		ValLim:        pp.ValLim,
+		GoroutinesCnt: pp.GoroutinesCnt,
+	}}
+}
+
+// MapFilterNL applies function on a PiperNoLen of type SrcT and returns a Pipe of type DstT.
+// fn returns a value of DstT type and true if this value is not skipped.
+func MapFilterNL[SrcT, DstT any](
+	p PiperNoLen[SrcT],
+	fn func(x SrcT) (DstT, bool),
+) PiperNoLen[DstT] {
+	pp := any(p).(entrails[SrcT]).Entrails()
+	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
+		Fn: func(i int) (*DstT, bool) {
+			if obj, skipped := pp.Fn(i); !skipped {
+				dst, exist := fn(*obj)
+				return &dst, !exist
+			}
+			return nil, true
+		},
+		Len:           pp.Len,
+		ValLim:        pp.ValLim,
+		GoroutinesCnt: pp.GoroutinesCnt,
+	}}
+}
+
 // Reduce applies reduce operation on Pipe of type SrcT and returns result of type DstT.
 // initVal is an optional parameter to initialize a value that should be used on the first step of reduce.
-func Reduce[SrcT any, DstT any](p Piper[SrcT], fn func(*DstT, *SrcT) DstT, initVal ...DstT) DstT {
+func Reduce[SrcT, DstT any](p Piper[SrcT], fn func(*DstT, *SrcT) DstT, initVal ...DstT) DstT {
 	var init DstT
 	if len(initVal) > 0 {
 		init = initVal[0]

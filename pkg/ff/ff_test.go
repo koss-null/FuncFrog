@@ -41,6 +41,38 @@ func TestMap(t *testing.T) {
 	}
 }
 
+func TestMapFilter(t *testing.T) {
+	a := []int{1, 2, 3, 4, 5, 6, 7, 8}
+
+	fn := func(x int) (string, bool) {
+		return strconv.Itoa(x), x%2 == 0
+	}
+
+	piper := MapFilter(a, fn).Do()
+
+	// Iterate through the values and test the output
+	expected := []string{"2", "4", "6", "8"}
+	for i, val := range piper {
+		require.Equal(t, expected[i], val, "Unexpected result for MapFilter")
+	}
+}
+
+func TestFilter(t *testing.T) {
+	a := []int{1, 2, 3, 4, 5}
+
+	fn := func(x *int) bool {
+		return *x%2 != 0
+	}
+
+	piper := Filter(a, fn).Do()
+
+	// Iterate through the values and test the output
+	expected := []int{1, 3, 5}
+	for i, val := range piper {
+		require.Equal(t, expected[i], val, "Unexpected result for Filter")
+	}
+}
+
 func TestReduce(t *testing.T) {
 	a := []int{1, 2, 3, 4, 5}
 
