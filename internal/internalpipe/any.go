@@ -1,6 +1,8 @@
 package internalpipe
 
-import "sync"
+import (
+	"sync"
+)
 
 const hugeLenStep = 1 << 15
 
@@ -65,9 +67,9 @@ func (p Pipe[T]) Any() *T {
 				}
 
 				for j := lf; j < rg; j++ {
-					// mx.Lock()
+					mx.Lock()
 					rs := resSet
-					// mx.Unlock()
+					mx.Unlock()
 					if !rs {
 						obj, skipped := p.Fn(j)
 						if !skipped {
