@@ -54,7 +54,7 @@ func TestAny(t *testing.T) {
 		}).Gen(len(a100k))
 		s := p.Any()
 		require.NotNil(t, s)
-		require.Greater(t, 90_000.0, pointer.From(s))
+		require.Greater(t, 90_000.0, pointer.Deref(s))
 	})
 
 	t.Run("Seven thread limit", func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestAny(t *testing.T) {
 		}).Gen(len(a100k)).Parallel(7)
 		s := p.Any()
 		require.NotNil(t, s)
-		require.Greater(t, 90_000.0, pointer.From(s))
+		require.Greater(t, 90_000.0, pointer.Deref(s))
 	})
 
 	t.Run("Single thread NF limit", func(t *testing.T) {
@@ -130,5 +130,18 @@ func TestAny(t *testing.T) {
 		s := p.Any()
 		require.NotNil(t, s)
 		require.Equal(t, 90_001., *s)
+	})
+
+	t.Run("Ten thread bounded no limit filter", func(t *testing.T) {
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], a100k[i] > 90_000.0 && a100k[i] < 190_000.0
+		}).Filter(func(x *float64) bool { return int(*x)%2 == 0 }).Parallel(10)
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Greater(t, *s, 90_000.)
+		require.Less(t, *s, 190_001.)
 	})
 }

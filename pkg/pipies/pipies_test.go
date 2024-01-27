@@ -16,7 +16,7 @@ func Test_Predicates(t *testing.T) {
 
 	t.Run("NotNil", func(t *testing.T) {
 		t.Parallel()
-		require.True(t, NotNil(pointer.To(1)))
+		require.True(t, NotNil(pointer.Ref(1)))
 		require.False(t, NotNil[int](nil))
 		require.False(t, NotNil[int](nil))
 		require.False(t, NotNil[testT](nil))
@@ -29,7 +29,7 @@ func Test_Predicates(t *testing.T) {
 	})
 	t.Run("IsNil", func(t *testing.T) {
 		t.Parallel()
-		require.False(t, IsNil(pointer.To(1)))
+		require.False(t, IsNil(pointer.Ref(1)))
 		require.True(t, IsNil[int](nil))
 		require.True(t, IsNil[int](nil))
 		require.True(t, IsNil[testT](nil))
@@ -42,9 +42,9 @@ func Test_Predicates(t *testing.T) {
 	})
 	t.Run("NotZero", func(t *testing.T) {
 		t.Parallel()
-		require.True(t, NotZero(pointer.To(1)))
-		require.False(t, NotZero(pointer.To(0)))
-		require.False(t, NotZero(pointer.To[float32](0.0)))
+		require.True(t, NotZero(pointer.Ref(1)))
+		require.False(t, NotZero(pointer.Ref(0)))
+		require.False(t, NotZero(pointer.Ref[float32](0.0)))
 		require.False(t, NotZero(&struct{ a, b, c int }{}))
 		require.True(t, NotZero(&struct{ a, b, c int }{1, 0, 0}))
 	})
@@ -56,50 +56,50 @@ func Test_PredicateBuilders(t *testing.T) {
 	t.Run("Eq", func(t *testing.T) {
 		t.Parallel()
 		eq5 := Eq(5)
-		require.True(t, eq5(pointer.To(5)))
-		require.False(t, eq5(pointer.To(4)))
+		require.True(t, eq5(pointer.Ref(5)))
+		require.False(t, eq5(pointer.Ref(4)))
 		eqS := Eq("test")
-		require.True(t, eqS(pointer.To("test")))
-		require.False(t, eqS(pointer.To("sett")))
+		require.True(t, eqS(pointer.Ref("test")))
+		require.False(t, eqS(pointer.Ref("sett")))
 	})
 
 	t.Run("NotEq", func(t *testing.T) {
 		t.Parallel()
 		neq5 := NotEq(5)
-		require.False(t, neq5(pointer.To(5)))
-		require.True(t, neq5(pointer.To(4)))
+		require.False(t, neq5(pointer.Ref(5)))
+		require.True(t, neq5(pointer.Ref(4)))
 		neqS := NotEq("test")
-		require.False(t, neqS(pointer.To("test")))
-		require.True(t, neqS(pointer.To("sett")))
+		require.False(t, neqS(pointer.Ref("test")))
+		require.True(t, neqS(pointer.Ref("sett")))
 	})
 
 	t.Run("LessThan", func(t *testing.T) {
 		t.Parallel()
 		lt5 := LessThan(5)
-		require.True(t, lt5(pointer.To(4)))
-		require.False(t, lt5(pointer.To(5)))
-		require.False(t, lt5(pointer.To(6)))
+		require.True(t, lt5(pointer.Ref(4)))
+		require.False(t, lt5(pointer.Ref(5)))
+		require.False(t, lt5(pointer.Ref(6)))
 		ltf5 := LessThan(5.0)
-		require.True(t, ltf5(pointer.To(4.999)))
-		require.False(t, ltf5(pointer.To(float64(int(5)))))
-		require.False(t, ltf5(pointer.To(5.01)))
+		require.True(t, ltf5(pointer.Ref(4.999)))
+		require.False(t, ltf5(pointer.Ref(float64(int(5)))))
+		require.False(t, ltf5(pointer.Ref(5.01)))
 	})
 }
 
 func Test_Comparator(t *testing.T) {
 	t.Parallel()
-	require.True(t, Less(pointer.To(4), pointer.To(5)))
-	require.False(t, Less(pointer.To(5), pointer.To(5)))
-	require.False(t, Less(pointer.To(6), pointer.To(5)))
-	require.True(t, Less(pointer.To(4.999), pointer.To(5.0)))
-	require.False(t, Less(pointer.To(float64(int(5))), pointer.To(5.0)))
-	require.False(t, Less(pointer.To(5.01), pointer.To(5.0)))
+	require.True(t, Less(pointer.Ref(4), pointer.Ref(5)))
+	require.False(t, Less(pointer.Ref(5), pointer.Ref(5)))
+	require.False(t, Less(pointer.Ref(6), pointer.Ref(5)))
+	require.True(t, Less(pointer.Ref(4.999), pointer.Ref(5.0)))
+	require.False(t, Less(pointer.Ref(float64(int(5))), pointer.Ref(5.0)))
+	require.False(t, Less(pointer.Ref(5.01), pointer.Ref(5.0)))
 }
 
 func Test_Accum(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, Sum(pointer.To(10), pointer.To(20)), 30)
-	require.Equal(t, Sum(pointer.To(10.0), pointer.To(20.0)), 30.0)
+	require.Equal(t, Sum(pointer.Ref(10), pointer.Ref(20)), 30)
+	require.Equal(t, Sum(pointer.Ref(10.0), pointer.Ref(20.0)), 30.0)
 }
 
 func Test_Not(t *testing.T) {

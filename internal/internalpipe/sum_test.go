@@ -49,7 +49,7 @@ func Test_Sum(t *testing.T) {
 	t.Run("Single thread empty", func(t *testing.T) {
 		p := Pipe[float64]{
 			Fn: func(i int) (*float64, bool) {
-				return pointer.To(1.), false
+				return pointer.Ref(1.), false
 			},
 			Len:           0,
 			ValLim:        -1,
@@ -66,7 +66,7 @@ func Test_Sum(t *testing.T) {
 	t.Run("Quadro thread empty", func(t *testing.T) {
 		p := Pipe[float64]{
 			Fn: func(i int) (*float64, bool) {
-				return pointer.To(1.), false
+				return pointer.Ref(1.), false
 			},
 			Len:           0,
 			ValLim:        -1,
@@ -83,7 +83,7 @@ func Test_Sum(t *testing.T) {
 	t.Run("Single thread 1 elem", func(t *testing.T) {
 		p := Pipe[float64]{
 			Fn: func(i int) (*float64, bool) {
-				return pointer.To(100500.), i != 0
+				return pointer.Ref(100500.), i != 0
 			},
 			Len:           1,
 			ValLim:        -1,
@@ -100,7 +100,7 @@ func Test_Sum(t *testing.T) {
 	t.Run("Quadro thread 1 elem", func(t *testing.T) {
 		p := Pipe[float64]{
 			Fn: func(i int) (*float64, bool) {
-				return pointer.To(100500.), i != 0
+				return pointer.Ref(100500.), i != 0
 			},
 			Len:           1,
 			ValLim:        -1,

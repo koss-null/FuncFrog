@@ -22,7 +22,7 @@ func Test_Filter(t *testing.T) {
 		}
 
 		res := p.Filter(func(x *int) bool {
-			return pointer.From(x)%2 == 0
+			return pointer.Deref(x)%2 == 0
 		}).Do()
 		j := 0
 		for i := 0; i < 100_000; i += 2 {
@@ -41,7 +41,7 @@ func Test_Filter(t *testing.T) {
 		}
 
 		res := p.Filter(func(x *int) bool {
-			return pointer.From(x)%2 == 0
+			return pointer.Deref(x)%2 == 0
 		}).Do()
 		j := 0
 		for i := 0; i < 100_000; i += 2 {
@@ -50,7 +50,7 @@ func Test_Filter(t *testing.T) {
 		}
 	})
 	t.Run("single thread even numbers empty res filter", func(t *testing.T) {
-		pts := pointer.To(7)
+		pts := pointer.Ref(7)
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return pts, false
@@ -61,12 +61,12 @@ func Test_Filter(t *testing.T) {
 		}
 
 		res := p.Filter(func(x *int) bool {
-			return pointer.From(x)%2 == 0
+			return pointer.Deref(x)%2 == 0
 		}).Do()
 		require.Equal(t, 0, len(res))
 	})
 	t.Run("seven thread even numbers empty res filter", func(t *testing.T) {
-		pts := pointer.To(7)
+		pts := pointer.Ref(7)
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return pts, false
@@ -77,12 +77,12 @@ func Test_Filter(t *testing.T) {
 		}
 
 		res := p.Filter(func(x *int) bool {
-			return pointer.From(x)%2 == 0
+			return pointer.Deref(x)%2 == 0
 		}).Do()
 		require.Equal(t, 0, len(res))
 	})
 	t.Run("seven thread even numbers empty res double filter", func(t *testing.T) {
-		pts := pointer.To(7)
+		pts := pointer.Ref(7)
 		p := Pipe[int]{
 			Fn: func(i int) (*int, bool) {
 				return pts, false
@@ -93,9 +93,9 @@ func Test_Filter(t *testing.T) {
 		}
 
 		res := p.Filter(func(x *int) bool {
-			return pointer.From(x)%2 == 0
+			return pointer.Deref(x)%2 == 0
 		}).Filter(func(x *int) bool {
-			return pointer.From(x)%2 == 0
+			return pointer.Deref(x)%2 == 0
 		}).Do()
 		require.Equal(t, 0, len(res))
 	})
