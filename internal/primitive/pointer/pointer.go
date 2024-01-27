@@ -1,10 +1,10 @@
 package pointer
 
-func To[T any](x T) *T {
+func Ref[T any](x T) *T {
 	return &x
 }
 
-func From[T any](x *T) (res T) {
+func Deref[T any](x *T) (res T) {
 	if x == nil {
 		return
 	}

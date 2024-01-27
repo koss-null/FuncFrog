@@ -113,14 +113,23 @@ func first[T any](limit, grtCnt int, fn func(i int) (*T, bool)) (f *T) {
 
 			done := res.ctx.Done()
 			for j := lf; j < rg; j++ {
-				select {
-				case <-done:
-					return
-				default:
+				// FIXME: this code is ugly but saves about 30% of time on locks
+				if j%2 != 0 {
 					val, skipped := fn(j)
 					if !skipped {
 						res.setVal(val, stepCnt)
 						return
+					}
+				} else {
+					select {
+					case <-done:
+						return
+					default:
+						val, skipped := fn(j)
+						if !skipped {
+							res.setVal(val, stepCnt)
+							return
+						}
 					}
 				}
 			}

@@ -366,13 +366,13 @@ func TestFilter(t *testing.T) {
 		if i%10 == 0 {
 			return nil, true
 		}
-		return pointer.To(float64(i)), true
+		return pointer.Ref(float64(i)), true
 	}
 
 	s := pipe.MapNL(
 		pipe.Func(genFunc).
 			Filter(pipies.NotNil[*float64]),
-		pointer.From[float64],
+		pointer.Deref[float64],
 	).Take(10_000).Sum(pipies.Sum[float64])
 	require.NotNil(t, s)
 
@@ -394,7 +394,7 @@ func TestFilter(t *testing.T) {
 			}
 			return nil
 		}).Filter(pipies.NotNil[*float64]),
-		pointer.From[float64],
+		pointer.Deref[float64],
 	).Sum(pipies.Sum[float64])
 	require.Equal(t, float64(sm), ss)
 }
