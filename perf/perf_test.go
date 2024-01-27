@@ -37,14 +37,8 @@ func BenchmarkMap(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-
-		// Create a Pipe from the input slice
 		pipe := pipe.Slice(input)
-
-		// Apply the map operation to the Pipe
 		result := pipe.Map(fib).Do()
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -58,14 +52,8 @@ func BenchmarkMapParallel(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-
-		// Create a Pipe from the input slice
 		pipe := pipe.Slice(input).Parallel(uint16(runtime.NumCPU()))
-
-		// Apply the map operation to the Pipe
 		result := pipe.Map(fib).Do()
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -79,13 +67,10 @@ func BenchmarkMapFor(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-
 		result := make([]int, 0, len(input))
 		for i := range input {
 			result = append(result, fib(input[i]))
 		}
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -99,13 +84,8 @@ func BenchmarkFilter(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-		// Create a Pipe from the input slice
 		pipe := pipe.Slice(input)
-
-		// Apply the filter operation to the Pipe
 		result := pipe.Filter(filterFunc).Do()
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -119,13 +99,8 @@ func BenchmarkFilterParallel(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-		// Create a Pipe from the input slice
 		pipe := pipe.Slice(input).Parallel(uint16(runtime.NumCPU()))
-
-		// Apply the filter operation to the Pipe
 		result := pipe.Filter(filterFunc).Do()
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -139,16 +114,12 @@ func BenchmarkFilterFor(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-
-		// Apply the filter operation to the Pipe
 		result := make([]int, 0)
 		for i := range input {
 			if filterFunc(&input[i]) {
 				result = append(result, input[i])
 			}
 		}
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -163,11 +134,7 @@ func BenchmarkReduce(b *testing.B) {
 
 	for j := 0; j < b.N; j++ {
 		pipe := pipe.Slice(input)
-
-		// Apply the reduce operation to the Pipe
 		result := pipe.Reduce(reduceFunc)
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -181,13 +148,8 @@ func BenchmarkSumParallel(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-		// Create a Pipe from the input slice
 		pipe := pipe.Slice(input).Parallel(uint16(runtime.NumCPU()))
-
-		// Apply the reduce operation to the Pipe
 		result := pipe.Sum(reduceFunc)
-
-		// Perform any necessary assertions on the result
 		_ = result
 	}
 }
@@ -202,13 +164,60 @@ func BenchmarkReduceFor(b *testing.B) {
 	b.StartTimer()
 
 	for j := 0; j < b.N; j++ {
-		// Apply the reduce operation to the Pipe
 		result := 0
 		for i := range input {
 			result = reduceFunc(&result, &input[i])
 		}
-
-		// Perform any necessary assertions on the result
 		_ = result
+	}
+}
+
+func BenchmarkAny(b *testing.B) {
+	b.StopTimer()
+	input := make([]int, 1_000_000)
+	for i := 0; i < len(input); i++ {
+		input[i] = i
+	}
+	b.StartTimer()
+
+	for j := 0; j < b.N; j++ {
+		pipe := pipe.Slice(input).Filter(func(x *int) bool { return *x > 5_000_00 })
+		result := pipe.Any()
+		_ = result
+	}
+}
+
+func BenchmarkAnyParallel(b *testing.B) {
+	b.StopTimer()
+	input := make([]int, 1_000_000)
+	for i := 0; i < len(input); i++ {
+		input[i] = i
+	}
+	b.StartTimer()
+
+	for j := 0; j < b.N; j++ {
+		pipe := pipe.Slice(input).
+			Parallel(uint16(runtime.NumCPU())).
+			Filter(func(x *int) bool { return *x > 5_000_00 })
+		result := pipe.Any()
+		_ = result
+	}
+}
+
+func BenchmarkAnyFor(b *testing.B) {
+	b.StopTimer()
+	input := make([]int, 1_000_000)
+	for i := 0; i < len(input); i++ {
+		input[i] = i
+	}
+	b.StartTimer()
+
+	for j := 0; j < b.N; j++ {
+		for i := 0; i < len(input); i++ {
+			if input[i] > 5_000_00 {
+				_ = input[i]
+				break
+			}
+		}
 	}
 }

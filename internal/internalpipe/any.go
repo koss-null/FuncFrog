@@ -4,16 +4,11 @@ import "sync"
 
 const hugeLenStep = 1 << 15
 
-func anySingleThread[T any](lenSet bool, limit int, fn GeneratorFn[T]) *T {
-	var (
-		obj     *T
-		skipped bool
-	)
-	check := func(i int) bool { return i < limit }
-	if !lenSet {
-		check = func(i int) bool { return i > -1 && i < limit }
-	}
-	for i := 0; check(i); i++ {
+func anySingleThread[T any](limit int, fn GeneratorFn[T]) *T {
+	var obj *T
+	var skipped bool
+
+	for i := 0; i > -1 && (i < limit); i++ {
 		if obj, skipped = fn(i); !skipped {
 			return obj
 		}
@@ -24,11 +19,11 @@ func anySingleThread[T any](lenSet bool, limit int, fn GeneratorFn[T]) *T {
 // Any returns a pointer to a random element in the pipe or nil if none left.
 func (p Pipe[T]) Any() *T {
 	limit := p.limit()
-	lenSet := p.lenSet()
 	if p.GoroutinesCnt == 1 {
-		return anySingleThread(lenSet, limit, p.Fn)
+		return anySingleThread(limit, p.Fn)
 	}
 
+	lenSet := p.lenSet()
 	step := hugeLenStep
 	if lenSet {
 		step = max(divUp(limit, p.GoroutinesCnt), 1)
@@ -63,16 +58,16 @@ func (p Pipe[T]) Any() *T {
 					tickets <- struct{}{}
 					wg.Done()
 				}()
-
 				// int owerflow case
 				rg = max(rg, 0)
 				if lenSet {
 					rg = min(rg, limit)
 				}
+
 				for j := lf; j < rg; j++ {
-					mx.Lock()
+					// mx.Lock()
 					rs := resSet
-					mx.Unlock()
+					// mx.Unlock()
 					if !rs {
 						obj, skipped := p.Fn(j)
 						if !skipped {
