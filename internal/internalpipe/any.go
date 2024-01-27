@@ -2,12 +2,18 @@ package internalpipe
 
 import "sync"
 
-const infiniteLenStep = 1 << 15
+const hugeLenStep = 1 << 15
 
 func anySingleThread[T any](lenSet bool, limit int, fn GeneratorFn[T]) *T {
-	var obj *T
-	var skipped bool
-	for i := 0; (!lenSet && i >= 0) || (i < limit); i++ {
+	var (
+		obj     *T
+		skipped bool
+	)
+	check := func(i int) bool { return i < limit }
+	if !lenSet {
+		check = func(i int) bool { return i > -1 && i < limit }
+	}
+	for i := 0; check(i); i++ {
 		if obj, skipped = fn(i); !skipped {
 			return obj
 		}
@@ -23,30 +29,27 @@ func (p Pipe[T]) Any() *T {
 		return anySingleThread(lenSet, limit, p.Fn)
 	}
 
-	step := infiniteLenStep
+	step := hugeLenStep
 	if lenSet {
 		step = max(divUp(limit, p.GoroutinesCnt), 1)
 	}
+
 	var (
-		res = make(chan *T)
-		// if p.len is not set, we need tickets to control the amount of goroutines
+		resSet bool
+		resCh  = make(chan *T, 1)
+		mx     sync.Mutex
+
 		tickets = genTickets(p.GoroutinesCnt)
-
-		done = make(chan struct{})
-		wg   sync.WaitGroup
+		wg      sync.WaitGroup
 	)
-	if !lenSet {
-		step = infiniteLenStep
-	}
-
+	defer close(resCh)
 	setObj := func(obj *T) {
-		select {
-		case <-done:
-			return
-		default:
-			close(done)
-			res <- obj
+		mx.Lock()
+		if !resSet {
+			resSet = true
+			resCh <- obj
 		}
+		mx.Unlock()
 	}
 
 	go func() {
@@ -54,22 +57,23 @@ func (p Pipe[T]) Any() *T {
 		for i := 0; i >= 0 && (!lenSet || i < limit); i += step {
 			wg.Add(1)
 			<-tickets
+
 			go func(lf, rg int) {
 				defer func() {
-					wg.Done()
 					tickets <- struct{}{}
+					wg.Done()
 				}()
 
-				// accounting int owerflow case with max(rg, 0)
+				// int owerflow case
 				rg = max(rg, 0)
 				if lenSet {
 					rg = min(rg, limit)
 				}
 				for j := lf; j < rg; j++ {
-					select {
-					case <-done:
-						return
-					default:
+					mx.Lock()
+					rs := resSet
+					mx.Unlock()
+					if !rs {
 						obj, skipped := p.Fn(j)
 						if !skipped {
 							setObj(obj)
@@ -83,8 +87,9 @@ func (p Pipe[T]) Any() *T {
 		go func() {
 			wg.Wait()
 			setObj(nil)
+			defer close(tickets)
 		}()
 	}()
 
-	return <-res
+	return <-resCh
 }

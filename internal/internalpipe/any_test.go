@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/koss-null/funcfrog/internal/primitive/pointer"
 )
 
 var (
@@ -28,48 +26,60 @@ func TestAny(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Single thread no limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
-			return a100k[i], a100k[i] <= 90_000.0
+			return a100k[i], a100k[i] > 90_000.0
 		})
 		s := p.Any()
 		require.NotNil(t, s)
-		require.Greater(t, 90_000.0, *s)
-	})
-
-	t.Run("Seven thread no limit", func(t *testing.T) {
-		p := Func(func(i int) (float64, bool) {
-			if i >= len(a100k) {
-				return 0., false
-			}
-			return a100k[i], a100k[i] <= 90_000.0
-		}).Parallel(7)
-		s := p.Any()
-		require.NotNil(t, s)
-		require.Greater(t, 90_000.0, *s)
+		require.Greater(t, *s, 90_000.0)
 	})
 
 	t.Run("Single thread limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
-			return a100k[i], a100k[i] <= 90_000.0
+			return a100k[i], a100k[i] > 90_000.0
 		}).Gen(len(a100k))
 		s := p.Any()
 		require.NotNil(t, s)
-		require.Greater(t, 90_000.0, pointer.Deref(s))
+		require.Greater(t, *s, 90_000.0)
 	})
 
-	t.Run("Seven thread limit", func(t *testing.T) {
+	t.Run("Seven thread no limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			if i >= len(a100k) {
 				return 0., false
 			}
-			return a100k[i], a100k[i] <= 90_000.0
+			return a100k[i], true
+		}).
+			Filter(func(x *float64) bool { return *x > 90_000. }).
+			Parallel(7)
+		s := p.Any()
+		require.NotNil(t, s)
+		require.Greater(t, *s, 90_000.0)
+	})
+
+	t.Run("Seven thread limit", func(t *testing.T) {
+		t.Parallel()
+
+		p := Func(func(i int) (float64, bool) {
+			if i >= len(a100k) {
+				return 0., false
+			}
+			return a100k[i], a100k[i] > 90_000.0
 		}).Gen(len(a100k)).Parallel(7)
 		s := p.Any()
 		require.NotNil(t, s)
-		require.Greater(t, 90_000.0, pointer.Deref(s))
+		require.Greater(t, *s, 90_000.0)
 	})
 
 	t.Run("Single thread NF limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			return a100k[i], false
 		}).Gen(len(a100k))
@@ -78,6 +88,8 @@ func TestAny(t *testing.T) {
 	})
 
 	t.Run("Seven thread NF limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			if i >= len(a100k) {
 				return 0., false
@@ -89,6 +101,8 @@ func TestAny(t *testing.T) {
 	})
 
 	t.Run("Single thread bounded limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			return a100k[i], false
 		}).Gen(len(a100k))
@@ -97,6 +111,8 @@ func TestAny(t *testing.T) {
 	})
 
 	t.Run("Seven thread bounded limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			if i >= len(a100k) {
 				return 0., false
@@ -109,6 +125,8 @@ func TestAny(t *testing.T) {
 	})
 
 	t.Run("Single thread bounded no limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			if i >= len(a100k) {
 				return 0., false
@@ -121,6 +139,8 @@ func TestAny(t *testing.T) {
 	})
 
 	t.Run("Seven thread bounded no limit", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			if i >= len(a100k) {
 				return 0., false
@@ -133,6 +153,8 @@ func TestAny(t *testing.T) {
 	})
 
 	t.Run("Ten thread bounded no limit filter", func(t *testing.T) {
+		t.Parallel()
+
 		p := Func(func(i int) (float64, bool) {
 			if i >= len(a100k) {
 				return 0., false
