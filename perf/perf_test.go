@@ -7,8 +7,9 @@ import (
 	"github.com/koss-null/funcfrog/pkg/pipe"
 )
 
-func fib(n int) int {
-	n = n % 91
+func fib(_ int) int {
+	// about 100 operations to get 91th fib number
+	n := 100 // 100 iters
 	a, b := 0, 1
 	for i := 0; i < n; i++ {
 		a, b = b, a+b

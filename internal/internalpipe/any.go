@@ -2,6 +2,7 @@ package internalpipe
 
 import (
 	"sync"
+	"time"
 )
 
 const hugeLenStep = 1 << 15
@@ -20,6 +21,8 @@ func anySingleThread[T any](limit int, fn GeneratorFn[T]) *T {
 
 // Any returns a pointer to a random element in the pipe or nil if none left.
 func (p Pipe[T]) Any() *T {
+	const mutexUpdateCoef = 18
+
 	limit := p.limit()
 	if p.GoroutinesCnt == 1 {
 		return anySingleThread(limit, p.Fn)
@@ -66,16 +69,43 @@ func (p Pipe[T]) Any() *T {
 					rg = min(rg, limit)
 				}
 
-				for j := lf; j < rg; j++ {
+				var avgFnTime time.Duration
+				var avgUpdResSetTime time.Duration
+				resSetUpdCnt := int64(0)
+				beforeLastResSetUpd := 0
+
+				getResSet := func() bool {
+					start := time.Now()
 					mx.Lock()
 					rs := resSet
 					mx.Unlock()
+					avgUpdResSetTime = time.Duration(
+						(int64(time.Since(start)) + int64(avgUpdResSetTime)*(resSetUpdCnt)) / (resSetUpdCnt + 1),
+					)
+					resSetUpdCnt++
+					beforeLastResSetUpd = 0
+					return rs
+				}
+				rs := getResSet()
+				cnt := 0
+				for j := lf; j < rg; j++ {
+					beforeLastResSetUpd++
+					if j != lf &&
+						avgFnTime != 0 &&
+						int64(beforeLastResSetUpd) > (mutexUpdateCoef*int64(avgUpdResSetTime)/int64(avgFnTime)) {
+						rs = getResSet()
+						cnt++
+					}
 					if !rs {
+						start := time.Now()
 						obj, skipped := p.Fn(j)
 						if !skipped {
 							setObj(obj)
 							return
 						}
+						avgFnTime = time.Duration(
+							(int64(time.Since(start)) + int64(avgFnTime)*int64(j-lf)) / int64(j-lf+1),
+						)
 					}
 				}
 			}(i, i+step)
