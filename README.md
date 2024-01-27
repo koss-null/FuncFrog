@@ -134,7 +134,7 @@ The following functions can be used to create a new `Pipe` (this is how I call t
 - :frog: `Sort(less func(x, y *T) bool) Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
 
 #### Retrieve a single element or perform a boolean check
-- :frog: `Any(fn func(x T) bool) bool`: returns `true` if any element of the `Pipe` satisfies the predicate `fn`, and `false` otherwise. *Available for unknown length.*
+- :frog: `Any() T`: returns a random element existing in the pipe. *Available for unknown length.*
 - :frog: `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty. *Available for unknown length.*
 - :frog: `Count() int`: returns the number of elements in the `Pipe`. It does not allocate memory for the elements, but instead simply returns the number of elements in the `Pipe`.
 
