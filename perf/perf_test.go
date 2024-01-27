@@ -222,3 +222,53 @@ func BenchmarkAnyFor(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkFirst(b *testing.B) {
+	b.StopTimer()
+	input := make([]int, 1_000_000)
+	for i := 0; i < len(input); i++ {
+		input[i] = i
+	}
+	b.StartTimer()
+
+	for j := 0; j < b.N; j++ {
+		pipe := pipe.Slice(input).Filter(func(x *int) bool { return *x > 5_000_00 })
+		result := pipe.First()
+		_ = result
+	}
+}
+
+func BenchmarkFirstParallel(b *testing.B) {
+	b.StopTimer()
+	input := make([]int, 1_000_000)
+	for i := 0; i < len(input); i++ {
+		input[i] = i
+	}
+	b.StartTimer()
+
+	for j := 0; j < b.N; j++ {
+		pipe := pipe.Slice(input).
+			Parallel(uint16(runtime.NumCPU())).
+			Filter(func(x *int) bool { return *x > 5_000_00 })
+		result := pipe.First()
+		_ = result
+	}
+}
+
+func BenchmarkFirstFor(b *testing.B) {
+	b.StopTimer()
+	input := make([]int, 1_000_000)
+	for i := 0; i < len(input); i++ {
+		input[i] = i
+	}
+	b.StartTimer()
+
+	for j := 0; j < b.N; j++ {
+		for i := 0; i < len(input); i++ {
+			if input[i] > 5_000_00 {
+				_ = input[i]
+				break
+			}
+		}
+	}
+}
