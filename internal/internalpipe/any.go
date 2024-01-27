@@ -11,7 +11,7 @@ func anySingleThread[T any](limit int, fn GeneratorFn[T]) *T {
 	var obj *T
 	var skipped bool
 
-	for i := 0; i > -1 && (i < limit); i++ {
+	for i := 0; i < limit; i++ {
 		if obj, skipped = fn(i); !skipped {
 			return obj
 		}
