@@ -467,7 +467,10 @@ users := pipe.Func(func(i int) (*domain.DomObj, bool) {
 
 The full working code with samples of handlers and implementations of usecase functions can be found at: https://go.dev/play/p/YGtM-OeMWqu.
 
-Lets break down what is happening here.
+
+This example demonstrates how multiple error handling functions can be set up at different stages of the data processing pipeline to handle errors specific to each stage. 
+
+Lets break down what is happening here. 
 
 In this code fragment, there are two instances of `pipe.Yeti` created: `y1` and `y2`. These `Yeti` instances are used to handle errors at different stages of the data processing pipeline.
 
@@ -481,16 +484,13 @@ The `Yeti(y2).Snag(handleEnrichUserErr)` statement sets up another error handlin
 
 Finally, the `Do()` method executes the entire pipeline and assigns the result to the `users` variable.
 
-This example demonstrates how multiple error handling functions can be set up at different stages of the data processing pipeline to handle errors specific to each stage.
-
-I hope this clarifies the description of the second code fragment. Let me know if you have any further questions!
 
 ## Is this package stable?
 
 Yes it finally is **stable since v1.0.0**! All listed functionality is **fully covered** by unit-tests.
 Functionality marked as TBD will be implemented as it described in the README and covered by unit-tests to be delivered stable. 
 
-If there will be any method **signature changes**, the **major version** will be **incremented**. 
+If there will be any method **signature changes**, the **major version** will be incremented. 
 
 ## Contributions
 
