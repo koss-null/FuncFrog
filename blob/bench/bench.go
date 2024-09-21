@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/koss-null/funcfrog/pkg/ff"
 	"github.com/pkg/profile"
+
+	"github.com/koss-null/funcfrog/pkg/ff"
 )
 
 type User struct {
@@ -33,6 +34,7 @@ func GetUserID(u *User) string {
 }
 
 func main() {
+	const iters = 5
 	makeUsers(1)
 	defer profile.Start().Stop()
 	// n == number of users
@@ -45,11 +47,11 @@ func main() {
 		10_000_000,
 	} {
 		users := makeUsers(n)
-		for i := 0; i < 3; i++ {
-			_ = ff.Map(users, GetUserID).Parallel(4).Do()
+		for i := 0; i < iters; i++ {
+			_ = ff.Map(users, GetUserID).Parallel(8).Do()
 		}
 	}
-	fmt.Println("done in", time.Since(start))
+	fmt.Println("FuncFrog done in", time.Since(start))
 
 	start = time.Now()
 	for _, n := range []int{
@@ -60,7 +62,7 @@ func main() {
 		10_000_000,
 	} {
 		users := makeUsers(n)
-		for i := 0; i < 3; i++ {
+		for i := 0; i < iters; i++ {
 			res := make([]string, 0, len(users))
 			for j := range users {
 				res = append(res, GetUserID(users[j]))
@@ -68,7 +70,7 @@ func main() {
 			_ = res
 		}
 	}
-	fmt.Println("done in", time.Since(start))
+	fmt.Println("for loop done in", time.Since(start))
 }
 
 var (
