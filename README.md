@@ -75,6 +75,13 @@ res := pipe.Slice(a).
 
 All operations are carefully fenced with interfaces, so feel free to use anything, autosuggestion suggests you.
 
+If you want it fast and short, you may use `ff`:  
+```go
+import "github.com/koss-null/funcfrog/pkg/ff"
+
+res := ff.Map(strArr, strings.ToUpper).Do()
+```
+  
 To see some code snippets, check out the `examples/main.go` file. You can also run it with `go run examples/main.go`.
 
 ## Basic information
