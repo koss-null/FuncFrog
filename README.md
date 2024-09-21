@@ -8,7 +8,8 @@
 
 *FuncFrog* is a library for performing **efficient**, **parallel**, **lazy** `map`, `reduce`, `filter` and [many other](#supported-functions-list) operations on slices and other data sequences in a pipeline. The sequence can be set by a variety of [generating functions](#constructors). Everything is supported to be executed in parallel with **minimal overhead** on copying and locks. There is a built-in support of [error handling](#error-handling) with Yeet/Snag methods  
 The library is easy to use and has a clean, intuitive API.  
-Also [here](https://macias.info/entry/202212020000_go_streams.md) is some **performance review**. 
+You can measure performance comparing to vanilla `for` loop on your machine using `cd perf/; make` (spoiler: FuncFrog
+is better when multithreading).  
 
 ## Table of Contents
 - [Repository Renamed](#repository-renamed)
