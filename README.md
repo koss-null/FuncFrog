@@ -12,7 +12,6 @@ You can measure performance comparing to vanilla `for` loop on your machine usin
 is better when multithreading).  
 
 ## Table of Contents
-- [Repository Renamed](#repository-renamed)
 - [Getting Started](#getting-started)
 - [Basic information](#basic-information)
 - [Supported functions list](#supported-functions-list)
@@ -48,29 +47,6 @@ is better when multithreading).
 - [Is this package stable?](#is-this-package-stable)
 - [Contributions](#contributions)
 - [What's next?](#whats-next)
-
-# Repository Renamed
-
-This repository has been renamed from github.com/koss-null/lambda to github.com/koss-null/funcfrog.
-Please **update** any local clones or remotes to reflect this change. 
-
-To update a local clone of the repository, you can use the following command:
-```bash
-# HTTP
-$ git remote set-url origin https://github.com/koss-null/funcfrog
-# SSH
-$ git remote set-url origin git@github.com:koss-null/FuncFrog.git
-```
-This command will update the URL of the "origin" reomte to the new repository URL. 
-
-To update the import path of the repository in go code, you can use the following import statement:
-```go
-import "github.com/koss-null/funcfrog"
-```
-then in your project use:
-```bash
-go get github.com/koss-null/funcfrog
-```
 
 ## Getting Started
 
