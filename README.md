@@ -14,7 +14,7 @@ is better when multithreading).
 ## Table of Contents
 - [Getting Started](#getting-started)
 - [Basic information](#basic-information)
-- [Supported functions list](#supported-functions-list)
+- **[Supported functions list](#supported-functions-list)**
   - [Constructors](#constructors)
   - [Set Pipe length](#set-pipe-length)
   - [Split evaluation into *n* goroutines](#split-evaluation-into-n-goroutines)
@@ -28,7 +28,7 @@ is better when multithreading).
 - [Using prefix `Pipe` to transform `Pipe` type](#using-prefix-pipe-to-transform-pipe-type)
 - [Using `ff` package to write shortened pipes](#using-ff-package-to-write-shortened-pipes)
 - [Look for useful functions in `Pipies` package](#look-for-useful-functions-in-pipies-package)
-- [Examples](#examples)
+- **[Examples](#examples)**
   - [Basic example](#basic-example)
   - [Example using `Func` and `Take`](#example-using-func-and-take)
   - [Example using `Func` and `Gen`](#example-using-func-and-gen)
@@ -66,9 +66,7 @@ You can then use the `pipe` package to create a pipeline of operations on a slic
 ```go
 res := pipe.Slice(a).
     Map(func(x int) int { return x * x }).
-    Map(func(x int) int { return x + 1 }).
     Filter(func(x *int) bool { return *x > 100 }).
-    Filter(func(x *int) bool { return *x < 1000 }).
     Parallel(12).
     Do()
 ```
@@ -82,7 +80,7 @@ import "github.com/koss-null/funcfrog/pkg/ff"
 res := ff.Map(strArr, strings.ToUpper).Do()
 ```
   
-To see some code snippets, check out the `examples/main.go` file. You can also run it with `go run examples/main.go`.
+To see some code snippets, check out the [Examples](#examples).
 
 ## Basic information
 
