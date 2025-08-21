@@ -10,7 +10,9 @@
 The library is easy to use and has a clean, intuitive API.  
 You can measure performance comparing to vanilla `for` loop on your machine using `cd perf/; make` (spoiler: FuncFrog
 is better when multithreading).  
-
+  
+[pkg.go.dev page](https://pkg.go.dev/github.com/koss-null/funcfrog)  
+  
 ## Table of Contents
 - [Getting Started](#getting-started)
 - [Basic information](#basic-information)
