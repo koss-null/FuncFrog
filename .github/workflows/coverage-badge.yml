@@ -2,7 +2,7 @@ name: Coverage badge
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
 
 env:
@@ -32,25 +32,31 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Install gopherbadger
+      - name: Ensure GOPROXY and GOBIN
         run: |
-          GO_BIN="$(go env GOPATH)/bin"
-          mkdir -p "$GO_BIN"
-          GOBIN="$GO_BIN" go install github.com/mitterst/gopherbadger@latest
-          echo "GOBIN=$GO_BIN"
+          echo "GOPROXY=$(go env GOPROXY)"
+          GOPATH=$(go env GOPATH)
+          mkdir -p "$GOPATH/bin"
         env:
-          GO111MODULE: on
+          GOPROXY: 'https://proxy.golang.org,direct'
+
+      - name: Install coverage badge tool
+        run: |
+          GOPATH=$(go env GOPATH)
+          GOBIN="$GOPATH/bin"
+          mkdir -p "$GOBIN"
+          GOBIN="$GOBIN" go install github.com/ozh/go-coverage-badge@latest
+        env:
+          GOPROXY: 'https://proxy.golang.org,direct'
 
       - name: Run tests and produce coverage
         run: |
-          rm -f $COVERAGE_FILE
-          # run tests for all packages and produce a single profile
-          # use a temp file and merge if multiple packages produce files
           set -euo pipefail
-          # Try a simple go test for all packages; if it fails for some packages, still produce profile
+          rm -f $COVERAGE_FILE
+          # Run tests for all packages and create/merge coverage profile
+          # This simple approach writes a single profile if go test for ./... supports it.
           go test ./... -covermode=count -coverprofile=profile.tmp || true
           if [ -f profile.tmp ]; then
-            # ensure header only once
             awk 'NR==1{print; next} /^mode: /{next} {print}' profile.tmp > $COVERAGE_FILE
             rm -f profile.tmp
           else
@@ -59,10 +65,12 @@ jobs:
 
       - name: Generate coverage badge (SVG)
         run: |
-          GO_BIN="$(go env GOPATH)/bin"
-          PATH="$GO_BIN:$PATH" gopherbadger -coverprofile=$COVERAGE_FILE -svg=$BADGE_FILE -md="README.md"
+          PATH="$(go env GOPATH)/bin:$PATH"
+          # compute percent and produce badge using go-coverage-badge
+          # tool accepts -in and -out
+          go-coverage-badge -in $COVERAGE_FILE -out $BADGE_FILE
         env:
-          PATH: ${{ runner.temp }}
+          GOPROXY: 'https://proxy.golang.org,direct'
 
       - name: Commit and push coverage badge
         if: ${{ github.ref == 'refs/heads/main' }}
@@ -70,8 +78,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
-          git.config_email="github-actions[bot]@users.noreply.github.com"
-          git config user.email "$git.config_email"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add $BADGE_FILE README.md || true
           if git diff --staged --quiet; then
             echo "No badge changes to commit"
@@ -79,4 +86,3 @@ jobs:
           fi
           git commit -m "chore: update coverage badge [skip badge]"
           git push origin HEAD:main
-
