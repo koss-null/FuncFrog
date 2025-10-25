@@ -32,32 +32,27 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Ensure GOPROXY and GOBIN
+      - name: Configure Go environment
         run: |
-          echo "GOPROXY=$(go env GOPROXY)"
-          GOPATH=$(go env GOPATH)
-          mkdir -p "$GOPATH/bin"
-        env:
-          GOPROXY: 'https://proxy.golang.org,direct'
+          go env -w GOPROXY=https://proxy.golang.org,direct
+          go env -w GOSUMDB=off
+          mkdir -p "$(go env GOPATH)/bin"
 
       - name: Install coverage badge tool
         run: |
-          GOPATH=$(go env GOPATH)
-          GOBIN="$GOPATH/bin"
-          mkdir -p "$GOBIN"
-          GOBIN="$GOBIN" go install github.com/ozh/go-coverage-badge@latest
-        env:
-          GOPROXY: 'https://proxy.golang.org,direct'
+          # Use go install with explicit module mode and authentication
+          GOBIN="$(go env GOPATH)/bin" go install github.com/ozh/go-coverage-badge@latest
 
       - name: Run tests and produce coverage
         run: |
           set -euo pipefail
           rm -f $COVERAGE_FILE
           # Run tests for all packages and create/merge coverage profile
-          # This simple approach writes a single profile if go test for ./... supports it.
           go test ./... -covermode=count -coverprofile=profile.tmp || true
           if [ -f profile.tmp ]; then
-            awk 'NR==1{print; next} /^mode: /{next} {print}' profile.tmp > $COVERAGE_FILE
+            # Process coverage file
+            echo "mode: count" > $COVERAGE_FILE
+            tail -n +2 profile.tmp >> $COVERAGE_FILE
             rm -f profile.tmp
           else
             echo "mode: count" > $COVERAGE_FILE
@@ -66,14 +61,10 @@ jobs:
       - name: Generate coverage badge (SVG)
         run: |
           PATH="$(go env GOPATH)/bin:$PATH"
-          # compute percent and produce badge using go-coverage-badge
-          # tool accepts -in and -out
           go-coverage-badge -in $COVERAGE_FILE -out $BADGE_FILE
-        env:
-          GOPROXY: 'https://proxy.golang.org,direct'
 
       - name: Commit and push coverage badge
-        if: ${{ github.ref == 'refs/heads/main' }}
+        if: github.ref == 'refs/heads/master'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -85,4 +76,4 @@ jobs:
             exit 0
           fi
           git commit -m "chore: update coverage badge [skip badge]"
-          git push origin HEAD:main
+          git push origin HEAD:master
