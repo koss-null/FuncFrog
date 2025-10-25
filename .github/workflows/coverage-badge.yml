@@ -32,17 +32,6 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Configure Go environment
-        run: |
-          go env -w GOPROXY=https://proxy.golang.org,direct
-          go env -w GOSUMDB=off
-          mkdir -p "$(go env GOPATH)/bin"
-
-      - name: Install coverage badge tool
-        run: |
-          # Use go install with explicit module mode and authentication
-          GOBIN="$(go env GOPATH)/bin" go install github.com/ozh/go-coverage-badge@latest
-
       - name: Run tests and produce coverage
         run: |
           set -euo pipefail
@@ -58,10 +47,28 @@ jobs:
             echo "mode: count" > $COVERAGE_FILE
           fi
 
-      - name: Generate coverage badge (SVG)
+      - name: Generate coverage badge using shields.io
         run: |
-          PATH="$(go env GOPATH)/bin:$PATH"
-          go-coverage-badge -in $COVERAGE_FILE -out $BADGE_FILE
+          # Calculate coverage percentage
+          COVERAGE_PERCENT=$(go tool cover -func=$COVERAGE_FILE | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Coverage: $COVERAGE_PERCENT%"
+          
+          # Determine badge color based on coverage
+          if (( $(echo "$COVERAGE_PERCENT < 50" | bc -l) )); then
+              COLOR=red
+          elif (( $(echo "$COVERAGE_PERCENT < 70" | bc -l) )); then
+              COLOR=yellow
+          elif (( $(echo "$COVERAGE_PERCENT < 80" | bc -l) )); then
+              COLOR=orange
+          elif (( $(echo "$COVERAGE_PERCENT < 90" | bc -l) )); then
+              COLOR=green
+          else
+              COLOR=brightgreen
+          fi
+          
+          # Download badge from shields.io
+          curl -s "https://img.shields.io/badge/coverage-${COVERAGE_PERCENT}%25-${COLOR}.svg" -o $BADGE_FILE
+          echo "Generated badge with $COVERAGE_PERCENT% coverage ($COLOR)"
 
       - name: Commit and push coverage badge
         if: github.ref == 'refs/heads/master'
