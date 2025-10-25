@@ -66,6 +66,7 @@ jobs:
               COLOR=brightgreen
           fi
           
+          rm -f $COVERAGE_FILE
           # Download badge from shields.io
           curl -s "https://img.shields.io/badge/coverage-${COVERAGE_PERCENT}%25-${COLOR}.svg" -o $BADGE_FILE
           echo "Generated badge with $COVERAGE_PERCENT% coverage ($COLOR)"
