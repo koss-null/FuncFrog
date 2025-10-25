@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/koss-null/funcfrog)](https://goreportcard.com/report/github.com/koss-null/funcfrog)
 [![Go Reference](https://pkg.go.dev/badge/github.com/koss-null/funcfrog.svg)](https://pkg.go.dev/github.com/koss-null/funcfrog)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Coverage](https://raw.githubusercontent.com/koss-null/funcfrog/master/coverage.svg?raw=true)](coverage)
+[![Coverage](https://raw.githubusercontent.com/koss-null/funcfrog/master/coverage.svg?raw=true)](coverage.svg)
 
 ![FuncFrog icon](https://github.com/koss-null/funcfrog/blob/master/FuncFrogIco.jpg?raw=true)
 
