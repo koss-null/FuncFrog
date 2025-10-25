@@ -1,0 +1,64 @@
+name: Coverage badge
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test-and-badge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install gopherbadger
+        run: |
+          go install github.com/mitterst/gopherbadger@latest
+          echo "$GOPATH/bin"
+        env:
+          GO111MODULE: on
+
+      - name: Run tests with coverage (all packages)
+        run: |
+          # create a combined coverage file for all packages
+          rm -f coverage.out
+          go test ./... -covermode=count -coverprofile=coverage.tmp || true
+          # merge per-package profiles if present (this merges multiple coverage.tmp files produced by packages)
+          if [ -f coverage.tmp ]; then
+            mv coverage.tmp coverage.out
+          fi
+          # normalize: ensure coverage.out exists for gopherbadger
+          if [ ! -f coverage.out ]; then
+            echo "mode: count" > coverage.out
+          fi
+
+      - name: Generate coverage badge (SVG)
+        run: |
+          # Produce badge.svg and update README.md if desired
+          gopherbadger -coverprofile=coverage.out -svg=coverage.svg -md="README.md"
+        env:
+          PATH: ${{ env.PATH }}:${{ github.workspace }}/go/bin
+
+      - name: Commit and push coverage badge
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add coverage.svg README.md || true
+          # only commit when there are changes
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update coverage badge"
+            git push
+          else
+            echo "No changes to commit"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
