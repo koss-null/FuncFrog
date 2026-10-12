@@ -51,9 +51,32 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		defer p.y.Handle()
 	}
 
+	limit := p.limit()
+
+	// A single worker keeps the natural order, so the result can be produced
+	// in one pass with no intermediate buffer.
+	if p.GoroutinesCnt == 1 {
+		if !needResult {
+			sCnt := 0
+			for i := 0; i < limit; i++ {
+				if _, skipped := p.Fn(i); skipped {
+					sCnt++
+				}
+			}
+			return nil, limit - sCnt
+		}
+
+		res := make([]T, 0, limit)
+		for i := 0; i < limit; i++ {
+			if obj, skipped := p.Fn(i); !skipped {
+				res = append(res, *obj)
+			}
+		}
+		return res, len(res)
+	}
+
 	var (
 		eval    []ev[T]
-		limit   = p.limit()
 		step    = max(divUp(limit, p.GoroutinesCnt), 1)
 		wg      sync.WaitGroup
 		skipCnt atomic.Int64

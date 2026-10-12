@@ -1,11 +1,16 @@
 package internalpipe
 
 import (
+	"runtime"
 	"sync"
-	"time"
 )
 
+// hugeLenStep is the base chunk size used when the pipe length is unknown.
 const hugeLenStep = 1 << 15
+
+// anyResCheckInterval controls how often a worker re-reads the shared result
+// flag while scanning a chunk, so it does not take a lock on every element.
+const anyResCheckInterval = 64
 
 func anySingleThread[T any](limit int, fn GeneratorFn[T]) *T {
 	var obj *T
@@ -21,15 +26,13 @@ func anySingleThread[T any](limit int, fn GeneratorFn[T]) *T {
 
 // Any returns a pointer to a random element in the pipe or nil if none left.
 func (p Pipe[T]) Any() *T {
-	const mutexUpdateCoef = 18
-
 	limit := p.limit()
 	if p.GoroutinesCnt == 1 {
 		return anySingleThread(limit, p.Fn)
 	}
 
 	bounded := p.lenSet() || p.limitSet()
-	step := hugeLenStep
+	step := hugeLenStep * max(1, runtime.GOMAXPROCS(0))
 	if bounded {
 		step = max(divUp(limit, p.GoroutinesCnt), 1)
 	}
@@ -52,6 +55,12 @@ func (p Pipe[T]) Any() *T {
 			resCh <- obj
 		}
 		mx.Unlock()
+	}
+	getResSet := func() bool {
+		mx.Lock()
+		rs := resSet
+		mx.Unlock()
+		return rs
 	}
 
 	go func() {
@@ -78,43 +87,16 @@ func (p Pipe[T]) Any() *T {
 					rg = min(rg, limit)
 				}
 
-				var avgFnTime time.Duration
-				var avgUpdResSetTime time.Duration
-				resSetUpdCnt := int64(0)
-				beforeLastResSetUpd := 0
-
-				getResSet := func() bool {
-					start := time.Now()
-					mx.Lock()
-					rs := resSet
-					mx.Unlock()
-					avgUpdResSetTime = time.Duration(
-						(int64(time.Since(start)) + int64(avgUpdResSetTime)*(resSetUpdCnt)) / (resSetUpdCnt + 1),
-					)
-					resSetUpdCnt++
-					beforeLastResSetUpd = 0
-					return rs
+				if getResSet() {
+					return
 				}
-				rs := getResSet()
-				cnt := 0
 				for j := lf; j < rg; j++ {
-					beforeLastResSetUpd++
-					if j != lf &&
-						avgFnTime != 0 &&
-						int64(beforeLastResSetUpd) > (mutexUpdateCoef*int64(avgUpdResSetTime)/int64(avgFnTime)) {
-						rs = getResSet()
-						cnt++
+					if j != lf && (j-lf)%anyResCheckInterval == 0 && getResSet() {
+						return
 					}
-					if !rs {
-						start := time.Now()
-						obj, skipped := p.Fn(j)
-						if !skipped {
-							setObj(obj)
-							return
-						}
-						avgFnTime = time.Duration(
-							(int64(time.Since(start)) + int64(avgFnTime)*int64(j-lf)) / int64(j-lf+1),
-						)
+					if obj, skipped := p.Fn(j); !skipped {
+						setObj(obj)
+						return
 					}
 				}
 			}(i, i+step)

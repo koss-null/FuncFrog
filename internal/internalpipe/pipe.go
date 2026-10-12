@@ -95,7 +95,11 @@ func max[T constraints.Ordered](a, b T) T {
 }
 
 func divUp(a, b int) int {
-	return int(math.Ceil(float64(a) / float64(b)))
+	q := a / b
+	if a%b != 0 {
+		q++
+	}
+	return q
 }
 
 func genTickets(n int) chan struct{} {
