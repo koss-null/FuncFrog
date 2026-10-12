@@ -47,13 +47,16 @@ func (y *Yeti) Handle() {
 		prevYetti.Handle()
 	}
 
-	y.hMx.Lock()
 	y.eMx.Lock()
-	defer y.hMx.Unlock()
-	defer y.eMx.Unlock()
+	errs := y.errs
+	y.eMx.Unlock()
 
-	for _, err := range y.errs {
-		for _, handle := range y.handlers {
+	y.hMx.Lock()
+	handlers := y.handlers
+	y.hMx.Unlock()
+
+	for _, err := range errs {
+		for _, handle := range handlers {
 			handle(err)
 		}
 	}
