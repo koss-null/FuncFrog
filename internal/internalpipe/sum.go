@@ -4,23 +4,22 @@ import "sync"
 
 func sumSingleThread[T any](length int, plus AccumFn[T], fn GeneratorFn[T]) T {
 	var res T
-	var obj *T
-	var skipped bool
+	var obj T
 	i := 0
 	for ; i < length; i++ {
-		obj, skipped = fn(i)
-		if !skipped {
-			res = *obj
-			i++
-			break
+		if fn(i, &obj) {
+			continue
 		}
+		res = obj
+		i++
+		break
 	}
 
 	for ; i < length; i++ {
-		obj, skipped = fn(i)
-		if !skipped {
-			res = plus(&res, obj)
+		if fn(i, &obj) {
+			continue
 		}
+		res = plus(&res, &obj)
 	}
 	return res
 }
@@ -54,16 +53,16 @@ func (p Pipe[T]) Sum(plus AccumFn[T]) T {
 		go func(i, lf, rg int) {
 			var res T
 			var ok bool
-			var obj *T
-			var skipped bool
+			var obj T
 			for j := lf; j < rg; j++ {
-				if obj, skipped = p.Fn(j); !skipped {
-					if ok {
-						res = plus(&res, obj)
-					} else {
-						res = *obj
-						ok = true
-					}
+				if p.Fn(j, &obj) {
+					continue
+				}
+				if ok {
+					res = plus(&res, &obj)
+				} else {
+					res = obj
+					ok = true
 				}
 			}
 			parts[i] = partial{val: res, ok: ok}

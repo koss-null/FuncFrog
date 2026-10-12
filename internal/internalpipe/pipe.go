@@ -10,7 +10,12 @@ const (
 	panicLimitExceededMsg = "the limit have been exceeded, but the result is not calculated"
 )
 
-type GeneratorFn[T any] func(int) (*T, bool)
+// GeneratorFn fills *dst with the element at position i and reports whether
+// that position was skipped (in which case dst is left untouched). The caller
+// hands in a reusable destination, so no stage ever has to heap-allocate a box
+// per element — the single biggest source of allocation in a Map- or
+// Filter-heavy pipeline.
+type GeneratorFn[T any] func(i int, dst *T) bool
 
 type Pipe[T any] struct {
 	Fn            GeneratorFn[T]
@@ -95,7 +100,11 @@ func max[T constraints.Ordered](a, b T) T {
 }
 
 func divUp(a, b int) int {
-	return int(math.Ceil(float64(a) / float64(b)))
+	q := a / b
+	if a%b != 0 {
+		q++
+	}
+	return q
 }
 
 func genTickets(n int) chan struct{} {

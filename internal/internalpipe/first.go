@@ -14,13 +14,11 @@ func (p Pipe[T]) First() *T {
 	return first(limit, p.GoroutinesCnt, p.Fn)
 }
 
-func firstSingleThread[T any](limit int, fn func(i int) (*T, bool)) *T {
-	var obj *T
-	var skipped bool
+func firstSingleThread[T any](limit int, fn GeneratorFn[T]) *T {
+	var obj T
 	for i := 0; i < limit; i++ {
-		obj, skipped = fn(i)
-		if !skipped {
-			return obj
+		if !fn(i, &obj) {
+			return &obj
 		}
 	}
 	return nil
@@ -102,7 +100,7 @@ func (r *firstResult[T]) stepDone(step int) {
 	}
 }
 
-func first[T any](limit, grtCnt int, fn func(i int) (*T, bool)) (f *T) {
+func first[T any](limit, grtCnt int, fn func(i int, dst *T) bool) (f *T) {
 	if limit == 0 {
 		return
 	}
@@ -129,12 +127,12 @@ func first[T any](limit, grtCnt int, fn func(i int) (*T, bool)) (f *T) {
 			rg = min(rg, limit)
 
 			done := res.ctx.Done()
+			var val T
 			for j := lf; j < rg; j++ {
 				// FIXME: this code is ugly but saves about 30% of time on locks
 				if j%2 != 0 {
-					val, skipped := fn(j)
-					if !skipped {
-						res.setVal(val, stepCnt)
+					if !fn(j, &val) {
+						res.setVal(&val, stepCnt)
 						return
 					}
 				} else {
@@ -142,9 +140,8 @@ func first[T any](limit, grtCnt int, fn func(i int) (*T, bool)) (f *T) {
 					case <-done:
 						return
 					default:
-						val, skipped := fn(j)
-						if !skipped {
-							res.setVal(val, stepCnt)
+						if !fn(j, &val) {
+							res.setVal(&val, stepCnt)
 							return
 						}
 					}

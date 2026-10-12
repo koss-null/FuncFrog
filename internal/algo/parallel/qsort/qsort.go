@@ -62,19 +62,13 @@ func qsort[T any](
 func partition[T any](data []T, lf, rg int, less func(*T, *T) bool) int {
 	// small arrays are not sorted with this method
 	midIdx := (rg-lf)/2 + lf
-	med, medIdx := median([3]T{data[lf], data[midIdx], data[rg]}, less)
-	switch medIdx {
-	case 0:
-		data[lf], data[midIdx] = data[midIdx], data[lf]
-	case 2:
-		data[rg], data[midIdx] = data[midIdx], data[rg]
-	}
+	med := median([3]T{data[lf], data[midIdx], data[rg]}, less)
 
 	for lf <= rg {
-		for less(&data[lf], med) {
+		for less(&data[lf], &med) {
 			lf++
 		}
-		for less(med, &data[rg]) {
+		for less(&med, &data[rg]) {
 			rg--
 		}
 		if lf >= rg {
@@ -88,37 +82,37 @@ func partition[T any](data []T, lf, rg int, less func(*T, *T) bool) int {
 	return rg
 }
 
-// median returns the median of 3 elements; it's a bit ugly bit effective
-func median[T any](elems [3]T, less func(*T, *T) bool) (*T, int16) {
+// median returns the median value of 3 elements.
+func median[T any](elems [3]T, less func(*T, *T) bool) T {
 	if less(&elems[1], &elems[0]) && less(&elems[0], &elems[2]) {
-		return &elems[0], 0
+		return elems[0]
 	}
 	if less(&elems[2], &elems[0]) && less(&elems[0], &elems[1]) {
-		return &elems[0], 0
+		return elems[0]
 	}
 
 	if less(&elems[0], &elems[1]) && less(&elems[1], &elems[2]) {
-		return &elems[1], 1
+		return elems[1]
 	}
 	if less(&elems[2], &elems[1]) && less(&elems[1], &elems[0]) {
-		return &elems[1], 1
+		return elems[1]
 	}
 
 	if less(&elems[0], &elems[2]) && less(&elems[2], &elems[1]) {
-		return &elems[2], 2
+		return elems[2]
 	}
 	if less(&elems[1], &elems[2]) && less(&elems[2], &elems[0]) {
-		return &elems[2], 2
+		return elems[2]
 	}
 
 	// two elements are equal
 	if !less(&elems[0], &elems[1]) && !less(&elems[1], &elems[0]) {
-		return &elems[0], 0
+		return elems[0]
 	}
 	if !less(&elems[1], &elems[2]) && !less(&elems[2], &elems[1]) {
-		return &elems[1], 1
+		return elems[1]
 	}
-	return &elems[2], 2
+	return elems[2]
 }
 
 func genTickets(n int) chan struct{} {

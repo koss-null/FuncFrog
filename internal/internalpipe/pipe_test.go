@@ -65,8 +65,9 @@ func Test_do(t *testing.T) {
 	t.Parallel()
 
 	p := Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           10000,
 		ValLim:        -1,
@@ -82,8 +83,9 @@ func Test_Parallel(t *testing.T) {
 	t.Parallel()
 
 	p := Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           10000,
 		ValLim:        -1,
@@ -95,8 +97,9 @@ func Test_Parallel(t *testing.T) {
 	require.Equal(t, 10, p.GoroutinesCnt)
 
 	p = Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           10000,
 		ValLim:        -1,
@@ -112,8 +115,9 @@ func Test_Take(t *testing.T) {
 	t.Parallel()
 
 	p := Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           -1,
 		ValLim:        -1,
@@ -127,8 +131,9 @@ func Test_Take(t *testing.T) {
 	require.Equal(t, 10, p.limit())
 
 	p = Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           -1,
 		ValLim:        -1,
@@ -146,8 +151,9 @@ func Test_Gen(t *testing.T) {
 	t.Parallel()
 
 	p := Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           -1,
 		ValLim:        -1,
@@ -161,8 +167,9 @@ func Test_Gen(t *testing.T) {
 	require.Equal(t, 10, p.limit())
 
 	p = Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           -1,
 		ValLim:        -1,
@@ -180,8 +187,9 @@ func Test_Count(t *testing.T) {
 	t.Parallel()
 
 	p := Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           10000,
 		ValLim:        -1,
@@ -190,8 +198,9 @@ func Test_Count(t *testing.T) {
 	require.Equal(t, 10000, p.Count())
 
 	p = Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           10000,
 		ValLim:        -1,
@@ -200,8 +209,9 @@ func Test_Count(t *testing.T) {
 	require.Equal(t, 10000, p.Count())
 
 	p = Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           -1,
 		ValLim:        10000,
@@ -210,8 +220,9 @@ func Test_Count(t *testing.T) {
 	require.Equal(t, 10000, p.Count())
 
 	p = Pipe[int]{
-		Fn: func(i int) (*int, bool) {
-			return &i, false
+		Fn: func(i int, dst *int) bool {
+			*dst = i
+			return false
 		},
 		Len:           -1,
 		ValLim:        10000,

@@ -6,12 +6,16 @@ import "github.com/koss-null/funcfrog/internal/internalpipe"
 func Collect[DstT any](p Piper[any]) Piper[DstT] {
 	pp := any(p).(entrails[any]).Entrails()
 	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func(i int) (*DstT, bool) {
-			if obj, skipped := pp.Fn(i); !skipped {
-				dst, ok := (*obj).(*DstT)
-				return dst, !ok
+		Fn: func(i int, dst *DstT) bool {
+			var obj any
+			if pp.Fn(i, &obj) {
+				return true
 			}
-			return nil, true
+			if p, ok := obj.(*DstT); ok {
+				*dst = *p
+				return false
+			}
+			return true
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
@@ -23,12 +27,16 @@ func Collect[DstT any](p Piper[any]) Piper[DstT] {
 func CollectNL[DstT any](p PiperNoLen[any]) PiperNoLen[DstT] {
 	pp := any(p).(entrails[any]).Entrails()
 	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func(i int) (*DstT, bool) {
-			if obj, skipped := pp.Fn(i); !skipped {
-				dst, ok := (*obj).(*DstT)
-				return dst, !ok
+		Fn: func(i int, dst *DstT) bool {
+			var obj any
+			if pp.Fn(i, &obj) {
+				return true
 			}
-			return nil, true
+			if p, ok := obj.(*DstT); ok {
+				*dst = *p
+				return false
+			}
+			return true
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,

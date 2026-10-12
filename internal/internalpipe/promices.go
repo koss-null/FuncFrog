@@ -7,11 +7,11 @@ func (p Pipe[T]) Promices() []func() (T, bool) {
 	for i := 0; i < limit; i++ {
 		cpi := i
 		proms[i] = func() (T, bool) {
-			obj, skipped := p.Fn(cpi)
-			if skipped {
+			var obj T
+			if p.Fn(cpi, &obj) {
 				return empty, false
 			}
-			return *obj, true
+			return obj, true
 		}
 	}
 	return proms

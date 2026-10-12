@@ -15,10 +15,10 @@ func Test_Slice(t *testing.T) {
 	require.Equal(t, p.Len, 10)
 	require.Equal(t, p.ValLim, notSet)
 	require.Equal(t, p.GoroutinesCnt, defaultParallelWrks)
-	r, _ := p.Fn(5)
-	require.Equal(t, *r, a[5])
-	_, skipped := p.Fn(15)
-	require.True(t, skipped)
+	var r int
+	require.True(t, p.Fn(15, &r))
+	require.False(t, p.Fn(5, &r))
+	require.Equal(t, a[5], r)
 }
 
 func Test_FuncP(t *testing.T) {
@@ -163,8 +163,9 @@ func Test_Range_FloatLen(t *testing.T) {
 		p := Range(c.start, c.finish, c.step)
 
 		yielded := 0
+		var tmp float64
 		for i := 0; ; i++ {
-			if _, skipped := p.Fn(i); skipped {
+			if p.Fn(i, &tmp) {
 				break
 			}
 			yielded++

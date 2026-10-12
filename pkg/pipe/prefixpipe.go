@@ -13,12 +13,13 @@ func Map[SrcT any, DstT any](
 ) Piper[DstT] {
 	pp := any(p).(entrails[SrcT]).Entrails()
 	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func(i int) (*DstT, bool) {
-			if obj, skipped := pp.Fn(i); !skipped {
-				dst := fn(*obj)
-				return &dst, false
+		Fn: func(i int, dst *DstT) bool {
+			var src SrcT
+			if pp.Fn(i, &src) {
+				return true
 			}
-			return nil, true
+			*dst = fn(src)
+			return false
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
@@ -33,12 +34,13 @@ func MapNL[SrcT, DstT any](
 ) PiperNoLen[DstT] {
 	pp := any(p).(entrails[SrcT]).Entrails()
 	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func(i int) (*DstT, bool) {
-			if obj, skipped := pp.Fn(i); !skipped {
-				dst := fn(*obj)
-				return &dst, false
+		Fn: func(i int, dst *DstT) bool {
+			var src SrcT
+			if pp.Fn(i, &src) {
+				return true
 			}
-			return nil, true
+			*dst = fn(src)
+			return false
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
@@ -54,12 +56,17 @@ func MapFilter[SrcT, DstT any](
 ) Piper[DstT] {
 	pp := any(p).(entrails[SrcT]).Entrails()
 	return &Pipe[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func(i int) (*DstT, bool) {
-			if obj, skipped := pp.Fn(i); !skipped {
-				dst, exist := fn(*obj)
-				return &dst, !exist
+		Fn: func(i int, dst *DstT) bool {
+			var src SrcT
+			if pp.Fn(i, &src) {
+				return true
 			}
-			return nil, true
+			v, exist := fn(src)
+			if !exist {
+				return true
+			}
+			*dst = v
+			return false
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,
@@ -75,12 +82,17 @@ func MapFilterNL[SrcT, DstT any](
 ) PiperNoLen[DstT] {
 	pp := any(p).(entrails[SrcT]).Entrails()
 	return &PipeNL[DstT]{internalpipe.Pipe[DstT]{
-		Fn: func(i int) (*DstT, bool) {
-			if obj, skipped := pp.Fn(i); !skipped {
-				dst, exist := fn(*obj)
-				return &dst, !exist
+		Fn: func(i int, dst *DstT) bool {
+			var src SrcT
+			if pp.Fn(i, &src) {
+				return true
 			}
-			return nil, true
+			v, exist := fn(src)
+			if !exist {
+				return true
+			}
+			*dst = v
+			return false
 		},
 		Len:           pp.Len,
 		ValLim:        pp.ValLim,

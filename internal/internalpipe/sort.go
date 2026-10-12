@@ -12,7 +12,7 @@ func (p Pipe[T]) Sort(less func(*T, *T) bool) Pipe[T] {
 	var sorted []T
 
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
+		Fn: func(i int, dst *T) bool {
 			once.Do(func() {
 				data := p.Do()
 				if len(data) == 0 {
@@ -21,9 +21,10 @@ func (p Pipe[T]) Sort(less func(*T, *T) bool) Pipe[T] {
 				sorted = qsort.Sort(data, less, p.GoroutinesCnt)
 			})
 			if i >= len(sorted) {
-				return nil, true
+				return true
 			}
-			return &sorted[i], false
+			*dst = sorted[i]
+			return false
 		},
 		Len:           p.Len,
 		ValLim:        p.ValLim,

@@ -155,7 +155,7 @@ These two only exist on `PiperNoLen` and are how you turn an unknown-length pipe
 
 Sometimes your pipeline needs to lug around different types at different steps. `Erase` gives up the compile-time type so you can work with `any`, and `Collect` puts a type back on.
 
-- :frog: `Erase() Piper[any]` (or `PiperNoLen[any]`) -- every element becomes `any` (backed by a pointer to the original value).
+- :frog: `Erase() Piper[any]` (or `PiperNoLen[any]`) -- every element becomes `any` (each backed by a `*T`, a pointer to the value).
 - :frog: `pipe.Collect[DstT](Piper[any]) Piper[DstT]` -- pull a `Piper[any]` back into a concrete `Piper[DstT]`.
 - :frog: `pipe.CollectNL[DstT](PiperNoLen[any]) PiperNoLen[DstT]` -- the same for a pipe with no known length.
 

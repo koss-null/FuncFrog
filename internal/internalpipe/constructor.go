@@ -13,11 +13,12 @@ const (
 
 func Slice[T any](dt []T) Pipe[T] {
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
+		Fn: func(i int, dst *T) bool {
 			if i >= len(dt) {
-				return nil, true
+				return true
 			}
-			return &dt[i], false
+			*dst = dt[i]
+			return false
 		},
 		Len:           len(dt),
 		ValLim:        notSet,
@@ -27,9 +28,13 @@ func Slice[T any](dt []T) Pipe[T] {
 
 func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
+		Fn: func(i int, dst *T) bool {
 			obj, exist := fn(i)
-			return &obj, !exist
+			if !exist {
+				return true
+			}
+			*dst = obj
+			return false
 		},
 		Len:           notSet,
 		ValLim:        notSet,
@@ -39,9 +44,13 @@ func Func[T any](fn func(i int) (T, bool)) Pipe[T] {
 
 func FuncP[T any](fn func(i int) (*T, bool)) Pipe[T] {
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
+		Fn: func(i int, dst *T) bool {
 			obj, exist := fn(i)
-			return obj, !exist
+			if !exist {
+				return true
+			}
+			*dst = *obj
+			return false
 		},
 		Len:           notSet,
 		ValLim:        notSet,
@@ -82,9 +91,10 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 		}
 	}
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
+		Fn: func(i int, dst *T) bool {
 			val := start + T(i)*step
-			return &val, pred(val)
+			*dst = val
+			return pred(val)
 		},
 		Len:           rangeLen(start, finish, step, pred),
 		ValLim:        notSet,
@@ -103,9 +113,9 @@ func Repeat[T any](x T, n int) Pipe[T] {
 	}
 
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			cp := x
-			return &cp, i >= n
+		Fn: func(i int, dst *T) bool {
+			*dst = x
+			return i >= n
 		},
 		Len:           n,
 		ValLim:        notSet,

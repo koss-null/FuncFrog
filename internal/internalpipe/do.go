@@ -6,11 +6,6 @@ import (
 	"sync/atomic"
 )
 
-type ev[T any] struct {
-	skipped bool
-	obj     *T
-}
-
 // Do evaluates all the pipeline and returns the result slice.
 func (p Pipe[T]) Do() []T {
 	if p.limitSet() {
@@ -32,10 +27,10 @@ func (p *Pipe[T]) doToLimit() []T {
 	}
 
 	res := make([]T, 0, p.ValLim)
+	var v T
 	for i := 0; len(res) < p.ValLim; i++ {
-		obj, skipped := p.Fn(i)
-		if !skipped {
-			res = append(res, *obj)
+		if !p.Fn(i, &v) {
+			res = append(res, v)
 		}
 
 		if i == math.MaxInt {
@@ -51,15 +46,49 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 		defer p.y.Handle()
 	}
 
+	limit := p.limit()
+	fn := p.Fn
+
+	// A single worker keeps the natural order, so the result can be produced
+	// in one pass with no intermediate buffer.
+	if p.GoroutinesCnt == 1 {
+		var v T
+		if !needResult {
+			sCnt := 0
+			for i := 0; i < limit; i++ {
+				if fn(i, &v) {
+					sCnt++
+				}
+			}
+			return nil, limit - sCnt
+		}
+
+		res := make([]T, 0, limit)
+		for i := 0; i < limit; i++ {
+			if !fn(i, &v) {
+				res = append(res, v)
+			}
+		}
+		return res, len(res)
+	}
+
+	// Parallel path. Every worker writes its results straight into the shared
+	// result buffer at the element's own index and marks dropped positions in a
+	// zeroed bitmap. This avoids keeping one alive *T per element (a Map boxes
+	// every value), so the per-element allocations become collectable instead of
+	// surviving until the gather. When nothing is skipped — the common Map case —
+	// the buffer already is the answer and the serial gather pass disappears
+	// entirely; otherwise the result is compacted in place.
 	var (
-		eval    []ev[T]
-		limit   = p.limit()
+		res     []T
+		skipped []bool
 		step    = max(divUp(limit, p.GoroutinesCnt), 1)
 		wg      sync.WaitGroup
 		skipCnt atomic.Int64
 	)
-	if needResult && limit > 0 {
-		eval = make([]ev[T], limit)
+	if needResult {
+		res = make([]T, limit)
+		skipped = make([]bool, limit)
 	}
 	tickets := genTickets(p.GoroutinesCnt)
 	for i := 0; i > -1 && i < limit; i += step {
@@ -71,16 +100,17 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 			}
 			rg = min(rg, limit)
 			var sCnt int64
+			var v T
 			for j := lf; j < rg; j++ {
-				obj, skipped := p.Fn(j)
-				if skipped {
+				if fn(j, &v) {
 					sCnt++
+					if needResult {
+						skipped[j] = true
+					}
+					continue
 				}
 				if needResult {
-					eval[j] = ev[T]{
-						obj:     obj,
-						skipped: skipped,
-					}
+					res[j] = v
 				}
 			}
 			skipCnt.Add(sCnt)
@@ -90,11 +120,20 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	}
 	wg.Wait()
 
-	res := make([]T, 0, limit-int(skipCnt.Load()))
-	for i := range eval {
-		if !eval[i].skipped {
-			res = append(res, *eval[i].obj)
+	skips := int(skipCnt.Load())
+	if !needResult {
+		return nil, limit - skips
+	}
+	if skips == 0 {
+		return res, limit
+	}
+
+	w := 0
+	for i := range res {
+		if !skipped[i] {
+			res[w] = res[i]
+			w++
 		}
 	}
-	return res, limit - int(skipCnt.Load())
+	return res[:w], w
 }
