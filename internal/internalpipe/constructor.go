@@ -86,7 +86,7 @@ func Range[T constraints.Integer | constraints.Float](start, finish, step T) Pip
 			val := start + T(i)*step
 			return &val, pred(val)
 		},
-		Len:           ceil(float64(finish-start) / float64(step)),
+		Len:           rangeLen(start, finish, step, pred),
 		ValLim:        notSet,
 		GoroutinesCnt: defaultParallelWrks,
 	}
@@ -113,6 +113,16 @@ func Repeat[T any](x T, n int) Pipe[T] {
 	}
 }
 
-func ceil[T constraints.Integer | constraints.Float](a T) int {
-	return int(math.Ceil(float64(a)))
+// rangeLen returns the amount of values Range will produce. It starts from the
+// float estimate and corrects it against the very predicate the pipe uses, so
+// Len always agrees with Fn and float rounding cannot drop the last element.
+func rangeLen[T constraints.Integer | constraints.Float](start, finish, step T, pred func(T) bool) int {
+	n := int(math.Ceil(float64(finish-start)/float64(step))) + 1
+	if n < 0 {
+		n = 0
+	}
+	for n > 0 && pred(start+T(n-1)*step) {
+		n--
+	}
+	return n
 }
