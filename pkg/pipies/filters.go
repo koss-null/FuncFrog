@@ -52,10 +52,10 @@ func LessThan[T constraints.Ordered](x T) pipe.Predicate[T] {
 	}
 }
 
-// Distinct returns a predicate with filters out the same elements compated by the output of getKey function.
+// Distinct returns a predicate that filters out duplicate elements, comparing
+// them by the output of the getKey function.
 // getKey function should receive an argument of a Pipe value type.
 // The result function is rather slow since it takes a lock on each element.
-// You should use Pipe.Distinct() to get better performance.
 func Distinct[T any, C comparable](getKey func(x *T) C) pipe.Predicate[T] {
 	set := make(map[C]struct{})
 	var mx sync.Mutex
