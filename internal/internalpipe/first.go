@@ -35,6 +35,7 @@ type firstResult[T any] struct {
 	ctx            context.Context
 	cancel         func()
 	done           map[int]struct{}
+	sent           bool
 
 	resForSure chan *T
 }
@@ -57,14 +58,23 @@ func (r *firstResult[T]) setVal(val *T, step int) {
 	defer r.mx.Unlock()
 
 	if step == r.zeroStepBorder {
-		r.resForSure <- val
-		r.cancel()
+		r.send(val)
 		return
 	}
 	if step < r.step {
 		r.val = val
 		r.step = step
 	}
+}
+
+// send delivers the result exactly once. It must be called with r.mx held.
+func (r *firstResult[T]) send(val *T) {
+	if r.sent {
+		return
+	}
+	r.sent = true
+	r.resForSure <- val
+	r.cancel()
 }
 
 func (r *firstResult[T]) stepDone(step int) {
@@ -79,8 +89,7 @@ func (r *firstResult[T]) stepDone(step int) {
 		for ok {
 			r.zeroStepBorder++
 			if r.zeroStepBorder == r.step {
-				r.resForSure <- r.val
-				r.cancel()
+				r.send(r.val)
 				return
 			}
 
@@ -89,8 +98,7 @@ func (r *firstResult[T]) stepDone(step int) {
 	}
 
 	if r.zeroStepBorder >= r.totalSteps {
-		r.resForSure <- nil
-		r.cancel()
+		r.send(nil)
 	}
 }
 
@@ -101,7 +109,11 @@ func first[T any](limit, grtCnt int, fn func(i int) (*T, bool)) (f *T) {
 	step := max(divUp(limit, grtCnt), 1)
 	tickets := genTickets(grtCnt)
 
-	res := newFirstResult[T](grtCnt)
+	totalSteps := limit / step
+	if limit%step != 0 {
+		totalSteps++
+	}
+	res := newFirstResult[T](totalSteps)
 
 	stepCnt := 0
 	for i := 0; i >= 0 && i < limit; i += step {
@@ -110,6 +122,11 @@ func first[T any](limit, grtCnt int, fn func(i int) (*T, bool)) (f *T) {
 			defer func() {
 				tickets <- struct{}{}
 			}()
+
+			if rg < 0 {
+				rg = limit
+			}
+			rg = min(rg, limit)
 
 			done := res.ctx.Done()
 			for j := lf; j < rg; j++ {
