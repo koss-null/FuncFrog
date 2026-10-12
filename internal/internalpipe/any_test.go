@@ -1,8 +1,10 @@
 package internalpipe
 
 import (
+	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -166,4 +168,35 @@ func TestAny(t *testing.T) {
 		require.Greater(t, *s, 90_000.)
 		require.Less(t, *s, 190_001.)
 	})
+}
+
+func TestAny_NoGoroutineLeak(t *testing.T) {
+	initA100k()
+
+	source := func(i int) (float64, bool) {
+		if i >= len(a100k) {
+			return 0, false
+		}
+		return a100k[i], true
+	}
+	hot := func() *float64 {
+		return Func(source).Parallel(7).Any()
+	}
+
+	require.NotNil(t, hot())
+	time.Sleep(100 * time.Millisecond)
+	base := runtime.NumGoroutine()
+
+	for i := 0; i < 100; i++ {
+		require.NotNil(t, hot())
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if runtime.NumGoroutine() <= base+5 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("Any leaked goroutines: base=%d, now=%d", base, runtime.NumGoroutine())
 }

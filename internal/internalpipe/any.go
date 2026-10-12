@@ -28,15 +28,16 @@ func (p Pipe[T]) Any() *T {
 		return anySingleThread(limit, p.Fn)
 	}
 
-	lenSet := p.lenSet()
+	bounded := p.lenSet() || p.limitSet()
 	step := hugeLenStep
-	if lenSet {
+	if bounded {
 		step = max(divUp(limit, p.GoroutinesCnt), 1)
 	}
 
 	var (
 		resSet bool
 		resCh  = make(chan *T, 1)
+		done   = make(chan struct{})
 		mx     sync.Mutex
 
 		tickets = genTickets(p.GoroutinesCnt)
@@ -47,6 +48,7 @@ func (p Pipe[T]) Any() *T {
 		mx.Lock()
 		if !resSet {
 			resSet = true
+			close(done)
 			resCh <- obj
 		}
 		mx.Unlock()
@@ -54,7 +56,14 @@ func (p Pipe[T]) Any() *T {
 
 	go func() {
 		// i >= 0 is for an int owerflow case
-		for i := 0; i >= 0 && (!lenSet || i < limit); i += step {
+	loop:
+		for i := 0; i >= 0 && (!bounded || i < limit); i += step {
+			select {
+			case <-done:
+				break loop
+			default:
+			}
+
 			wg.Add(1)
 			<-tickets
 
@@ -65,7 +74,7 @@ func (p Pipe[T]) Any() *T {
 				}()
 				// int owerflow case
 				rg = max(rg, 0)
-				if lenSet {
+				if bounded {
 					rg = min(rg, limit)
 				}
 
