@@ -137,6 +137,45 @@ func Test_Range(t *testing.T) {
 	})
 }
 
+func Test_Range_FloatLen(t *testing.T) {
+	t.Parallel()
+
+	// Float64 division can round just past an integer, so a math.Ceil-based Len
+	// was off by one in either direction: it could add a phantom element or,
+	// worse, drop the real last one.
+	cases := []struct {
+		start, finish, step float64
+		want                int
+	}{
+		{0, 0.9, 0.3, 4},
+		{0, 1.8, 0.3, 7},
+		{0, 2.1, 0.3, 7},
+		{0, 3.6, 1.2, 4},
+		{0, 8.4, 0.6, 14},
+		{0, 0.2, 0.1, 2},
+		{0, 1, 0.1, 10},
+		{0, 1, 0.25, 4},
+		{1, 0, -0.1, 10},
+		{0, -1, -0.1, 10},
+	}
+	for _, c := range cases {
+		c := c
+		p := Range(c.start, c.finish, c.step)
+
+		yielded := 0
+		for i := 0; ; i++ {
+			if _, skipped := p.Fn(i); skipped {
+				break
+			}
+			yielded++
+		}
+
+		require.Equal(t, c.want, yielded, "yielded of Range(%v, %v, %v)", c.start, c.finish, c.step)
+		require.Equal(t, c.want, p.Len, "Len of Range(%v, %v, %v)", c.start, c.finish, c.step)
+		require.Equal(t, c.want, len(p.Do()), "Do() len of Range(%v, %v, %v)", c.start, c.finish, c.step)
+	}
+}
+
 func Test_Repeat(t *testing.T) {
 	t.Parallel()
 

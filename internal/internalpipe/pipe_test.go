@@ -3,6 +3,7 @@ package internalpipe
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +40,25 @@ func Test_divUp(t *testing.T) {
 func Test_genTickets(t *testing.T) {
 	t.Parallel()
 	require.Equal(t, len(genTickets(100)), 100)
+}
+
+func Test_genTickets_nonPositive(t *testing.T) {
+	t.Parallel()
+
+	for _, n := range []int{0, -1, -100} {
+		n := n
+		done := make(chan int, 1)
+		go func() {
+			done <- len(genTickets(n))
+		}()
+
+		select {
+		case got := <-done:
+			require.Equal(t, 1, got, "genTickets(%d) should yield a single ticket", n)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("genTickets(%d) deadlocked", n)
+		}
+	}
 }
 
 func Test_do(t *testing.T) {

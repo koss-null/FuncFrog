@@ -32,39 +32,59 @@ func (p Pipe[T]) Sum(plus AccumFn[T]) T {
 		return sumSingleThread(length, plus, p.Fn)
 	}
 
-	var (
-		step = divUp(length, p.GoroutinesCnt)
-
-		res   T
-		resMx sync.Mutex
-		wg    sync.WaitGroup
-	)
-
-	sum := func(x *T) {
-		resMx.Lock()
-		res = plus(&res, x)
-		resMx.Unlock()
+	step := divUp(length, p.GoroutinesCnt)
+	if step < 1 {
+		step = 1
 	}
 
+	type partial struct {
+		val T
+		ok  bool
+	}
+	parts := make([]partial, divUp(length, step))
+
+	var wg sync.WaitGroup
 	tickets := genTickets(p.GoroutinesCnt)
+	idx := 0
 	for lf := 0; lf < length; lf += step {
 		wg.Add(1)
 		<-tickets
-		go func(lf, rg int) {
-			var inRes T
+		i := idx
+		idx++
+		go func(i, lf, rg int) {
+			var res T
+			var ok bool
 			var obj *T
 			var skipped bool
-			for i := lf; i < rg; i++ {
-				if obj, skipped = p.Fn(i); !skipped {
-					inRes = plus(&inRes, obj)
+			for j := lf; j < rg; j++ {
+				if obj, skipped = p.Fn(j); !skipped {
+					if ok {
+						res = plus(&res, obj)
+					} else {
+						res = *obj
+						ok = true
+					}
 				}
 			}
-			sum(&inRes)
-			wg.Done()
+			parts[i] = partial{val: res, ok: ok}
 			tickets <- struct{}{}
-		}(lf, min(lf+step, length))
+			wg.Done()
+		}(i, lf, min(lf+step, length))
 	}
 	wg.Wait()
 
+	var res T
+	var set bool
+	for i := range parts {
+		if !parts[i].ok {
+			continue
+		}
+		if set {
+			res = plus(&res, &parts[i].val)
+		} else {
+			res = parts[i].val
+			set = true
+		}
+	}
 	return res
 }
