@@ -24,10 +24,11 @@ func (p Pipe[T]) Reduce(fn AccumFn[T]) *T {
 		}
 	}
 
+	var v T
 	if p.limitSet() {
 		for i, got := 0, 0; got < p.ValLim; i++ {
-			if obj, skipped := p.Fn(i); !skipped {
-				fold(obj)
+			if !p.Fn(i, &v) {
+				fold(&v)
 				got++
 			}
 			if i == math.MaxInt {
@@ -37,8 +38,8 @@ func (p Pipe[T]) Reduce(fn AccumFn[T]) *T {
 	} else {
 		limit := p.limit()
 		for i := 0; i < limit; i++ {
-			if obj, skipped := p.Fn(i); !skipped {
-				fold(obj)
+			if !p.Fn(i, &v) {
+				fold(&v)
 			}
 		}
 	}

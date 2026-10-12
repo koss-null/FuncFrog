@@ -5,12 +5,13 @@ package internalpipe
 // returns the slice where each element is n[i] = f(p[i]) if it is not skipped.
 func (p Pipe[T]) MapFilter(fn func(T) (T, bool)) Pipe[T] {
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			if obj, skipped := p.Fn(i); !skipped {
-				res, take := fn(*obj)
-				return &res, !take
+		Fn: func(i int, dst *T) bool {
+			if p.Fn(i, dst) {
+				return true
 			}
-			return nil, true
+			res, take := fn(*dst)
+			*dst = res
+			return !take
 		},
 		Len:           p.Len,
 		ValLim:        p.ValLim,

@@ -27,10 +27,10 @@ func (p *Pipe[T]) doToLimit() []T {
 	}
 
 	res := make([]T, 0, p.ValLim)
+	var v T
 	for i := 0; len(res) < p.ValLim; i++ {
-		obj, skipped := p.Fn(i)
-		if !skipped {
-			res = append(res, *obj)
+		if !p.Fn(i, &v) {
+			res = append(res, v)
 		}
 
 		if i == math.MaxInt {
@@ -52,10 +52,11 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 	// A single worker keeps the natural order, so the result can be produced
 	// in one pass with no intermediate buffer.
 	if p.GoroutinesCnt == 1 {
+		var v T
 		if !needResult {
 			sCnt := 0
 			for i := 0; i < limit; i++ {
-				if _, skipped := fn(i); skipped {
+				if fn(i, &v) {
 					sCnt++
 				}
 			}
@@ -64,8 +65,8 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 
 		res := make([]T, 0, limit)
 		for i := 0; i < limit; i++ {
-			if obj, skipped := fn(i); !skipped {
-				res = append(res, *obj)
+			if !fn(i, &v) {
+				res = append(res, v)
 			}
 		}
 		return res, len(res)
@@ -99,9 +100,9 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 			}
 			rg = min(rg, limit)
 			var sCnt int64
+			var v T
 			for j := lf; j < rg; j++ {
-				obj, sk := fn(j)
-				if sk {
+				if fn(j, &v) {
 					sCnt++
 					if needResult {
 						skipped[j] = true
@@ -109,7 +110,7 @@ func (p *Pipe[T]) do(needResult bool) ([]T, int) {
 					continue
 				}
 				if needResult {
-					res[j] = *obj
+					res[j] = v
 				}
 			}
 			skipCnt.Add(sCnt)

@@ -4,12 +4,12 @@ package internalpipe
 // returns the slice where each element is n[i] = f(p[i]).
 func (p Pipe[T]) Map(fn func(T) T) Pipe[T] {
 	return Pipe[T]{
-		Fn: func(i int) (*T, bool) {
-			if obj, skipped := p.Fn(i); !skipped {
-				res := fn(*obj)
-				return &res, false
+		Fn: func(i int, dst *T) bool {
+			if p.Fn(i, dst) {
+				return true
 			}
-			return nil, true
+			*dst = fn(*dst)
+			return false
 		},
 		Len:           p.Len,
 		ValLim:        p.ValLim,

@@ -11,8 +11,9 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("single thread lim set", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           100_000,
 			ValLim:        -1,
@@ -24,8 +25,9 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("seven thread lim set", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           100_000,
 			ValLim:        -1,
@@ -37,8 +39,9 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("single thread ValLim set", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           -1,
 			ValLim:        100_000,
@@ -50,8 +53,9 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("seven thread ValLim set", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           -1,
 			ValLim:        100_000,
@@ -64,9 +68,10 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("single thread single value", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
+			Fn: func(i int, dst *int) bool {
 				i++
-				return &i, false
+				*dst = i
+				return false
 			},
 			Len:           -1,
 			ValLim:        1,
@@ -79,8 +84,9 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("single thread zero value", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           -1,
 			ValLim:        0,
@@ -93,9 +99,10 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("seven thread single value", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
+			Fn: func(i int, dst *int) bool {
 				i++
-				return &i, false
+				*dst = i
+				return false
 			},
 			Len:           -1,
 			ValLim:        1,
@@ -108,8 +115,9 @@ func Test_Reduce(t *testing.T) {
 
 	t.Run("seven thread zero value", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           -1,
 			ValLim:        0,

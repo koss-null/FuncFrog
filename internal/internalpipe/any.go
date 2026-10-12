@@ -13,12 +13,10 @@ const hugeLenStep = 1 << 15
 const anyResCheckInterval = 64
 
 func anySingleThread[T any](limit int, fn GeneratorFn[T]) *T {
-	var obj *T
-	var skipped bool
-
+	var obj T
 	for i := 0; i < limit; i++ {
-		if obj, skipped = fn(i); !skipped {
-			return obj
+		if !fn(i, &obj) {
+			return &obj
 		}
 	}
 	return nil
@@ -90,12 +88,13 @@ func (p Pipe[T]) Any() *T {
 				if getResSet() {
 					return
 				}
+				var obj T
 				for j := lf; j < rg; j++ {
 					if j != lf && (j-lf)%anyResCheckInterval == 0 && getResSet() {
 						return
 					}
-					if obj, skipped := p.Fn(j); !skipped {
-						setObj(obj)
+					if !p.Fn(j, &obj) {
+						setObj(&obj)
 						return
 					}
 				}

@@ -13,8 +13,9 @@ func Test_Filter(t *testing.T) {
 
 	t.Run("single thread even numbers filter", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           100_000,
 			ValLim:        -1,
@@ -32,8 +33,9 @@ func Test_Filter(t *testing.T) {
 	})
 	t.Run("seven thread even numbers filter", func(t *testing.T) {
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &i, false
+			Fn: func(i int, dst *int) bool {
+				*dst = i
+				return false
 			},
 			Len:           100_000,
 			ValLim:        -1,
@@ -52,8 +54,9 @@ func Test_Filter(t *testing.T) {
 	t.Run("single thread even numbers empty res filter", func(t *testing.T) {
 		pts := pointer.Ref(7)
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return pts, false
+			Fn: func(i int, dst *int) bool {
+				*dst = *pts
+				return false
 			},
 			Len:           100_000,
 			ValLim:        -1,
@@ -68,8 +71,9 @@ func Test_Filter(t *testing.T) {
 	t.Run("seven thread even numbers empty res filter", func(t *testing.T) {
 		pts := pointer.Ref(7)
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return pts, false
+			Fn: func(i int, dst *int) bool {
+				*dst = *pts
+				return false
 			},
 			Len:           100_000,
 			ValLim:        -1,
@@ -84,8 +88,9 @@ func Test_Filter(t *testing.T) {
 	t.Run("seven thread even numbers empty res double filter", func(t *testing.T) {
 		pts := pointer.Ref(7)
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return pts, false
+			Fn: func(i int, dst *int) bool {
+				*dst = *pts
+				return false
 			},
 			Len:           100_000,
 			ValLim:        -1,

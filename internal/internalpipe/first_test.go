@@ -23,8 +23,9 @@ func TestFirst(t *testing.T) {
 		t.Parallel()
 
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &s[i], i <= 900_000
+			Fn: func(i int, dst *int) bool {
+				*dst = s[i]
+				return i <= 900_000
 			},
 			Len:           len(s),
 			ValLim:        -1,
@@ -37,8 +38,9 @@ func TestFirst(t *testing.T) {
 		t.Parallel()
 
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &s[i], true
+			Fn: func(i int, dst *int) bool {
+				*dst = s[i]
+				return true
 			},
 			Len:           len(s),
 			ValLim:        -1,
@@ -51,8 +53,9 @@ func TestFirst(t *testing.T) {
 		t.Parallel()
 
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &s[i], i <= 900_000
+			Fn: func(i int, dst *int) bool {
+				*dst = s[i]
+				return i <= 900_000
 			},
 			Len:           len(s),
 			ValLim:        -1,
@@ -66,8 +69,9 @@ func TestFirst(t *testing.T) {
 		t.Parallel()
 
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &s[i], s[i] < 1000
+			Fn: func(i int, dst *int) bool {
+				*dst = s[i]
+				return s[i] < 1000
 			},
 			Len:           len(s),
 			ValLim:        -1,
@@ -81,8 +85,9 @@ func TestFirst(t *testing.T) {
 		t.Parallel()
 
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return &s[i], i <= 900_000
+			Fn: func(i int, dst *int) bool {
+				*dst = s[i]
+				return i <= 900_000
 			},
 			Len:           len(s),
 			ValLim:        -1,
@@ -96,8 +101,8 @@ func TestFirst(t *testing.T) {
 		t.Parallel()
 
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return nil, true
+			Fn: func(i int, dst *int) bool {
+				return true
 			},
 			Len:           len(s),
 			ValLim:        -1,
@@ -110,8 +115,8 @@ func TestFirst(t *testing.T) {
 		t.Parallel()
 
 		p := Pipe[int]{
-			Fn: func(i int) (*int, bool) {
-				return nil, true
+			Fn: func(i int, dst *int) bool {
+				return true
 			},
 			Len:           0,
 			ValLim:        0,
@@ -148,8 +153,8 @@ func TestFirst_UnevenChunks(t *testing.T) {
 		for _, c := range []struct{ length, goroutines int }{{10, 7}, {5, 4}, {7, 3}, {13, 5}} {
 			c := c
 			p := Pipe[int]{
-				Fn: func(i int) (*int, bool) {
-					return nil, true
+				Fn: func(i int, dst *int) bool {
+					return true
 				},
 				Len:           c.length,
 				ValLim:        -1,
@@ -166,8 +171,9 @@ func TestFirst_UnevenChunks(t *testing.T) {
 		for _, target := range []int{0, 1, 6, 9, 500_000, 999_999} {
 			target := target
 			p := Pipe[int]{
-				Fn: func(i int) (*int, bool) {
-					return &s[i], i != target
+				Fn: func(i int, dst *int) bool {
+					*dst = s[i]
+					return i != target
 				},
 				Len:           len(s),
 				ValLim:        -1,
@@ -182,8 +188,9 @@ func TestFirst_UnevenChunks(t *testing.T) {
 
 		s := genSlice(1_000_000)
 		const border = 100_000
-		fn := func(i int) (*int, bool) {
-			return &s[i], s[i] < border
+		fn := func(i int, dst *int) bool {
+			*dst = s[i]
+			return s[i] < border
 		}
 		want := *Pipe[int]{Fn: fn, Len: len(s), ValLim: -1, GoroutinesCnt: 1}.First()
 		got := firstWithin(t, Pipe[int]{Fn: fn, Len: len(s), ValLim: -1, GoroutinesCnt: 7})
