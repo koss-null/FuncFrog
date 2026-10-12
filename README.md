@@ -9,7 +9,7 @@
 
 *FuncFrog* is a powerful library for doing **fast**, **parallel**, **lazy** `Map`, `Filter`, `Reduce` and [a bunch of other things](#api-reference) over slices and other sequences -- all chained into a single pipeline. You feed it a source (a slice, a `func`, a range...), stack a few operations on top, and pull the trigger with `Do()`.
 
-Everything runs in parallel with **minimal copying and locking**, and there's built-in [error handling](#error-handling-yeti--snag) that is honestly a bit weird but very handy once it clicks (hello `Yeet`/`Snag`).
+Everything runs in parallel with **minimal copying and locking**, and there's built-in [error handling](#error-handling-yeti--snag) that is honestly a bit weird but very handy once it clicks (`Yeet`/`Snag`).
 
 I tried hard to keep the API friendly and predictable. If you want to see how it performs against a plain `for` loop on your machine, run `cd perf/; make` (spoiler: a single goroutine is roughly on par, and FuncFrog pulls ahead the moment you go parallel).
 
