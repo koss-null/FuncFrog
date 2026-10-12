@@ -7,170 +7,212 @@
 
 ![FuncFrog icon](https://github.com/koss-null/funcfrog/blob/master/FuncFrogIco.jpg?raw=true)
 
-*FuncFrog* is a library for performing **efficient**, **parallel**, **lazy** `map`, `reduce`, `filter` and [many other](#supported-functions-list) operations on slices and other data sequences in a pipeline. The sequence can be set by a variety of [generating functions](#constructors). Everything is supported to be executed in parallel with **minimal overhead** on copying and locks. There is a built-in support of [error handling](#error-handling) with Yeet/Snag methods  
-The library is easy to use and has a clean, intuitive API.  
-You can measure performance comparing to vanilla `for` loop on your machine using `cd perf/; make` (spoiler: FuncFrog
-is better when multithreading).  
-  
+*FuncFrog* is a powerful library for doing **fast**, **parallel**, **lazy** `Map`, `Filter`, `Reduce` and [a bunch of other things](#api-reference) over slices and other sequences -- all chained into a single pipeline. You feed it a source (a slice, a `func`, a range...), stack a few operations on top, and pull the trigger with `Do()`.
+
+Everything runs in parallel with **minimal copying and locking**, and there's built-in [error handling](#error-handling-yeti--snag) that is honestly a bit weird but very handy once it clicks (`Yeet`/`Snag`).
+
+I tried hard to keep the API friendly and predictable. If you want to see how it performs against a plain `for` loop on your machine, run `cd perf/; make` (spoiler: a single goroutine is roughly on par, and FuncFrog pulls ahead the moment you go parallel).
+
 ## Table of Contents
+
 - [Getting Started](#getting-started)
-- [Basic information](#basic-information)
-- **[Supported functions list](#supported-functions-list)**
+- [How it works](#how-it-works)
+- [API reference](#api-reference)
   - [Constructors](#constructors)
-  - [Set Pipe length](#set-pipe-length)
-  - [Split evaluation into *n* goroutines](#split-evaluation-into-n-goroutines)
-  - [Transform data](#transform-data)
-  - [Retrieve a single element or perform a boolean check](#retrieve-a-single-element-or-perform-a-boolean-check)
-  -  [Evaluate the pipeline](#evaluate-the-pipeline)
-  - [Transform Pipe *from one type to another*](#transform-pipe-from-one-type-to-another)
-  - [Easy type conversion for Pipe[any]]( #easy-type-conversion-for-pipe[any])
-  - [Error handling](#error-handling)
-  - [To be done](#to-be-done)
-- [Using prefix `Pipe` to transform `Pipe` type](#using-prefix-pipe-to-transform-pipe-type)
-- [Using `ff` package to write shortened pipes](#using-ff-package-to-write-shortened-pipes)
-- [Look for useful functions in `Pipies` package](#look-for-useful-functions-in-pipies-package)
-- **[Examples](#examples)**
-  - [Basic example](#basic-example)
-  - [Example using `Func` and `Take`](#example-using-func-and-take)
-  - [Example using `Func` and `Gen`](#example-using-func-and-gen)
-  - [Example difference between `Take` and `Gen`](#example-difference-between-take-and-gen)
-  - [Example using `Filter` and `Map`](#example-using-filter-and-map)
-  - [Example using `Map` and `Reduce`](#example-using-map-and-reduce)
-  - [Example of `Map` and `Reduce` with the underlying array type change](#example-of-map-and-reduce-with-the-underlying-array-type-change)
-  - [Example using `Sort`](#example-using-sort)
-  - [Example of infine sequence generation](#example-of-infine-sequence-generation)
-  - [Example using `Range` and `Map`](#example-using-range-not-implemented-yet-and-map)
-  - [Example using `Repeat` and `Map`](#example-using-repeat-not-implemented-yet-and-map)
-  - [Example using `Cycle` and `Filter`](#example-using-cycle-not-implemented-yet-and-filter)
-  - [Example using `Erase` and `Collect`](#example-using-erase-and-collect)
-  - [Example of simple error handling](#example-of-simple-error-handling)
-  - [Example of multiple error handling](example-of-multiple-error-handling)
-- [Is this package stable?](#is-this-package-stable)
-- [Contributions](#contributions)
+  - [Set the pipe length: Take & Gen](#set-the-pipe-length-take--gen)
+  - [Go parallel](#go-parallel)
+  - [Transforming data](#transforming-data)
+  - [Grabbing a single value](#grabbing-a-single-value)
+  - [Running the pipe: Do & Promices](#running-the-pipe-do--promices)
+  - [Erase & Collect](#erase--collect)
+  - [Error handling: Yeti & Snag](#error-handling-yeti--snag)
+  - [Ready-made helpers: pipies](#ready-made-helpers-pipies)
+  - [Prefix helpers](#prefix-helpers)
+  - [The ff shortcuts](#the-ff-shortcuts)
+  - [Still cooking (TBD)](#still-cooking-tbd)
+- [Examples](#examples)
+  - [Basic](#basic)
+  - [Func + Take](#func--take)
+  - [Func + Gen](#func--gen)
+  - [Take vs Gen](#take-vs-gen)
+  - [Filter + Map](#filter--map)
+  - [Map + Reduce](#map--reduce)
+  - [Map + Reduce with a type change](#map--reduce-with-a-type-change)
+  - [Sort](#sort)
+  - [An infinite sequence](#an-infinite-sequence)
+  - [Range + Map](#range--map)
+  - [Repeat + Map](#repeat--map)
+  - [Cycle + Filter](#cycle--filter)
+  - [Erase + Collect](#erase--collect)
+  - [Simple error handling](#simple-error-handling)
+  - [Multiple error handling](#multiple-error-handling)
+- [Performance](#performance)
+- [Is this stable?](#is-this-stable)
+- [Contributing](#contributing)
 - [What's next?](#whats-next)
 
 ## Getting Started
 
-To use FuncFrog in your project, run the following command:
+Grab it with:
 
 ```
 go get github.com/koss-null/funcfrog
 ```
 
-Then, import the library into your Go code (basically you need the pipe package):
+Then import the `pipe` package (that's the main one you need):
 
 ```go
 import "github.com/koss-null/funcfrog/pkg/pipe"
 ```
 
-You can then use the `pipe` package to create a pipeline of operations on a slice:
+...and start chaining:
+
 ```go
 res := pipe.Slice(a).
-    Map(func(x int) int { return x * x }).
-    Filter(func(x *int) bool { return *x > 100 }).
-    Parallel(12).
-    Do()
+	Map(func(x int) int { return x * x }).
+	Filter(func(x *int) bool { return *x > 100 }).
+	Parallel(12).
+	Do()
 ```
 
-All operations are carefully fenced with interfaces, so feel free to use anything, autosuggestion suggests you.
+If you just want to fire a single function over a slice and skip building a pipe by hand, the `ff` package is your friend:
 
-If you want it fast and short, you may use `ff`:  
 ```go
 import "github.com/koss-null/funcfrog/pkg/ff"
 
 res := ff.Map(strArr, strings.ToUpper).Do()
 ```
-  
-To see some code snippets, check out the [Examples](#examples).
 
-## Basic information
+Want to poke at real code? Jump straight to the [Examples](#examples).
 
-The `Piper` (or `PiperNoLen` for pipes with undetermined lengths) is an interface that represents a *lazy-evaluated sequence of data*. The `Piper` interface provides a set of methods that can be used to transform, filter, collect and analyze data in the sequence. 
-Every pipe can be conveniently copied at every moment just by equating it to a variable.  Some methods (as `Take` or `Gen`) lead from `PiperNoLen` to `Piper` interface making wider method range available. 
+## How it works
 
-## Supported functions list
+The whole library revolves around two interfaces:
 
-The following functions can be used to create a new `Pipe` (this is how I call the inner representation of a sequence ofelements and a sequence operations on them): 
-#### Constructors
-- :frog: `Slice([]T) Piper`: creates a `Pipe` of a given type `T` from a slice, *the length is known*.
-- :frog: `Func(func(i int) (T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
-- :frog: `Fn(func(i int) (T)) PiperNL`: creates a `Pipe` of type `T` from a function. The function should return the value of the element at the `i`th position in the `Pipe`; to be able to skip values use `Func`.
-- :frog: `FuncP(func(i int) (*T, bool)) PiperNL`: creates a `Pipe` of type `T` from a function. The function returns a pointer to an element which is considered to be at `i`th position in the `Pipe`, as well as a boolean indicating whether the element should be included (`true`) or skipped (`false`), *the length is unknown*.
-- :frog: `Cycle(data []T) PiperNL`: creates a new `Pipe` that cycles through the elements of the provided slice indefinitely. *The length is unknown.*
-- :frog: `Range(start, end, step T) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` from `start` to `end` (exclusive) with a fixed `step` value between each element. `T` can be any numeric type, such as `int`, `float32`, or `float64`. *The length is known.*
-- :frog: `Repeat(x T, n int) Piper`: creates a new `Pipe` that generates a sequence of values of type `T` and value x with the length of n. *The length is known.*
+- **`Piper[T]`** -- a *lazy* sequence whose **length is known** (a slice, a `Range`, a `Repeat`...). It can do everything.
+- **`PiperNoLen[T]`** -- a *lazy* sequence whose **length is unknown yet** (a `Func`, a `Cycle`, ...). It can do almost everything, plus it can *become* a `Piper` via [`Take` or `Gen`](#set-the-pipe-length-take--gen).
 
-#### Set Pipe length
-- :frog: `Take(n int) Piper`: if it's a `Func`-made `Pipe`, expects `n` values to be eventually returned. *Transforms unknown length to known.*
-- :frog: `Gen(n int) Piper`: if it's a `Func`-made `Pipe`, generates a sequence from `[0, n)` and applies the function to it. *Transforms unknown length to known.*
+Both are lazy: nothing actually runs until you call a terminal method (`Do`, `Reduce`, `Sum`, `Count`, `First`, `Any`...). Until then you're just describing the pipeline.
 
+Because a pipe is a value, you can copy it around freely -- assign it to a variable, reuse it, branch it:
 
-#### Split evaluation into *n* goroutines
-- :frog: `Parallel(n int) Pipe`: sets the number of goroutines to be executed on (1 by default). This function can be used to specify the level of parallelism in the pipeline. *Availabble for unknown length.*
+```go
+base := pipe.Slice(a).Map(square)
+evens := base.Filter(isEven)
+odds  := base.Filter(isOdd) // `base` is untouched
+```
 
-#### Transform data
-- :frog: `Map(fn func(x T) T) Pipe`: applies the function `fn` to every element of the `Pipe` and returns a new `Pipe` with the transformed data. *Available for unknown length.*
-- :frog: `Filter(fn func(x *T) bool) Pipe`: applies the predicate function `fn` to every element of the `Pipe` and returns a new `Pipe` with only the elements that satisfy the predicate. *Available for unknown length.*
-- :frog: `MapFilter(fn func(T) (T, bool)) Piper[T]`: applies given function to each element of the underlying slice. If the second returning value of `fn` is *false*, the element is skipped (may be **useful for error handling**).
-- :frog: `Reduce(fn func(x, y *T) T) *T`: applies the binary function `fn` to the elements of the `Pipe` and returns a single value that is the result of the reduction. Returns `nil` if the `Pipe` was empty before reduction.
-- :frog: `Sum(plus func(x, y *T) T) T`: makes parallel reduce with associative function `plus`.
-- :frog: `Sort(less func(x, y *T) bool) Pipe`: sorts the elements of the `Pipe` using the provided `less` function as the comparison function.
+Operations can change the element type too, but two flavors exist:
+- `Pipe.Map` keeps the **same** type (`func(T) T`) -- cheap and easy.
+- `pipe.Map` (prefix) / `ff.Map` change the **type** (`func(SrcT) DstT`) -- see [Prefix helpers](#prefix-helpers).
 
-#### Retrieve a single element or perform a boolean check
-- :frog: `Any() T`: returns a random element existing in the pipe. *Available for unknown length.*
-- :frog: `First() T`: returns the first element of the `Pipe`, or `nil` if the `Pipe` is empty. *Available for unknown length.*
-- :frog: `Count() int`: returns the number of elements in the `Pipe`. It does not allocate memory for the elements, but instead simply returns the number of elements in the `Pipe`.
+## API reference
 
-#### Evaluate the pipeline
-- :frog: `Do() []T` function is used to **execute** the pipeline and **return the resulting slice of data**. This function should be called at the end of the pipeline to retrieve the final result.
+Every bullet below is a real signature -- copy/paste safe.
 
-#### Transform Pipe *from one type to another*
-- :frog: `Erase() Pipe[any]`: returns a pipe where all objects are the objects from the initial `Pipe` but with erased type. Basically for each `x` it returns `any(&x)`. Use `pipe.Collect[T](Piper[any]) PiperT` to collect it back into some type (or `pipe.CollectNL` for slices with length not set yet).
+### Constructors
 
-#### Easy type conversion for Pipe[any]
-- :frog: `pipe.Collect[T](Piper[any]) PiperNoLen[T]`
-- :frog: `pipe.CollectNL[T](PiperNoLen[any]) PiperNoLen[T]`
-This functions takes a Pipe of erased `interface{}` type (which is pretty useful if you have a lot of type conversions along your pipeline and can be achieved by calling `Erase()` on a `Pipe`). Basically, for each element `x` in a sequence `Collect` returns `*(x.(*T))` element.
+- :frog: `Slice([]T) Piper[T]` -- wraps a slice. *Length known.*
+- :frog: `Func(fn func(i int) (T, bool)) PiperNoLen[T]` -- builds a lazy sequence from a function of the index `i`. The bool says whether the value exists (`true`) or should be skipped (`false`). *Length unknown.*
+- :frog: `Fn(fn func(i int) T) PiperNoLen[T]` -- like `Func`, but nothing is ever skipped. *Length unknown.*
+- :frog: `FuncP(fn func(i int) (*T, bool)) PiperNoLen[T]` -- like `Func`, but your function hands back pointers (handy for big structs). *Length unknown.*
+- :frog: `Cycle(a []T) PiperNoLen[T]` -- loops over the slice forever. *Length unknown.*
+- :frog: `Range[T Integer|Float](start, finish, step T) Piper[T]` -- generates `start, start+step, ...` and stops **before** `finish` (i.e. `[start, finish)`). Works for any integer or float. *Length known.*
+- :frog: `Repeat(x T, n int) Piper[T]` -- `x` repeated `n` times. A non-positive `n` gives an empty pipe. *Length known.*
 
-#### Error handling
-- :frog:  `Yeti(yeti) Pipe[T]`:set a `yeti` - an object that will collect errors thrown with `yeti.Yeet(error)`  and will be used to handle them.
-- :frog: `Snag(func(error)) Pipe[T]`: set a function that will handle all errors which have been sent with `yeti.Yeet(error)` to the **last** `yeti` object that was set through `Pipe[T].Yeti(yeti) Pipe[T]` method. 
-Error handling may look pretty uncommon at a first glance. To get better intuition about it you may like to check out [examples](#example-of-simple-error-handling) section.
+### Set the pipe length: Take & Gen
 
-#### To be done
-- :seedling: TBD: `Until(fn func(*T) bool)`: if it's a `Func`-made `Pipe`, it evaluates one-by-one until fn return false. *This feature may require some new `Pipe` interfaces, since it is applicable only in a context of a single thread*
-- :seedling: *TBD*: `IsAny() bool`: returns `true` if the `Pipe` contains any elements, and `false` otherwise. *Available for unknown length.*
-- :seedling: *TBD*: `MoreThan(n int) bool`: returns `true` if the `Pipe` contains more than `n` elements, and `false` otherwise. *Available for unknown length.*
-- :seedling: *TBD*: `Reverse() *Pipe`: reverses the underlying slice.
+These two only exist on `PiperNoLen` and are how you turn an unknown-length pipe into a `Piper`. Only the **first** `Take`/`Gen` in a chain counts.
 
-In addition to the functions described above, the `pipe` package also provides several utility functions that can be used to create common types of `Pipe`s, such as `Range`, `Repeat`, and `Cycle`. These functions can be useful for creating `Pipe`s of data that follow a certain pattern or sequence.
+- :frog: `Take(n int) Piper[T]` -- "I want `n` values in the end". FuncFrog keeps evaluating until it has collected `n` *surviving* values. *Length becomes known.*
+- :frog: `Gen(n int) Piper[T]` -- "evaluate the first `n` positions". Note the difference: it evaluates positions `[0, n)` and your `Filter` can still drop some, so the result may be shorter than `n`. *Length becomes known.*
 
-Also it is highly recommended to get familiarize with the `pipies` package, containing some useful *predecates*, *comparators* and *accumulators*.
+### Go parallel
 
-### Using prefix `Pipe` to transform `Pipe` type
+- :frog: `Parallel(n uint16) Piper[T]` (and `PiperNoLen[T]`) -- split the work across `n` goroutines. Default is `1`. Only the **first** `Parallel` in a chain is applied.
 
-You may found that using `Erase()` is not so convenient as it makes you to do some pointer conversions. Fortunately there is another way to convert a pipe type: use functions from `pipe/prefixpipe.go`. These functions takes `Piper` or `PiperNoLen` as a first parameter and function to apply as the second and returns a resulting pipe (or the result itself) of a destination type.
+### Transforming data
 
-#### Prefix pipe functinos
+- :frog: `Map(fn func(T) T) Piper[T]` -- apply `fn` to every element (same type in, same type out).
+- :frog: `Filter(fn func(*T) bool) Piper[T]` -- keep only the elements for which `fn` returns `true`. (**Tip:** the argument is a `*T`, so remember to dereference -- `*x`.)
+- :frog: `MapFilter(fn func(T) (T, bool)) Piper[T]` -- map and filter in one pass. If the returned bool is `false`, the value is dropped. Great for "skip this one" cases, [including error handling](#simple-error-handling).
+- :frog: `Sort(less func(*T, *T) bool) Piper[T]` -- sort the current values. **Requires a known length**, so `Gen`/`Slice`/`Range`/`Repeat` first.
+- :frog: `Reduce(fn func(*T, *T) T) *T` -- fold the whole pipe into a single value, left to right. Returns `nil` for an empty pipe. (*Postfix* reduce: type stays the same.)
+- :frog: `Sum(plus func(*T, *T) T) T` -- like `Reduce` but **parallel-friendly**, so it wants an associative function (`+`, `*`, `min`, `max`...).
 
-- :frog: `pipe.Map(Piper[SrcT], func(x SrcT) DstT) Piper[DstT] ` - applies *map* from one type to another for the `Pipe` with **known** length.
-- :frog: `pipe.MapNL(PiperNoLen[SrcT], func(x SrcT) DstT) PiperNoLen[DstT] ` - applies *map* from one type to another for the `Pipe` with **unknown** length.
-- :frog: `Reduce(Piper[SrcT], func(*DstT, *SrcT) DstT, initVal ...DstT)` - applies *reduce* operation on `Pipe` of type `SrcT` and returns result of type `DstT`. `initVal` is an optional parameter to **initialize** a value that should be used on the **first steps** of reduce.
+### Grabbing a single value
 
-### Using `ff` package to write shortened pipes
+- :frog: `First() *T` -- the first element, or `nil` if there is nothing (yes, it's a pointer).
+- :frog: `Any() *T` -- *some* (effectively random under parallelism) element, or `nil` if empty.
+- :frog: `Count() int` -- how many elements the pipe would produce. It still runs the pipeline, but skips building the result slice -- so it's the memory-light way to ask "how many?".
 
-Sometimes you need just to apply a function. Creating a pipe using `pipe.Slice` and then call `Map` looks a little bit verbose, especially when you need to call `Map` or `Reduce` from one type to another. The solution for it is `funcfrog/pkg/ff` package. It contains shortened `Map` and `Reduce` functions which can be called directly with a slice as a first parameter.
+### Running the pipe: Do & Promices
 
-- :frog: `Map([]SrcT, func(SrcT) DstT) pipe.Piper[DstT]` - applies sent function to a slice, returns a `Pipe` of resulting type
-- :frog: `Reduce([]SrcT, func(*DstT, *SrcT) DstT, initVal ...DstT) DstT` - applies *reduce* operation on a slice and returns the result of type `DstT`. `initVal` is an optional parameter to **initialize** a value that should be used on the **first steps** of reduce.
+- :frog: `Do() []T` -- **execute** everything and return the resulting slice. This is the usual "end of pipeline" call.
+- :frog: `Promices() []func() (T, bool)` -- instead of running now, get one lazy thunk per position. Each thunk returns `(value, ok)`; `ok == true` means "this value exists, append it". Handy if you want to schedule the work yourself. (The funny spelling is intentional -- they're "promices" :)
 
-### Look for useful functions in `Pipies` package
+### Erase & Collect
 
-Some of the functions that are sent to `Map`, `Filter` or `Reduce` (or other `Pipe` methods) are pretty common. Also there is a common comparator for any integers and floats for a `Sort` method. 
+Sometimes your pipeline needs to lug around different types at different steps. `Erase` gives up the compile-time type so you can work with `any`, and `Collect` puts a type back on.
+
+- :frog: `Erase() Piper[any]` (or `PiperNoLen[any]`) -- every element becomes `any` (backed by a pointer to the original value).
+- :frog: `pipe.Collect[DstT](Piper[any]) Piper[DstT]` -- pull a `Piper[any]` back into a concrete `Piper[DstT]`.
+- :frog: `pipe.CollectNL[DstT](PiperNoLen[any]) PiperNoLen[DstT]` -- the same for a pipe with no known length.
+
+A gotcha worth knowing: `Collect[DstT]` asserts each stored `any` to `*DstT`. So whatever you put into an erased pipe must be a **pointer** to the type you're collecting back -- an `Erase()` of `Piper[int]` hands you `any` holding a `*int`, so you'd `Collect[int]`.
+
+### Error handling: Yeti & Snag
+
+This part is a little unusual, so read slowly.
+
+- :frog: `Yeti(y internalpipe.YeetSnag) Piper[T]` -- register a *yeti* on the pipe. A yeti is a little error collector you create with `pipe.NewYeti()`.
+- :frog: `NewYeti() internalpipe.YeetSnag` -- makes a yeti. It has `y.Yeet(err)` to throw an error into it.
+- :frog: `Snag(h func(error)) Piper[T]` -- attach a handler that receives whatever got `Yeet`-ed into the **last** yeti that was set via `Yeti`.
+
+In practice: create a yeti, register it with `Yeti(y)` **before** you start yeeting at it, yeet errors from inside your functions, and let `Snag` deal with them at the end. See the [examples](#simple-error-handling) -- they make it click way faster than this paragraph.
+
+### Ready-made helpers: pipies
+
+Package `pipies` has the little functions you'd otherwise rewrite every time:
+
+- :frog: `Sum[T]` -- a reducer: `func(a, b *T) T { return *a + *b }`. Works for numbers and `~string`.
+- :frog: `Less[T]` -- the everyday comparator for `Sort`.
+- :frog: **Predicates:** `NotNil`, `IsNil`, `NotZero`.
+- :frog: **Predicate builders:** `Eq(x)`, `NotEq(x)`, `LessThan(x)`, `Distinct(getKey)`.
+- :frog: **Negation:** `Not(fn)`, `Nott(fn)`, `Nottt(fn)` -- flip a boolean-returning function with 1, 2, or 3 args (hence the extra t's).
+
+### Prefix helpers
+
+`Erase`/`Collect` work, but all those pointer conversions are annoying. The prefix functions in `pkg/pipe` are the pleasant way to change a pipe's type: pass the pipe first, the function second.
+
+- :frog: `pipe.Map(Piper[SrcT], func(SrcT) DstT) Piper[DstT]` -- map + change type, known length.
+- :frog: `pipe.MapNL(PiperNoLen[SrcT], func(SrcT) DstT) PiperNoLen[DstT]` -- same, unknown length.
+- :frog: `pipe.MapFilter(Piper[SrcT], func(SrcT) (DstT, bool)) Piper[DstT]` -- map + filter + change type, known length.
+- :frog: `pipe.MapFilterNL(PiperNoLen[SrcT], func(SrcT) (DstT, bool)) PiperNoLen[DstT]` -- same, unknown length.
+- :frog: `pipe.Reduce(Piper[SrcT], func(*DstT, *SrcT) DstT, initVal ...DstT) DstT` -- prefix reduce that can also change type. Mind the argument order: the accumulator (`*DstT`) comes first, then the current element (`*SrcT`). `initVal` is optional and seeds the fold.
+
+### The ff shortcuts
+
+When a whole pipe is overkill and you just want to run one function over a slice, `pkg/ff` has one-liners:
+
+- :frog: `ff.Map([]SrcT, func(SrcT) DstT) pipe.Piper[DstT]`
+- :frog: `ff.MapFilter([]SrcT, func(SrcT) (DstT, bool)) pipe.Piper[DstT]`
+- :frog: `ff.Filter([]SrcT, func(*SrcT) bool) pipe.Piper[SrcT]`
+- :frog: `ff.Reduce([]SrcT, func(*DstT, *SrcT) DstT, initVal ...DstT) DstT`
+- :frog: `ff.Compose(fn1 func(T1) T2, fn2 func(T2) T3) func(T1) T3` — glue two functions into one.
+
+### Still cooking (TBD)
+
+These aren't in yet -- they're on the wishlist:
+
+- :seedling: `Until(fn func(*T) bool)` -- evaluate one-by-one until `fn` says stop. (Single-threaded only by nature.)
+- :seedling: `IsAny() bool` -- does the pipe have *any* element?
+- :seedling: `MoreThan(n int) bool` -- does it have *more than* `n`?
+- :seedling: `Reverse() Pipe` -- reverse the underlying slice.
 
 ## Examples
 
-### Basic example:
+### Basic
 
 ```go
 res := pipe.Slice(a).
@@ -182,7 +224,7 @@ res := pipe.Slice(a).
 	Do()
 ```
 
-### Example using `Func` and `Take`:
+### Func + Take
 
 ```go
 p := pipe.Func(func(i int) (v int, b bool) {
@@ -193,7 +235,9 @@ p := pipe.Func(func(i int) (v int, b bool) {
 // p will be [0, 1, 4, 9, 16]
 ```
 
-### Example using `Func` and `Gen`:
+`Take(5)` asks for 5 values, and the first five the function yields are `0,1,4,9,16`.
+
+### Func + Gen
 
 ```go
 p := pipe.Func(func(i int) (v int, b bool) {
@@ -204,231 +248,252 @@ p := pipe.Func(func(i int) (v int, b bool) {
 // p will be [0, 1, 4, 9, 16]
 ```
 
-### Example difference between `Take` and `Gen`:
+`Gen(5)` evaluates positions `0..4`, which gives the same result here.
 
-Gen(n) generates the sequence of n elements and applies all pipeline afterwards.
+### Take vs Gen
+
+**`Gen(n)`** evaluates the first `n` positions, then the filters get their say -- so you can end up with **fewer than `n`** elements:
+
 ```go
-
 p := pipe.Func(func(i int) (v int, b bool) {
-        return i, true
-    }).
-    Filter(func(x *int) bool { return (*x) % 2 == 0})
-    Gen(10).
-    Do()
-// p will be [0, 2, 4]
+	return i, true
+}).
+	Filter(func(x *int) bool { return *x%2 == 0 }).
+	Gen(10).
+	Do()
+// p will be [0, 2, 4, 6, 8]
 ```
 
-Take(n) expects the result to be of n length.
+All ten positions `0..9` are evaluated, but only the evens survive - 5 values, not 10.
+
+**`Take(n)`** keeps going until `n` values actually make it through the filter:
+
 ```go
 p := pipe.Func(func(i int) (v int, b bool) {
-        return i, true
-    }).
-    Filter(func(x *int) bool { return (*x) % 2 == 0})
-    Take(10).
-    Do()
+	return i, true
+}).
+	Filter(func(x *int) bool { return *x%2 == 0 }).
+	Take(10).
+	Do()
 // p will be [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
 ```
 
-Watch out, if Take value is set uncarefully, it may jam the whole pipenile.
+And here's the trap: if `Take` asks for more values than your source can ever produce, it will spin all the way up to `math.MaxInt` and then panic.
+
 ```go
-// DO NOT DO THIS, IT WILL JAM
+// DO NOT DO THIS - it will grind until math.MaxInt and then panic
 p := pipe.Func(func(i int) (v int, b bool) {
-        return i, i < 10 // only 10 first values are not skipped
-    }).
-    Take(11). // we can't get any 11th value ever
-    Parallel(4). // why not
-    Do()
-// Do() will try to evaluate the 11th value in 4 goroutines until it reaches maximum int value
+	return i, i < 10 // only the first 10 values survive
+}).
+	Take(11). // ...but we ask for an 11th, which never comes
+	Parallel(4).
+	Do()
+// panic: the limit have been exceeded, but the result is not calculated
 ```
 
-### Example using `Filter` and `Map`:
+### Filter + Map
 
 ```go
 p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}).
-	Filter(func(x *int) bool { return *x % 2 == 0 }).
+	Filter(func(x *int) bool { return *x%2 == 0 }).
 	Map(func(x int) int { return len(strconv.Itoa(x)) }).
 	Do()
 // p will be [1, 1, 1, 1, 2]
 ```
 
-### Example using `Map` and `Reduce`:
+### Map + Reduce
 
-In this example Reduce is used in it's prefix form to be able to convert ints to string. 
+Here `Reduce` is used in its **prefix** form, which lets us fold `int`s down into a `string`:
+
 ```go
 p := pipe.Reduce(
 	pipe.Slice([]int{1, 2, 3, 4, 5}).
 		Map(func(x int) int { return x * x }),
-	func(x, y *int) string { 
-		return strconv.Itoa(*x) + "-" + strconv.Itoa(y)
+	func(x *string, y *int) string {
+		if *x == "" { // first step: the accumulator is still the zero value
+			return strconv.Itoa(*y)
+		}
+		return *x + "-" + strconv.Itoa(*y)
 	},
 )
 // p will be "1-4-9-16-25"
 ```
 
-In this example Reduce is used as usual in it's postfix form.
+And the same thing in the usual **postfix** form:
+
 ```go
-p := pipe.Slice([]stirng{"Hello", "darkness", "my", "old", "friend"}).
-	Map(strings.Title).
-	Reduce(func(x, y *string) string { 
+capitalize := func(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
+
+p := pipe.Slice([]string{"Hello", "darkness", "my", "old", "friend"}).
+	Map(capitalize).
+	Reduce(func(x, y *string) string {
+		if *x == "" {
+			return *y
+		}
 		return *x + " " + *y
 	})
-)
-// p will be "Hello Darkness My Old Friend"
+// *p will be "Hello Darkness My Old Friend"  (Reduce returns a *string)
 ```
 
-### Example of `Map` and `Reduce` with the underlying array type change:
+### Map + Reduce with a type change
+
+Changing the element type *and* folding, using the prefix `Map` and `Reduce`:
 
 ```go
-p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9})
-strP := pipe.Map(p, func(x int) string { return strconv.Itoa(x) })
-result := pipe.Reduce(strP, func(x, y *string) int { return len(*x) + len(*y) }).Do()
-// result will be 45
+p := pipe.Slice([]int{1, 2, 3, 4, 5, 6, 7, 8, 9})     // Piper[int]
+strP := pipe.Map(p, strconv.Itoa)                       // Piper[string]
+result := pipe.Reduce(strP, func(x *int, y *string) int { return *x + len(*y) })
+// result will be 45 (nine single-digit strings, each contributing 1)
 ```
 
-### Example using `Sort`:
+### Sort
 
 ```go
 p := pipe.Func(func(i int) (float32, bool) {
-	return 100500-float32(i) * 0.9, true
+	return 100500 - float32(i)*0.9, true
 }).
 	Map(func(x float32) float32 { return x * x * 0.1 }).
-	Gen(100500). // Sort is only availavle on pipes with known length
-	Sort(pipies.Less[float32]). // pipies.Less(x, y *T) bool is available to all comparables
-    // check out pipies package to find more usefull things
+	Gen(100500).                // Sort needs a known length
+	Sort(pipies.Less[float32]). // pipies.Less is a ready-made comparator
 	Parallel(12).
 	Do()
-// p will contain the elements sorted in ascending order
+// p holds the elements sorted in ascending order
 ```
 
-### Example of infine sequence generation:
+Check the `pipies` package for more handy predicates and comparators.
 
-Here is an example of generating an infinite sequence of Fibonacci: 
+### An infinite sequence
+
+`Func` can be stateful, so you can describe a sequence that never ends -- here's a lazy Fibonacci generator. Each value is stashed in a one-slot channel so the next call can find it. To keep the order sane, let it run on a single goroutine (the default) and cap it with `Take`:
 
 ```go
-var fib []chan int
+fib := make([]chan int, 60)
+for i := range fib {
+	fib[i] = make(chan int, 1)
+}
+
 p := pipe.Func(func(i int) (int, bool) {
 	if i < 2 {
 		fib[i] <- i
 		return i, true
 	}
-	p1 := <-fib[i-1]; fib[i-1] <- p1
-	p2 := <-fib[i-2]; fib[i-2] <- p2
-	
+	p1, p2 := <-fib[i-1], <-fib[i-2]
+	fib[i-1], fib[i-2] = p1, p2 // put them back for the next call
 	fib[i] <- p1 + p2
 	return p1 + p2, true
-}).Parallel(20)
+}).Take(60) // grab the first 60 numbers
 ```
 
-To generate a specific number of values, you can use the `Take` or `Gen` method: 
+Once you have a `Piper`, accumulate away:
 
 ```go
-// fill the array first
-fib = make([]chan int, 60)
-for i := range fib { fib[i] = make(chan int, 1) }
-// do the Take
-p = p.Take(60)
+sum := p.Sum(pipies.Sum[int])
+// sum is the sum of the first 60 Fibonacci numbers
 ```
 
-To accumulate the elements of the `Pipe`, you can use the `Reduce` or `Sum` method:
-
-```go
-sum := p.Sum(pipe.Sum[float32])
-//also you can: sum := p.Reduce(func(x, y *float32) float32 { return *x + *y}) 
-// sum will be the sum of the first 65000 random float32 values greater than 0.5
-```
-
-### Example using `Range` and `Map`:
+### Range + Map
 
 ```go
 p := pipe.Range(10, 20, 2).Map(func(x int) int { return x * x }).Do()
 // p will be [100, 144, 196, 256, 324]
 ```
 
-### Example using `Repeat` and `Map`:
+### Repeat + Map
 
 ```go
 p := pipe.Repeat("hello", 5).Map(strings.ToUpper).Do()
 // p will be ["HELLO", "HELLO", "HELLO", "HELLO", "HELLO"]
 ```
-Here is an example how you can handle multiple function returning error call this way:
+
+Handy for calling a bunch of error-returning functions and collecting the errors:
 
 ```go
 func foo() error {
-    // <...>
-    return nil
+	// <...>
+	return nil
 }
 
 errs := pipe.Map(
-            pipe.Repeat(foo, 50),
-            func(f func() error) error { return f() },
-        ).Do()
+	pipe.Repeat(foo, 50),
+	func(f func() error) error { return f() },
+).Do()
 
 for _, e := range errs {
-    if e != nil {
-        log.Err(e)
-    }
+	if e != nil {
+		log.Println(e)
+	}
 }
 ```
 
-### Example using `Cycle` and `Filter`
+### Cycle + Filter
 
 ```go
-p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x *int) bool { return *x % 2 == 0 }).Take(4).Do()
+p := pipe.Cycle([]int{1, 2, 3}).Filter(func(x *int) bool { return *x%2 == 0 }).Take(4).Do()
 // p will be [2, 2, 2, 2]
 ```
 
-### Example using `Erase` and `Collect`
+### Erase + Collect
+
+Wiping the type to `any`, turning ints into a custom struct, then collecting back:
 
 ```go
-p := pipe.Slice([]int{1, 2, 3}).
-Erase().
-Map(func(x any) any {
-    i := *(x.(*int))
-    return &MyStruct{Weight: i}
-}).Filter(x *any) bool {
-    return (*x).(*MyStruct).Weight > 10
+type MyStruct struct {
+	Weight int
 }
+
+p := pipe.Slice([]int{1, 2, 3}).
+	Erase(). // every element is now `any` (backed by a *int)
+	Map(func(x any) any {
+		return &MyStruct{Weight: *(x.(*int)) * 100} // store a *MyStruct
+	}).
+	Filter(func(x *any) bool {
+		return (*x).(*MyStruct).Weight > 100
+	})
+
 ms := pipe.Collect[MyStruct](p).Parallel(10).Do()
+// ms will be []MyStruct{{Weight: 200}, {Weight: 300}}
 ```
 
-
-
-### Example of simple error handling
+### Simple error handling
 
 ```go
 y := pipe.NewYeti()
+
 p := pipe.Range[int](-10, 10, 1).
-	Yeti(y). // it's important to set yeti before yeeting, or the handle process will not be called
+	Yeti(y). // register the yeti before anything gets yeeted at it
 	MapFilter(func(x int) (int, bool) {
 		if x == 0 {
-			y.Yeet(errors.New("zero devision")) // yeet the error
-			return 0, false                     // use MapFilter to filter out this value
+			y.Yeet(errors.New("zero division")) // throw the error
+			return 0, false                     // and skip this value
 		}
 		return int(256.0 / float64(x)), true
-	}).Snag(func(err error) {
-	fmt.Println("oopsie-doopsie: ", err)
-}).Do()
+	}).
+	Snag(func(err error) {
+		fmt.Println("oopsie-doopsie:", err)
+	}).
+	Do()
 
-fmt.Println("p is: ", p)
-/////////// output is:
-// oopsie-doopsie:  zero devision
-// p is:  [-25 -28 -32 -36 -42 -51 -64 -85 -128 -256 256 128 85 64 51 42 36 32 28]
+fmt.Println("p is:", p)
+// oopsie-doopsie: zero division
+// p is: [-25 -28 -32 -36 -42 -51 -64 -85 -128 -256 256 128 85 64 51 42 36 32 28]
 ```
 
-This example demonstrates generating a set of values 256/i, where i ranges from -10 to 9 (excluding 10) with a step of 1. To handle division by zero, the library provides an error handling mechanism.
+This builds `256/i` for `i` from `-10` to `9`. The `0` would explode, so we `Yeet` the error and let `MapFilter` drop that value.
 
-To begin, you need to create an error handler using the `pipe.NewYeti()` function. Then, register the error handler by calling the `Yeti(yeti)` method on your `pipe` object. This registered `yeti` will be the **last** error handler used in the `pipe` chain.
+The flow is:
 
-To **yeet** an error, you can use `y.Yeet(error)` from the registered `yeti` object.
+1. `pipe.NewYeti()` -- make an error collector.
+2. `Yeti(y)` -- register it on the pipe. **Do this before yeeting**, or nothing will catch your error.
+3. `y.Yeet(err)` -- throw an error from inside your function.
+4. `Snag(handler)` -- attach the function that deals with whatever was yeeted. You can stack several `Snag`s; they all go to the **last** yeti registered with `Yeti`.
 
-To **handle** the yeeted error, use the `Snag(func(error))` method, which sets up an error handling function. You can set up multiple `Snag` functions, but all of them will consider the last `yeti` object set with the `Yeti(yeti)` method.
+### Multiple error handling
 
-This is a simple example of how to handle basic errors. Below, you will find a more realistic example of error handling in a real-life scenario.
-
-### Example of multiple error handling
+Different stages of a pipeline can have their own yetis and handlers -- nice for a real user-enrichment flow:
 
 ```go
 y1, y2 := pipe.NewYeti(), pipe.NewYeti()
+
 users := pipe.Func(func(i int) (*domain.DomObj, bool) {
 	domObj, err := uc.GetUser(i)
 	if err != nil {
@@ -437,56 +502,45 @@ users := pipe.Func(func(i int) (*domain.DomObj, bool) {
 	}
 	return domObj, true
 }).
-	Yeti(y1).Snag(handleGetUserErr). // suppose we have some pre-defined handler
+	Yeti(y1).Snag(handleGetUserErr). // some pre-defined handler
 	MapFilter(func(do *domain.DomObj) (*domain.DomObj, bool) {
 		enriched, err := uc.EnrichUser(do)
 		if err != nil {
+			y2.Yeet(err)
 			return nil, false
 		}
 		return enriched, true
-    }).Yeti(y2).Snag(handleEnrichUserErr).
+	}).
+	Yeti(y2).Snag(handleEnrichUserErr).
+	Gen(userCount). // cap it, since Func is endless on its own
 	Do()
 ```
 
-The full working code with samples of handlers and implementations of usecase functions can be found at: https://go.dev/play/p/YGtM-OeMWqu.
+There are two yetis here: `y1` guards `GetUser`, `y2` guards `EnrichUser`. Errors from each stage are yeeted into their own yeti and handed to their own `Snag`. A runnable version (with stub handlers and usecase functions) lives at https://go.dev/play/p/YGtM-OeMWqu.
 
+## Performance
 
-This example demonstrates how multiple error handling functions can be set up at different stages of the data processing pipeline to handle errors specific to each stage. 
+There's a ready-made benchmark suite in `perf/`. To run it:
 
-Lets break down what is happening here. 
+```
+cd perf/
+make
+```
 
-In this code fragment, there are two instances of `pipe.Yeti` created: `y1` and `y2`. These `Yeti` instances are used to handle errors at different stages of the data processing pipeline.
+It compares FuncFrog against plain `for` loops for `Map`, `Filter`, `Reduce`, `Any` and friends. On a single goroutine you're basically at `for`-loop speed; more goroutines = more win. Numbers depend on your machine, so run it yourself.
 
-Within the `pipe.Func` operation, there are error-handling statements. When calling `uc.GetUser(i)`, if an error occurs, it is *yeeted* using `y1.Yeet(err)`, and the function returns `nil` and `false` to indicate the failure.
+## Is this stable?
 
-The `Yeti(y1).Snag(handleGetUserErr)` statement sets up an error handling function `handleGetUserErr` to handle the error thrown by `uc.GetUser(i)`. This function is defined elsewhere and specifies how to handle the error.
+Yep! **Stable since v1.0.0**. Everything listed above is covered by unit tests. The stuff under [Still cooking](#still-cooking-tbd) will land as described and get tests before it's called stable.
 
-After that, the `MapFilter` operation is performed on the resulting `*domain.DomObj`. If the `uc.EnrichUser(do)` operation encounters an error, it returns `nil` and `false` to filter out the value.
+If I ever change a method signature, the **major version goes up**.
 
-The `Yeti(y2).Snag(handleEnrichUserErr)` statement sets up another error handling function `handleEnrichUserErr` to handle the error thrown by `uc.EnrichUser(do)`.
+## Contributing
 
-Finally, the `Do()` method executes the entire pipeline and assigns the result to the `users` variable.
-
-
-## Is this package stable?
-
-Yes it finally is **stable since v1.0.0**! All listed functionality is **fully covered** by unit-tests.
-Functionality marked as TBD will be implemented as it described in the README and covered by unit-tests to be delivered stable. 
-
-If there will be any method **signature changes**, the **major version** will be incremented. 
-
-## Contributions
-
-I will accept any pr's with the functionality marked as TBD. 
-
-Also I will accept any sane unit-tests. 
-
-Bugfixes. 
-
-You are welcome to create any issues and connect to me via email. 
+PRs are welcome, especially for the [TBD](#still-cooking-tbd) features. Same goes for sane unit tests and good bug reports. Open an issue anytime, or email me.
 
 ## What's next?
 
-I hope to provide some roadmap of the project soon. 
+A proper roadmap is coming. Until then -- fork it, play with it, and enjoy.
 
-Feel free to fork, inspire and use! 
+Happy piping! :frog:
